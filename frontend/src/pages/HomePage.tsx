@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import type { PhotoItem } from '../context/ReviewContext';
 import { getPhotosGroupedByDate, deletePhoto, getAllPhotos, countPhotos, isLoggedIn } from '../utils/indexedDB';
 import { api } from '../utils/api';
+import { generateUUID } from '../utils/uuid';
 
 function fileToDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -160,7 +161,7 @@ export default function HomePage() {
     for (const file of imageFiles) {
       const dataUrl = await fileToDataURL(file);
       photoItems.push({
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         dataUrl,
       });
     }
