@@ -269,24 +269,17 @@ textarea::placeholder {
 .dot-loader::before,
 .dot-loader::after {
   content: "";
-}
-
-.dot-loader::before,
-.dot-loader::after,
-.dot-loader {
+  display: block;
   width: 10px;
   height: 10px;
-}
-
-.dot-loader::before,
-.dot-loader::after {
-  display: block;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-mid));
   animation: dotBounce 1.2s ease-in-out infinite;
 }
 
-.dot-loader {
+.dot-loader__dot {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--color-primary-mid), var(--color-primary-end));
   animation: dotBounce 1.2s ease-in-out 0.2s infinite;

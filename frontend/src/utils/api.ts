@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/scenelingo-service';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8022/scenelingo-service';
 
 function getToken(): string | null {
   return localStorage.getItem('scene_lingo_token');
