@@ -12,6 +12,7 @@ export interface RecognizedObject {
   name: string;
   bbox: [number, number, number, number];
   phonetic: string;
+  chinese: string;
   examples: string[];
 }
 

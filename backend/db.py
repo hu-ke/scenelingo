@@ -1,6 +1,8 @@
 import os
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
+from dotenv import load_dotenv
+load_dotenv()
 MONGODB_URL = os.environ.get("MONGODB_URL", "")
 
 db: AsyncIOMotorDatabase | None = None

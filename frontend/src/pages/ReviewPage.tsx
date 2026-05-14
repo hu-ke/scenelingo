@@ -33,6 +33,11 @@ function WordCard({ obj }: { obj: RecognizedObject }) {
       <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-text)' }}>
         {obj.name}
       </div>
+      {obj.chinese && (
+        <div style={{ fontSize: '0.85rem', color: 'var(--color-primary-mid)', fontWeight: 500 }}>
+          {obj.chinese}
+        </div>
+      )}
       <div style={{ fontSize: '0.75rem', color: '#888' }}>
         {obj.phonetic || ''}
       </div>
@@ -111,9 +116,14 @@ export default function ReviewPage() {
   useEffect(() => {
     if (photos.length > 0 && currentIndex < photos.length && lastRecognizedRef.current !== currentIndex) {
       lastRecognizedRef.current = currentIndex;
+      const photo = photos[currentIndex];
+      if (photo?.objects && photo.objects.length > 0) {
+        dispatch({ type: 'setCurrentObjects', objects: photo.objects });
+        return;
+      }
       recognizeImage();
     }
-  }, [currentIndex, photos.length, recognizeImage]);
+  }, [currentIndex, photos.length, recognizeImage, photos, dispatch]);
 
   const handleSave = useCallback(async () => {
     if (!canvasRef.current) return;

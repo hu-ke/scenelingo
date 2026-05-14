@@ -108,7 +108,7 @@ async def recognize(image: UploadFile):
                         },
                         {
                             "type": "text",
-                            "text": "Please identify only the obvious and prominent objects in the image. Each object should contain name (object name in English), phonetic (the English phonetic transcription of the word, e.g. \"/ˈæp.l/\"), bbox (bounding box coordinates), and examples (an array of 2 simple English example sentences using the word). The bbox format is [x1, y1, x2, y2], with coordinate values normalized to the 0-1000 range. Return only a JSON array with no other text. Format example: [{\"name\": \"apple\", \"phonetic\": \"/ˈæp.l/\", \"bbox\": [100, 200, 300, 400], \"examples\": [\"I ate a red apple.\", \"The apple fell from the tree.\"]}]",
+                            "text": "Please identify only the obvious and prominent objects in the image. Each object should contain name (object name in English), phonetic (the English phonetic transcription of the word, e.g. \"/ˈæp.l/\"), chinese (the Chinese translation of the word, e.g. \"苹果\"), bbox (bounding box coordinates), and examples (an array of 2 simple English example sentences using the word). The bbox format is [x1, y1, x2, y2], with coordinate values normalized to the 0-1000 range. Return only a JSON array with no other text. Format example: [{\"name\": \"apple\", \"phonetic\": \"/ˈæp.l/\", \"chinese\": \"苹果\", \"bbox\": [100, 200, 300, 400], \"examples\": [\"I ate a red apple.\", \"The apple fell from the tree.\"]}]",
                         },
                     ],
                 }

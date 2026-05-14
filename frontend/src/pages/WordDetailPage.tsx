@@ -10,6 +10,7 @@ export default function WordDetailPage() {
   const word = state.wordDetailWord;
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [phonetic, setPhonetic] = useState<string>('');
+  const [chinese, setChinese] = useState<string>('');
   const [examples, setExamples] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [mastered, setMastered] = useState(false);
@@ -54,6 +55,7 @@ export default function WordDetailPage() {
 
         // Extract phonetic and examples from the first matching object that has them
         let foundPhonetic = '';
+        let foundChinese = '';
         let foundExamples: string[] = [];
 
         for (const photo of matchingPhotos) {
@@ -64,20 +66,24 @@ export default function WordDetailPage() {
             if (!foundPhonetic && matchedObj.phonetic) {
               foundPhonetic = matchedObj.phonetic;
             }
+            if (!foundChinese && matchedObj.chinese) {
+              foundChinese = matchedObj.chinese;
+            }
             if (foundExamples.length === 0 && matchedObj.examples?.length > 0) {
               foundExamples = matchedObj.examples;
             }
-            // Stop early if we already have both
-            if (foundPhonetic && foundExamples.length > 0) break;
+            if (foundPhonetic && foundChinese && foundExamples.length > 0) break;
           }
         }
 
         setPhotos(matchingPhotos);
         setPhonetic(foundPhonetic);
+        setChinese(foundChinese);
         setExamples(foundExamples);
       } catch {
         setPhotos([]);
         setPhonetic('');
+        setChinese('');
         setExamples([]);
       } finally {
         if (!cancelled) setLoading(false);
@@ -250,6 +256,19 @@ export default function WordDetailPage() {
         >
           {word}
         </div>
+
+        {chinese && (
+          <div
+            style={{
+              fontSize: '1.2rem',
+              fontWeight: 600,
+              color: 'var(--color-primary-mid)',
+              marginBottom: '0.2rem',
+            }}
+          >
+            {chinese}
+          </div>
+        )}
 
         {phonetic && (
           <div

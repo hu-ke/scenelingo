@@ -80,6 +80,9 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+  width: 100%;
+  overscroll-behavior-x: none;
 }
 
 body {
@@ -88,8 +91,9 @@ body {
   color: var(--color-text);
   line-height: 1.6;
   min-height: 100vh;
-  min-height: 100dvh;
   overflow-x: hidden;
+  width: 100%;
+  position: relative;
 }
 
 #root {
@@ -452,6 +456,7 @@ textarea::placeholder {
   height: 90px;
   background: rgba(255, 255, 255, 0.07);
   border-radius: 50%;
+  pointer-events: none;
 }
 
 .home-header::before {
@@ -463,6 +468,7 @@ textarea::placeholder {
   height: 60px;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 50%;
+  pointer-events: none;
 }
 
 /* ---- 统计行 ---- */
@@ -760,6 +766,9 @@ textarea::placeholder {
   width: 16px;
   height: 16px;
   min-height: 16px;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
   cursor: pointer;
   accent-color: var(--color-primary-start);
 }
