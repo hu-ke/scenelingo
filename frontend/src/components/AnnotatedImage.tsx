@@ -191,33 +191,35 @@ const AnnotatedImage = forwardRef<HTMLCanvasElement, Props>(
 
       const img = new Image();
       img.onload = () => {
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
+        const MAX_SIZE = 1200;
+        const canvasScale = Math.min(1, MAX_SIZE / Math.max(img.naturalWidth, img.naturalHeight));
+        canvas.width = Math.round(img.naturalWidth * canvasScale);
+        canvas.height = Math.round(img.naturalHeight * canvasScale);
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
         if (objects.length === 0) {
           bubbleLayoutsRef.current = [];
           return;
         }
 
-        const scaleX = img.naturalWidth / 1000;
-        const scaleY = img.naturalHeight / 1000;
-        const fontSize = Math.max(12, Math.min(16, img.naturalWidth / 40));
-        const phoneticFontSize = Math.max(9, Math.min(12, fontSize * 0.75));
+        const scaleX = canvas.width / 1000;
+        const scaleY = canvas.height / 1000;
+        const fontSize = Math.max(14, Math.min(22, canvas.width / 35));
+        const phoneticFontSize = Math.max(10, Math.min(15, fontSize * 0.7));
         const lineHeight = fontSize + 4;
         const phoneticLineHeight = phoneticFontSize + 2;
 
-        const bubblePaddingX = 12;
-        const bubblePaddingY = 8;
-        const bubbleRadius = 10;
-        const speakerSize = 20;
+        const bubblePaddingX = 14;
+        const bubblePaddingY = 10;
+        const bubbleRadius = 12;
+        const speakerSize = 22;
         const speakerGap = 8;
-        const tailWidth = 14;
-        const tailHeight = 8;
-        const bubbleGap = 6; // gap between bubble tail tip and bbox edge
+        const tailWidth = 16;
+        const tailHeight = 10;
+        const bubbleGap = 8;
 
         const layouts: BubbleLayout[] = [];
 
@@ -244,7 +246,7 @@ const AnnotatedImage = forwardRef<HTMLCanvasElement, Props>(
           const phoneticWidth = phoneticMetrics.width;
 
           const textWidth = Math.max(wordWidth, phoneticWidth);
-          const bubbleW = Math.max(120, Math.min(200, textWidth + speakerSize + speakerGap + bubblePaddingX * 2));
+          const bubbleW = Math.max(140, Math.min(240, textWidth + speakerSize + speakerGap + bubblePaddingX * 2));
           const bubbleH = bubblePaddingY * 2 + lineHeight + phoneticLineHeight;
 
           // Decide position: try above first

@@ -5,13 +5,14 @@ import type { PhotoItem } from '../context/ReviewContext';
 import { getPhotosGroupedByDate, deletePhoto, getAllPhotos, countPhotos, isLoggedIn } from '../utils/indexedDB';
 import { api } from '../utils/api';
 import { generateUUID } from '../utils/uuid';
+import { resizeImage } from '../utils/resizeImage';
 
-function fileToDataURL(file: File): Promise<string> {
+function blobToDataURL(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
   });
 }
 
@@ -159,7 +160,8 @@ export default function HomePage() {
 
     const photoItems: PhotoItem[] = [];
     for (const file of imageFiles) {
-      const dataUrl = await fileToDataURL(file);
+      const resizedBlob = await resizeImage(file, 1500);
+      const dataUrl = await blobToDataURL(resizedBlob);
       photoItems.push({
         id: generateUUID(),
         dataUrl,

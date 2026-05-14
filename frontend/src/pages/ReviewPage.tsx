@@ -276,7 +276,9 @@ export default function ReviewPage() {
       <div className="card">
         {loading ? (
           <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-            <div className="dot-loader" />
+            <div className="dot-loader">
+              <span className="dot-loader__dot" />
+            </div>
             <p style={{ color: 'var(--color-text-secondary)', marginTop: '0.75rem' }}>
               正在识别...
             </p>
