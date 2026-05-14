@@ -110,12 +110,15 @@ def send_email(to_email: str, code: str) -> bool:
     msg["To"] = to_email
     msg["Subject"] = "场景英语 - 登录验证码"
     
-    body = f"您的登录验证码是：{code}\n\n验证码5分钟内有效，请勿泄露给他人。\n\n—— 场景英语团队"
+    body = f"您的登录验证码是：{code}\n\n验证码5分钟内有效，请勿泄露给他人。\n\n—— Scene Lingo"
     msg.attach(MIMEText(body, "plain", "utf-8"))
     
     try:
-        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
-        server.starttls()
+        if SMTP_PORT == 465:
+            server = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT)
+        else:
+            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+            server.starttls()
         server.login(SMTP_USER, SMTP_PASSWORD)
         server.sendmail(msg["From"], to_email, msg.as_string())
         server.quit()

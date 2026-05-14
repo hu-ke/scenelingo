@@ -1,0 +1,7 @@
+- [x] `send_email()` 在端口 465 时使用 `smtplib.SMTP_SSL()` 而非 `smtplib.SMTP() + starttls()`
+- [x] `send_email()` 在端口 587 时仍使用 `smtplib.SMTP() + starttls()`
+- [x] `backend/.env` 中 `SMTP_HOST` 值为 `smtp.qq.com`
+- [x] `backend/.env` 中 `SMTP_PORT` 值为 `465`
+- [x] `backend/.env` 中 `SMTP_USER` 值为 `403392669@qq.com`
+- [x] `backend/.env` 中 `SMTP_PASSWORD` 值为用户提供的授权码
+- [x] `backend/.env` 中 `SMTP_FROM` 值为 `403392669@qq.com`

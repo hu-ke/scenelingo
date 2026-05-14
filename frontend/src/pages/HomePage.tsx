@@ -452,6 +452,26 @@ export default function HomePage() {
         </button>
       </div>
 
+      {/* ===== 底部联系方式 ===== */}
+      <div style={{
+        textAlign: 'center',
+        padding: '1rem 1rem 2rem',
+        fontSize: '0.8rem',
+        color: 'var(--color-text-muted)',
+      }}>
+        <span>联系作者：</span>
+        <a
+          href="mailto:403392669@qq.com"
+          style={{
+            color: 'var(--color-primary-mid)',
+            textDecoration: 'none',
+            fontWeight: 500,
+          }}
+        >
+          📧 403392669@qq.com
+        </a>
+      </div>
+
       {showLoginPrompt && (
         <div style={{
           position: 'fixed',
