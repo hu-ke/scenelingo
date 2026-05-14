@@ -88,14 +88,29 @@ async def verify(req: VerifyRequest):
 @app.post("/scenelingo-service/api/recognize")
 async def recognize(image: UploadFile):
     try:
-        content = await image.read()
+        img = Image.open(BytesIO(await image.read()))
 
-        img = Image.open(BytesIO(content))
         width, height = img.size
-        logger.info(f"图片尺寸: {width} x {height}")
+        logger.info(f"原始图片尺寸: {width} x {height}")
 
-        b64 = base64.b64encode(content).decode("utf-8")
-        data_url = f"data:{image.content_type};base64,{b64}"
+        max_size = 1024
+        scale = min(1, max_size / max(width, height))
+        if scale < 1:
+            new_width = int(width * scale)
+            new_height = int(height * scale)
+            img = img.resize((new_width, new_height), Image.LANCZOS)
+            logger.info(f"缩放至: {new_width} x {new_height}")
+
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+
+        buf = BytesIO()
+        img.save(buf, format="JPEG", quality=80)
+        compressed = buf.getvalue()
+        logger.info(f"压缩后大小: {len(compressed) / 1024:.1f} KB")
+
+        b64 = base64.b64encode(compressed).decode("utf-8")
+        data_url = "data:image/jpeg;base64," + b64
 
         client = get_client()
         response = client.chat.completions.create(
