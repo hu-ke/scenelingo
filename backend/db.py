@@ -1,9 +1,11 @@
 import os
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from loguru import logger
 
 from dotenv import load_dotenv
 load_dotenv()
 MONGODB_URL = os.environ.get("MONGODB_URL", "")
+MONGODB_DB_NAME = os.environ.get("MONGODB_DB_NAME", "scenelingo")
 
 db: AsyncIOMotorDatabase | None = None
 _client: AsyncIOMotorClient | None = None
@@ -14,16 +16,16 @@ async def get_db() -> AsyncIOMotorDatabase | None:
     if db is not None:
         return db
     if not MONGODB_URL:
-        print("[DB] MONGODB_URL 未配置，跳过数据库连接")
+        logger.warning("[DB] MONGODB_URL 未配置，跳过数据库连接")
         return None
     try:
         _client = AsyncIOMotorClient(MONGODB_URL)
-        db = _client.get_default_database()
+        db = _client[MONGODB_DB_NAME]
         await _client.admin.command("ping")
-        print("[DB] MongoDB 连接成功")
+        logger.info("[DB] MongoDB 连接成功")
         return db
     except Exception as e:
-        print(f"[DB] MongoDB 连接失败: {e}")
+        logger.error(f"[DB] MongoDB 连接失败: {e}")
         db = None
         _client = None
         return None
@@ -38,4 +40,4 @@ async def init_db(database: AsyncIOMotorDatabase) -> None:
     await database.photos.create_index("user_email")
     await database.photos.create_index([("user_email", 1), ("collection_date", 1)])
 
-    print("[DB] 索引初始化完成")
+    logger.info("[DB] 索引初始化完成")

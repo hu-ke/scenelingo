@@ -6,6 +6,7 @@ import jwt
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
+from loguru import logger
 
 CODE_EXPIRE_SECONDS = 300
 CODE_RESEND_SECONDS = 60
@@ -101,7 +102,7 @@ def _verify_code_memory(email: str, code: str) -> bool:
 # ---- Email sending via SMTP ----
 def send_email(to_email: str, code: str) -> bool:
     if not SMTP_HOST or not SMTP_USER or not SMTP_PASSWORD:
-        print(f"[DEV EMAIL] 验证码 [{code}] 已发送到邮箱 {to_email}")
+        logger.info(f"[DEV EMAIL] 验证码 [{code}] 已发送到邮箱 {to_email}")
         return False
     
     msg = MIMEMultipart()
@@ -118,10 +119,10 @@ def send_email(to_email: str, code: str) -> bool:
         server.login(SMTP_USER, SMTP_PASSWORD)
         server.sendmail(msg["From"], to_email, msg.as_string())
         server.quit()
-        print(f"[SMTP] 验证码已发送到 {to_email}")
+        logger.info(f"[SMTP] 验证码已发送到 {to_email}")
         return True
     except Exception as e:
-        print(f"[SMTP] 邮件发送失败: {e}")
+        logger.error(f"[SMTP] 邮件发送失败: {e}")
         return False
 
 # ---- User management (MongoDB) ----

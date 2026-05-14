@@ -2,6 +2,7 @@ import os
 import json
 import oss2
 from io import BytesIO
+from loguru import logger
 
 OSS_ACCESS_KEY = os.environ.get("ALIBABA_CLOUD_ACCESS_KEY_ID", "")
 OSS_ACCESS_SECRET = os.environ.get("ALIBABA_CLOUD_ACCESS_KEY_SECRET", "")
@@ -23,7 +24,7 @@ def upload_photo(email: str, photo_id: str, file_data: bytes, filename: str) -> 
         bucket.put_object(key, file_data)
         return True
     except Exception as e:
-        print(f"[OSS] 上传失败: {e}")
+        logger.error(f"[OSS] 上传失败: {e}")
         return False
 
 def upload_metadata(email: str, photo_id: str, meta: dict) -> bool:
@@ -35,7 +36,7 @@ def upload_metadata(email: str, photo_id: str, meta: dict) -> bool:
         bucket.put_object(key, json.dumps(meta, ensure_ascii=False).encode("utf-8"))
         return True
     except Exception as e:
-        print(f"[OSS] 元数据上传失败: {e}")
+        logger.error(f"[OSS] 元数据上传失败: {e}")
         return False
 
 def list_user_photos(email: str) -> list[dict]:
@@ -61,9 +62,9 @@ def list_user_photos(email: str) -> list[dict]:
                         "createdAt": meta.get("createdAt", 0),
                     })
                 except Exception as e:
-                    print(f"[OSS] 读取meta失败 {key}: {e}")
+                    logger.error(f"[OSS] 读取meta失败 {key}: {e}")
     except Exception as e:
-        print(f"[OSS] 列出文件失败: {e}")
+        logger.error(f"[OSS] 列出文件失败: {e}")
     return result
 
 def delete_photo(email: str, photo_id: str) -> bool:
@@ -77,5 +78,5 @@ def delete_photo(email: str, photo_id: str) -> bool:
             bucket.batch_delete_objects(keys)
         return True
     except Exception as e:
-        print(f"[OSS] 删除失败: {e}")
+        logger.error(f"[OSS] 删除失败: {e}")
         return False

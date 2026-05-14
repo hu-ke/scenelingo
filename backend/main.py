@@ -7,6 +7,8 @@ from io import BytesIO
 from dotenv import load_dotenv
 load_dotenv()
 
+from loguru import logger
+
 from fastapi import FastAPI, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
@@ -90,7 +92,7 @@ async def recognize(image: UploadFile):
 
         img = Image.open(BytesIO(content))
         width, height = img.size
-        print(f"图片尺寸: {width} x {height}")
+        logger.info(f"图片尺寸: {width} x {height}")
 
         b64 = base64.b64encode(content).decode("utf-8")
         data_url = f"data:{image.content_type};base64,{b64}"
@@ -209,7 +211,7 @@ async def shutdown():
     global _client
     if _client is not None:
         _client.close()
-        print("[DB] MongoDB 连接已关闭")
+        logger.info("[DB] MongoDB 连接已关闭")
 
 
 if __name__ == "__main__":
