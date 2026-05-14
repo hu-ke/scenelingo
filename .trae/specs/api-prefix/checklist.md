@@ -1,0 +1,7 @@
+- [x] 后端 `/api/recognize` → `/scenelingo-service/api/recognize`
+- [x] 后端 `/api/auth/send-code` → `/scenelingo-service/api/auth/send-code`
+- [x] 后端 `/api/auth/verify` → `/scenelingo-service/api/auth/verify`
+- [x] 后端 `/api/photos/upload` → `/scenelingo-service/api/photos/upload`
+- [x] 后端 `/api/photos/list` → `/scenelingo-service/api/photos/list`
+- [x] 后端 `/api/photos/delete` → `/scenelingo-service/api/photos/delete`
+- [x] 前端 `api.ts` BASE_URL 包含 `/scenelingo-service`
