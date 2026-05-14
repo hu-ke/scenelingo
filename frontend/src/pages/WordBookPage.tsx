@@ -3,7 +3,7 @@ import { useReview } from '../context/ReviewContext';
 import type { PhotoItem } from '../context/ReviewContext';
 import { getAllPhotos, isLoggedIn } from '../utils/indexedDB';
 import { api } from '../utils/api';
-import { getMasteredWords, isMastered, toggleMastered } from '../utils/wordMastery';
+import { isMastered, toggleMastered } from '../utils/wordMastery';
 
 interface WordEntry {
   word: string;
@@ -18,6 +18,7 @@ export default function WordBookPage() {
   const [words, setWords] = useState<WordEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'new' | 'mastered'>('new');
+  // @ts-ignore
   const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {

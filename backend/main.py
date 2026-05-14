@@ -30,7 +30,7 @@ app.add_middleware(
 
 
 def get_client():
-    api_key = "sk-f396f4b9627b46f9aaf0d3a4f9fdd212"
+    api_key = os.environ.get("DASHSCOPE_API_KEY", "")
     if not api_key:
         raise HTTPException(status_code=500, detail="DASHSCOPE_API_KEY environment variable is not set")
     return OpenAI(
