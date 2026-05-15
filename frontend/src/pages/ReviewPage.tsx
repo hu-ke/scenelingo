@@ -3,6 +3,7 @@ import { useReview } from '../context/ReviewContext';
 import type { RecognizedObject } from '../context/ReviewContext';
 import { isLoggedIn, countPhotos, savePhoto } from '../utils/indexedDB';
 import { api } from '../utils/api';
+import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs';
 import AnnotatedImage from '../components/AnnotatedImage';
 
 function dataURLtoBlob(dataURL: string): Blob {
@@ -45,7 +46,7 @@ function WordCard({ obj }: { obj: RecognizedObject }) {
         onClick={(e) => {
           e.stopPropagation();
           const u = new SpeechSynthesisUtterance(obj.name);
-          u.lang = 'en-US';
+          u.lang = getTtsLang(getLanguagePrefs().targetLang);
           speechSynthesis.speak(u);
         }}
         style={{
@@ -88,7 +89,7 @@ export default function ReviewPage() {
   const [savedCount, setSavedCount] = useState(0);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-  const { photos, currentIndex, currentObjects, isReviewing } = state;
+  const { photos, currentIndex, currentObjects, isReviewing, nativeLang, targetLang } = state;
 
   const recognizeImage = useCallback(async () => {
     const photo = photos[currentIndex];
@@ -101,6 +102,8 @@ export default function ReviewPage() {
       const blob = dataURLtoBlob(photo.dataUrl);
       const formData = new FormData();
       formData.append('image', blob, 'photo.jpg');
+      formData.append('nativeLang', nativeLang);
+      formData.append('targetLang', targetLang);
 
       const data = await api.recognize(formData);
       dispatch({ type: 'setCurrentObjects', objects: data.objects as RecognizedObject[] });
@@ -109,7 +112,7 @@ export default function ReviewPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentIndex, photos, dispatch]);
+  }, [currentIndex, photos, dispatch, nativeLang, targetLang]);
 
   const lastRecognizedRef = useRef(-1);
 

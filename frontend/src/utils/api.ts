@@ -47,9 +47,16 @@ export const api = {
   },
 
   verify(email: string, code: string) {
-    return request<{ token: string; email: string }>('/api/auth/verify', {
+    return request<{ token: string; email: string; nativeLang: string; targetLang: string }>('/api/auth/verify', {
       method: 'POST',
       body: JSON.stringify({ email, code }),
+    });
+  },
+
+  updateLanguage(nativeLang: string, targetLang: string) {
+    return request<{ success: boolean }>('/api/user/language', {
+      method: 'POST',
+      body: JSON.stringify({ nativeLang, targetLang }),
     });
   },
 

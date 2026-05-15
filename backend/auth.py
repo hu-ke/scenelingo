@@ -132,8 +132,8 @@ def send_email(to_email: str, code: str) -> bool:
 async def get_or_create_user(email: str) -> dict:
     from db import db
     if db is None:
-        return {"email": email}
-    
+        return {"email": email, "nativeLang": "zh", "targetLang": "en"}
+
     user = await db.users.find_one({"email": email})
     now = datetime.utcnow()
     if user:
@@ -141,14 +141,38 @@ async def get_or_create_user(email: str) -> dict:
             {"_id": user["_id"]},
             {"$set": {"last_login_at": now, "updated_at": now}}
         )
+        native_lang = user.get("native_lang", "zh")
+        target_lang = user.get("target_lang", "en")
     else:
+        native_lang = "zh"
+        target_lang = "en"
         await db.users.insert_one({
             "email": email,
+            "native_lang": native_lang,
+            "target_lang": target_lang,
             "created_at": now,
             "updated_at": now,
             "last_login_at": now,
         })
-    return {"email": email}
+        logger.info(f"[get_or_create_user] 新建用户 {email}, native_lang={native_lang}, target_lang={target_lang}")
+
+    return {"email": email, "nativeLang": native_lang, "targetLang": target_lang}
+
+async def update_user_language(email: str, nativeLang: str, targetLang: str) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[update_user_language] db 为 None, 无法更新语言偏好")
+        return False
+
+    result = await db.users.update_one(
+        {"email": email},
+        {"$set": {"native_lang": nativeLang, "target_lang": targetLang, "updated_at": datetime.utcnow()}}
+    )
+    if result.matched_count > 0:
+        logger.info(f"[update_user_language] 用户 {email} 语言偏好已更新: native_lang={nativeLang}, target_lang={targetLang}")
+    else:
+        logger.warning(f"[update_user_language] 未找到用户 {email}")
+    return result.matched_count > 0
 
 # ---- JWT Token ----
 def generate_token(email: str) -> str:

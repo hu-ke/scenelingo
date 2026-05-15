@@ -241,6 +241,23 @@ export default function HomePage() {
               {authState.email}
             </span>
             <button
+              onClick={() => dispatch({ type: 'setPage', page: 'settings' })}
+              title="设置"
+              style={{
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: 'var(--radius-full)',
+                color: '#fff',
+                fontSize: '1rem',
+                padding: '0.25rem 0.5rem',
+                minHeight: 'unset',
+                cursor: 'pointer',
+                lineHeight: 1,
+              }}
+            >
+              ⚙️
+            </button>
+            <button
               onClick={() => {
                 logout();
                 dispatch({ type: 'setPage', page: 'home' });

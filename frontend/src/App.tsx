@@ -6,6 +6,7 @@ import MergePage from './pages/MergePage';
 import WordBookPage from './pages/WordBookPage';
 import WordDetailPage from './pages/WordDetailPage';
 import LoginPage from './pages/LoginPage';
+import SettingsPage from './pages/SettingsPage';
 import './App.css';
 
 function AppContent() {
@@ -31,6 +32,8 @@ function AppContent() {
       return <WordBookPage />;
     case 'worddetail':
       return <WordDetailPage />;
+    case 'settings':
+      return <SettingsPage />;
     default:
       return <HomePage />;
   }

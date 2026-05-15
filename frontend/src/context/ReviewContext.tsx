@@ -1,5 +1,6 @@
 import { createContext, useContext, useReducer } from 'react';
 import type { Dispatch, ReactNode } from 'react';
+import { getLanguagePrefs } from '../utils/languagePrefs';
 
 export interface PhotoItem {
   id: string;
@@ -16,7 +17,7 @@ export interface RecognizedObject {
   examples: string[];
 }
 
-export type AppPage = 'home' | 'review' | 'merge' | 'wordbook' | 'worddetail' | 'login';
+export type AppPage = 'home' | 'review' | 'merge' | 'wordbook' | 'worddetail' | 'login' | 'settings';
 
 export interface ReviewState {
   photos: PhotoItem[];
@@ -27,6 +28,8 @@ export interface ReviewState {
   page: AppPage;
   selectedPhotoIds: string[];
   wordDetailWord: string | null;
+  nativeLang: string;
+  targetLang: string;
 }
 
 export type ReviewAction =
@@ -41,7 +44,8 @@ export type ReviewAction =
   | { type: 'toggleSelectPhoto'; id: string }
   | { type: 'clearSelection' }
   | { type: 'resetReview' }
-  | { type: 'setWordDetail'; word: string | null };
+  | { type: 'setWordDetail'; word: string | null }
+  | { type: 'setLanguage'; nativeLang: string; targetLang: string };
 
 const initialState: ReviewState = {
   photos: [],
@@ -52,6 +56,8 @@ const initialState: ReviewState = {
   page: 'home',
   selectedPhotoIds: [],
   wordDetailWord: null,
+  nativeLang: getLanguagePrefs().nativeLang,
+  targetLang: getLanguagePrefs().targetLang,
 };
 
 function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
@@ -151,6 +157,9 @@ function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
 
     case 'setWordDetail':
       return { ...state, wordDetailWord: action.word };
+
+    case 'setLanguage':
+      return { ...state, nativeLang: action.nativeLang, targetLang: action.targetLang };
 
     default:
       return state;

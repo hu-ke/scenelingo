@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useReview } from '../context/ReviewContext';
 import { api } from '../utils/api';
+import { setLanguagePrefs } from '../utils/languagePrefs';
 
 export default function LoginPage() {
   const auth = useAuth();
@@ -69,6 +70,10 @@ export default function LoginPage() {
     try {
       const result = await api.verify(email, code);
       auth.login(result.token, result.email);
+      if (result.targetLang) {
+        setLanguagePrefs({ nativeLang: 'zh', targetLang: result.targetLang });
+        dispatch({ type: 'setLanguage', nativeLang: 'zh', targetLang: result.targetLang });
+      }
       dispatch({ type: 'setPage', page: 'home' });
     } catch (err: any) {
       if (err?.name === 'TypeError' || err?.message?.includes('fetch')) {

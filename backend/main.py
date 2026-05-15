@@ -25,6 +25,7 @@ from pydantic import BaseModel
 
 from auth import generate_code, verify_code, generate_token, verify_token, send_email, get_or_create_user
 from auth import save_photo_record, list_user_photos_mongo, delete_photo_record
+from auth import update_user_language
 from db import get_db, init_db, _client
 from oss_client import upload_photo, upload_metadata, list_user_photos, delete_photo
 
@@ -55,6 +56,10 @@ class SendCodeRequest(BaseModel):
 class VerifyRequest(BaseModel):
     email: str
     code: str
+
+class LanguageUpdateRequest(BaseModel):
+    nativeLang: str
+    targetLang: str
 
 
 def require_auth(request: Request) -> str:
@@ -88,14 +93,69 @@ async def verify(req: VerifyRequest):
     email = req.email.strip()
     if not await verify_code(email, req.code):
         raise HTTPException(status_code=400, detail="验证码错误或已过期")
-    await get_or_create_user(email)
+    user_info = await get_or_create_user(email)
     token = generate_token(email)
-    return {"token": token, "email": email}
+    return {"token": token, "email": email, "nativeLang": user_info["nativeLang"], "targetLang": user_info["targetLang"]}
+
+
+@app.post("/scenelingo-service/api/user/language")
+async def update_language(request: Request, req: LanguageUpdateRequest):
+    email = require_auth(request)
+    success = await update_user_language(email, req.nativeLang, req.targetLang)
+    if not success:
+        raise HTTPException(status_code=500, detail="更新语言偏好失败")
+    return {"success": True}
+
+
+LANG_NAMES = {
+    "zh": "Chinese", "en": "English", "ja": "Japanese", "ko": "Korean",
+    "fr": "French", "de": "German", "es": "Spanish", "pt": "Portuguese",
+    "ru": "Russian", "ar": "Arabic",
+}
+
+PHONETIC_DESCS = {
+    "zh": "the Pinyin of the word",
+    "en": 'the English phonetic transcription of the word, e.g. "/ˈæp.l/"',
+    "ja": "the Romaji reading of the word",
+    "ko": "the Romanized reading of the word",
+    "fr": "the IPA phonetic transcription of the word",
+    "de": "the IPA phonetic transcription of the word",
+    "es": "the IPA phonetic transcription of the word",
+    "pt": "the IPA phonetic transcription of the word",
+    "ru": "the Cyrillic pronunciation with stress mark",
+    "ar": "the Romanized transliteration of the word",
+}
+
+
+def build_prompt(nativeLang: str, targetLang: str) -> str:
+    native_name = LANG_NAMES.get(nativeLang, nativeLang)
+    target_name = LANG_NAMES.get(targetLang, targetLang)
+    phonetic_desc = PHONETIC_DESCS.get(targetLang, "the phonetic transcription of the word")
+
+    return (
+        f"Please identify only the obvious and prominent objects in the image. "
+        f"Each object should contain name (object name in {target_name}), "
+        f"phonetic ({phonetic_desc}), "
+        f"chinese (the {native_name} translation of the word), "
+        f"bbox (bounding box coordinates), "
+        f"and examples (an array of 2 simple {target_name} example sentences using the word). "
+        f"The bbox format is [x1, y1, x2, y2], with coordinate values normalized to the 0-1000 range. "
+        f"Return only a JSON array with no other text. "
+        f'Format example: [{{"name": "apple", "phonetic": "/ˈæp.l/", "chinese": "苹果", "bbox": [100, 200, 300, 400], "examples": ["I ate a red apple.", "The apple fell from the tree."]}}]'
+    )
 
 
 @app.post("/scenelingo-service/api/recognize")
-async def recognize(image: UploadFile):
+async def recognize(image: UploadFile, request: Request):
     try:
+        form_data = await request.form()
+        nativeLang = form_data.get("nativeLang", "zh")
+        targetLang = form_data.get("targetLang", "en")
+
+        logger.info(f"识别请求: nativeLang={nativeLang}, targetLang={targetLang}")
+
+        prompt = build_prompt(nativeLang, targetLang)
+
         img = Image.open(BytesIO(await image.read()))
 
         width, height = img.size
@@ -133,7 +193,7 @@ async def recognize(image: UploadFile):
                         },
                         {
                             "type": "text",
-                            "text": "Please identify only the obvious and prominent objects in the image. Each object should contain name (object name in English), phonetic (the English phonetic transcription of the word, e.g. \"/ˈæp.l/\"), chinese (the Chinese translation of the word, e.g. \"苹果\"), bbox (bounding box coordinates), and examples (an array of 2 simple English example sentences using the word). The bbox format is [x1, y1, x2, y2], with coordinate values normalized to the 0-1000 range. Return only a JSON array with no other text. Format example: [{\"name\": \"apple\", \"phonetic\": \"/ˈæp.l/\", \"chinese\": \"苹果\", \"bbox\": [100, 200, 300, 400], \"examples\": [\"I ate a red apple.\", \"The apple fell from the tree.\"]}]",
+                            "text": prompt,
                         },
                     ],
                 }

@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
 import type { RecognizedObject } from '../context/ReviewContext';
+import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs';
 
 interface Props {
   dataUrl: string;
@@ -175,7 +176,7 @@ const AnnotatedImage = forwardRef<HTMLCanvasElement, Props>(
           ) {
             if (typeof speechSynthesis !== 'undefined') {
               const utterance = new SpeechSynthesisUtterance(layout.word);
-              utterance.lang = 'en-US';
+              utterance.lang = getTtsLang(getLanguagePrefs().targetLang);
               speechSynthesis.speak(utterance);
             }
             break;

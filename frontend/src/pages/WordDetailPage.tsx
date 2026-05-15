@@ -4,6 +4,7 @@ import type { PhotoItem } from '../context/ReviewContext';
 import { getAllPhotos, isLoggedIn } from '../utils/indexedDB';
 import { api } from '../utils/api';
 import { isMastered, toggleMastered } from '../utils/wordMastery';
+import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs';
 
 export default function WordDetailPage() {
   const { state, dispatch } = useReview();
@@ -99,7 +100,7 @@ export default function WordDetailPage() {
   const handleSpeak = () => {
     if (!word) return;
     const utterance = new SpeechSynthesisUtterance(word);
-    utterance.lang = 'en-US';
+    utterance.lang = getTtsLang(getLanguagePrefs().targetLang);
     speechSynthesis.speak(utterance);
   };
 
