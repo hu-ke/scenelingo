@@ -108,7 +108,7 @@ export default function LoginPage() {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #FFF5F0 0%, #FFE8E0 50%, #FFD4C0 100%)',
+        background: 'var(--color-bg)',
       }}
     >
       <div

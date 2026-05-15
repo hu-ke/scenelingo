@@ -157,7 +157,7 @@ export const THEMES: Theme[] = [
   midnightDark,
 ];
 
-export const DEFAULT_THEME = 'warm-orange';
+export const DEFAULT_THEME = 'ocean-blue';
 
 const THEME_MAP = new Map<string, Theme>(THEMES.map((t) => [t.id, t]));
 

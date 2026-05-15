@@ -14,40 +14,40 @@
 
 /* ---------- CSS Variables ---------- */
 :root {
-  /* 主色渐变 (暖橙-珊瑚色系) */
-  --color-primary-start: #FF6B6B;
-  --color-primary-mid: #FF8E53;
-  --color-primary-end: #FFA94D;
-  --color-primary: #FF6B6B;
+  /* 主色渐变 (森绿系-默认主题) */
+  --color-primary-start: #27AE60;
+  --color-primary-mid: #2ECC71;
+  --color-primary-end: #58D68D;
+  --color-primary: #27AE60;
 
   /* 强调色 */
   --color-accent-purple: #A29BFE;
-  --color-accent-green: #2ED573;
+  --color-accent-green: #27AE60;
   --color-accent-blue: #54A0FF;
 
   /* 背景与表面 */
-  --color-bg: #FFF5F0;
+  --color-bg: #F0F8F0;
   --color-surface: #FFFFFF;
   --color-card-bg: #FFFFFF;
 
   /* 文字 */
-  --color-text: #2D3436;
-  --color-text-secondary: #636E72;
-  --color-text-muted: #B2BEC3;
+  --color-text: #2C3E2D;
+  --color-text-secondary: #5D6E5E;
+  --color-text-muted: #A0BFA1;
 
   /* 边框 */
-  --color-border: #F0E6E0;
+  --color-border: #E0F0E0;
 
   /* 功能色 */
-  --color-success: #2ED573;
-  --color-warning: #FFA94D;
-  --color-danger: #FF6B6B;
+  --color-success: #27AE60;
+  --color-warning: #F39C12;
+  --color-danger: #E74C3C;
 
   /* 阴影 */
-  --shadow-xs: 0 1px 3px rgba(255, 107, 107, 0.06);
-  --shadow-sm: 0 2px 8px rgba(255, 107, 107, 0.08);
-  --shadow-md: 0 4px 16px rgba(255, 107, 107, 0.10);
-  --shadow-lg: 0 8px 28px rgba(255, 107, 107, 0.12);
+  --shadow-xs: 0 1px 3px rgba(39, 174, 96, 0.06);
+  --shadow-sm: 0 2px 8px rgba(39, 174, 96, 0.08);
+  --shadow-md: 0 4px 16px rgba(39, 174, 96, 0.10);
+  --shadow-lg: 0 8px 28px rgba(39, 174, 96, 0.12);
   --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.06);
 
   /* 圆角 */

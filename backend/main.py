@@ -3,6 +3,7 @@ import base64
 import json
 import re
 from io import BytesIO
+from urllib.request import urlopen
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -159,8 +160,11 @@ def build_prompt(nativeLang: str, targetLang: str) -> str:
 
 
 @app.post("/scenelingo-service/api/recognize")
-async def recognize(image: UploadFile, request: Request):
+async def recognize(image: UploadFile = None, request: Request = None):
+    logger.info("收到识别请求，开始处理...")
     try:
+        if request is None:
+            raise HTTPException(status_code=400, detail="缺少请求数据")
         form_data = await request.form()
         nativeLang = form_data.get("nativeLang", "zh")
         targetLang = form_data.get("targetLang", "en")
@@ -169,7 +173,19 @@ async def recognize(image: UploadFile, request: Request):
 
         prompt = build_prompt(nativeLang, targetLang)
 
-        img = Image.open(BytesIO(await image.read()))
+        photo_url = form_data.get("photo_url", None)
+        if photo_url:
+            logger.info(f"从远程URL获取图片: {photo_url}")
+            with urlopen(str(photo_url), timeout=15) as resp:
+                img_bytes = resp.read()
+            logger.info(f"远程图片下载完成: {len(img_bytes) / 1024:.1f} KB")
+        elif image is not None:
+            logger.info("正在读取上传的图片...")
+            img_bytes = await image.read()
+            logger.info(f"图片读取完成: {len(img_bytes) / 1024:.1f} KB")
+        else:
+            raise HTTPException(status_code=400, detail="请提供图片或图片URL")
+        img = Image.open(BytesIO(img_bytes))
 
         width, height = img.size
         logger.info(f"原始图片尺寸: {width} x {height}")
@@ -243,22 +259,28 @@ async def upload_photos(request: Request):
     email = require_auth(request)
     form = await request.form()
     original_file = form.get("original")
+    original_url = form.get("original_url")
     annotated_file = form.get("annotated")
     metadata_str = form.get("metadata")
 
-    if not original_file or not annotated_file or not metadata_str:
+    if not annotated_file or not metadata_str:
         raise HTTPException(status_code=400, detail="缺少必要参数")
+    if not original_file and not original_url:
+        raise HTTPException(status_code=400, detail="缺少原图或原图URL")
 
     metadata = json.loads(metadata_str)
     photo_id = metadata.get("id", "")
     if not photo_id:
         raise HTTPException(status_code=400, detail="缺少photoId")
 
-    original_data = await original_file.read()
-    annotated_data = await annotated_file.read()
+    if original_file is not None:
+        original_data = await original_file.read()
+        if not upload_photo(email, photo_id, original_data, "original.jpg"):
+            raise HTTPException(status_code=500, detail="原图上传失败")
+    elif original_url:
+        logger.info(f"原图URL为: {original_url}，跳过重复上传")
 
-    if not upload_photo(email, photo_id, original_data, "original.jpg"):
-        raise HTTPException(status_code=500, detail="原图上传失败")
+    annotated_data = await annotated_file.read()
     if not upload_photo(email, photo_id, annotated_data, "annotated.jpg"):
         raise HTTPException(status_code=500, detail="标注图上传失败")
 

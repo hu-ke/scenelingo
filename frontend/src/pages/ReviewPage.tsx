@@ -7,16 +7,6 @@ import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs';
 import AnnotatedImage from '../components/AnnotatedImage';
 
 async function dataURLtoBlob(dataURL: string): Promise<Blob> {
-  if (dataURL.startsWith('data:')) {
-    const parts = dataURL.split(',');
-    const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
-    const bytes = atob(parts[1]);
-    const buffer = new Uint8Array(bytes.length);
-    for (let i = 0; i < bytes.length; i++) {
-      buffer[i] = bytes.charCodeAt(i);
-    }
-    return new Blob([buffer], { type: mime });
-  }
   const response = await fetch(dataURL);
   if (!response.ok) throw new Error(`图片加载失败: ${response.status}`);
   return response.blob();
@@ -104,11 +94,16 @@ export default function ReviewPage() {
     setError(null);
 
     try {
-      const blob = await dataURLtoBlob(photo.dataUrl);
       const formData = new FormData();
-      formData.append('image', blob, 'photo.jpg');
       formData.append('nativeLang', nativeLang);
       formData.append('targetLang', targetLang);
+
+      if (photo.dataUrl.startsWith('data:')) {
+        const blob = await dataURLtoBlob(photo.dataUrl);
+        formData.append('image', blob, 'photo.jpg');
+      } else {
+        formData.append('photo_url', photo.dataUrl);
+      }
 
       const data = await api.recognize(formData);
       dispatch({ type: 'setCurrentObjects', objects: data.objects as RecognizedObject[] });
@@ -143,11 +138,15 @@ export default function ReviewPage() {
 
     if (loggedIn) {
       try {
-        const originalBlob = await dataURLtoBlob(currentPhoto.dataUrl);
         const annotatedBlob = await dataURLtoBlob(annotatedDataUrl);
 
         const formData = new FormData();
-        formData.append('original', originalBlob, 'original.jpg');
+        if (currentPhoto.dataUrl.startsWith('data:')) {
+          const originalBlob = await dataURLtoBlob(currentPhoto.dataUrl);
+          formData.append('original', originalBlob, 'original.jpg');
+        } else {
+          formData.append('original_url', currentPhoto.dataUrl);
+        }
         formData.append('annotated', annotatedBlob, 'annotated.jpg');
         formData.append('metadata', JSON.stringify({
           id: currentPhoto.id,
