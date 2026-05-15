@@ -6,6 +6,7 @@ import { getPhotosGroupedByDate, deletePhoto, getAllPhotos, countPhotos, isLogge
 import { api } from '../utils/api';
 import { generateUUID } from '../utils/uuid';
 import { resizeImage } from '../utils/resizeImage';
+import AppLogo from '../components/AppLogo';
 
 function blobToDataURL(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -218,7 +219,10 @@ export default function HomePage() {
     <div className="page home-page">
       {/* ===== 顶部渐变 Header ===== */}
       <div className="home-header" style={{ position: 'relative' }}>
-        <h1>场景英语</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <AppLogo size={40} />
+          <h1>场景英语</h1>
+        </div>
         <p>用照片探索身边的事物，轻松学习英语单词</p>
         {authState.isLoggedIn ? (
           <div

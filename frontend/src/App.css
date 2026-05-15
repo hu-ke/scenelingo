@@ -74,6 +74,19 @@
   --merge-bar-height: 64px;
 }
 
+/* ---------- Dark Theme Overrides ---------- */
+:root[data-theme="midnight-dark"] input,
+:root[data-theme="midnight-dark"] select,
+:root[data-theme="midnight-dark"] textarea {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+:root[data-theme="midnight-dark"] .card {
+  box-shadow: var(--shadow-card);
+}
+
 /* ---------- Base ---------- */
 html {
   font-size: 16px;
@@ -169,17 +182,17 @@ button.secondary:hover {
 }
 
 button.secondary:active {
-  background-color: #FFF5F0;
+  background-color: var(--color-bg);
 }
 
 /* 危险按钮 */
 button.danger {
-  background: linear-gradient(135deg, #FF6B6B, #E74C3C);
+  background: var(--color-danger);
   color: #fff;
 }
 
 button.danger:hover {
-  box-shadow: 0 4px 16px rgba(231, 76, 60, 0.35);
+  box-shadow: 0 4px 16px rgba(255, 107, 107, 0.35);
 }
 
 /* ---------- Input / Textarea / Select ---------- */
@@ -782,7 +795,7 @@ textarea::placeholder {
   height: 28px;
   min-height: 28px;
   border-radius: 50%;
-  background: rgba(231, 76, 60, 0.9);
+  background: var(--color-danger);
   color: #fff;
   font-size: 1.1rem;
   font-weight: 700;
@@ -798,7 +811,7 @@ textarea::placeholder {
 }
 
 .photo-card__delete:hover {
-  background: #E74C3C;
+  background: var(--color-danger);
   transform: scale(1.15);
 }
 
@@ -945,7 +958,7 @@ textarea::placeholder {
 }
 
 .review-actions button:nth-child(2) {
-  background: linear-gradient(135deg, var(--color-accent-green), #7BED9F);
+  background: linear-gradient(135deg, var(--color-accent-green), var(--color-accent-green));
   color: #FFFFFF;
 }
 

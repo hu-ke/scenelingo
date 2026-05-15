@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { useReview } from '../context/ReviewContext';
 import { api } from '../utils/api';
 import { setLanguagePrefs } from '../utils/languagePrefs';
+import { setTheme } from '../utils/theme';
+import AppLogo from '../components/AppLogo';
 
 export default function LoginPage() {
   const auth = useAuth();
@@ -74,6 +76,10 @@ export default function LoginPage() {
         setLanguagePrefs({ nativeLang: 'zh', targetLang: result.targetLang });
         dispatch({ type: 'setLanguage', nativeLang: 'zh', targetLang: result.targetLang });
       }
+      if (result.theme) {
+        setTheme(result.theme);
+        dispatch({ type: 'setTheme', theme: result.theme });
+      }
       dispatch({ type: 'setPage', page: 'home' });
     } catch (err: any) {
       if (err?.name === 'TypeError' || err?.message?.includes('fetch')) {
@@ -116,16 +122,9 @@ export default function LoginPage() {
       >
         {/* ===== Logo 区域 ===== */}
         <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-          <span
-            style={{
-              fontSize: '3.5rem',
-              display: 'block',
-              marginBottom: '0.5rem',
-              animation: 'heartbeat 2s ease-in-out infinite',
-            }}
-          >
-            🎓
-          </span>
+          <div style={{ marginBottom: '0.5rem' }}>
+            <AppLogo size={56} animated />
+          </div>
           <h1
             style={{
               fontSize: '1.75rem',

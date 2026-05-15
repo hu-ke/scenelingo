@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { getLanguagePrefs, setLanguagePrefs, LANGUAGES, getNativeName } from '../utils/languagePrefs';
 import type { LanguagePrefs } from '../utils/languagePrefs';
 import { api } from '../utils/api';
+import { getTheme, setTheme, THEMES } from '../utils/theme';
+import AppLogo from '../components/AppLogo';
 
 const NATIVE_LANG = 'zh';
 
@@ -15,6 +17,15 @@ export default function SettingsPage() {
   const [targetLang, setTargetLang] = useState(initialPrefs.targetLang);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState(getTheme());
+
+  const themeGradients: Record<string, string> = {
+    'warm-orange': 'linear-gradient(135deg, #FF6B6B, #FF8E53)',
+    'ocean-blue': 'linear-gradient(135deg, #4A90D9, #5BA0E8)',
+    'forest-green': 'linear-gradient(135deg, #27AE60, #2ECC71)',
+    'royal-purple': 'linear-gradient(135deg, #8E44AD, #A569BD)',
+    'midnight-dark': 'linear-gradient(135deg, #6C8CFF, #8BA4FF)',
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -65,15 +76,9 @@ export default function SettingsPage() {
         }}
       >
         <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-          <span
-            style={{
-              fontSize: '3.5rem',
-              display: 'block',
-              marginBottom: '0.5rem',
-            }}
-          >
-            🎓
-          </span>
+          <div style={{ marginBottom: '0.5rem' }}>
+            <AppLogo size={56} animated />
+          </div>
           <h1
             style={{
               fontSize: '1.75rem',
@@ -151,6 +156,73 @@ export default function SettingsPage() {
               </option>
             ))}
           </select>
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label
+            style={{
+              display: 'block',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              color: 'var(--color-text-secondary)',
+              marginBottom: '0.4rem',
+            }}
+          >
+            主题风格
+          </label>
+          <div
+            style={{
+              display: 'flex',
+              gap: '0.75rem',
+              justifyContent: 'center',
+            }}
+          >
+            {THEMES.map((theme) => {
+              const selected = currentTheme === theme.id;
+              return (
+                <div
+                  key={theme.id}
+                  onClick={() => {
+                    setTheme(theme.id);
+                    setCurrentTheme(theme.id);
+                    dispatch({ type: 'setTheme', theme: theme.id });
+                    if (authState.isLoggedIn) {
+                      api.updateTheme(theme.id).catch((err) => {
+                        console.error('云端同步主题失败:', err);
+                      });
+                    }
+                  }}
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    background: themeGradients[theme.id],
+                    border: selected ? '2px solid #fff' : '2px solid transparent',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    transition: 'border 0.2s ease',
+                  }}
+                >
+                  {selected && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        color: '#fff',
+                        fontSize: '0.9rem',
+                        fontWeight: 'bold',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                      }}
+                    >
+                      ✓
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <button

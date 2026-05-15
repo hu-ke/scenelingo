@@ -143,20 +143,23 @@ async def get_or_create_user(email: str) -> dict:
         )
         native_lang = user.get("native_lang", "zh")
         target_lang = user.get("target_lang", "en")
+        theme = user.get("theme", "warm-orange")
     else:
         native_lang = "zh"
         target_lang = "en"
+        theme = "warm-orange"
         await db.users.insert_one({
             "email": email,
             "native_lang": native_lang,
             "target_lang": target_lang,
+            "theme": theme,
             "created_at": now,
             "updated_at": now,
             "last_login_at": now,
         })
-        logger.info(f"[get_or_create_user] 新建用户 {email}, native_lang={native_lang}, target_lang={target_lang}")
+        logger.info(f"[get_or_create_user] 新建用户 {email}, native_lang={native_lang}, target_lang={target_lang}, theme={theme}")
 
-    return {"email": email, "nativeLang": native_lang, "targetLang": target_lang}
+    return {"email": email, "nativeLang": native_lang, "targetLang": target_lang, "theme": theme}
 
 async def update_user_language(email: str, nativeLang: str, targetLang: str) -> bool:
     from db import db
@@ -172,6 +175,22 @@ async def update_user_language(email: str, nativeLang: str, targetLang: str) -> 
         logger.info(f"[update_user_language] 用户 {email} 语言偏好已更新: native_lang={nativeLang}, target_lang={targetLang}")
     else:
         logger.warning(f"[update_user_language] 未找到用户 {email}")
+    return result.matched_count > 0
+
+async def update_user_theme(email: str, themeId: str) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[update_user_theme] db 为 None, 无法更新主题")
+        return False
+
+    result = await db.users.update_one(
+        {"email": email},
+        {"$set": {"theme": themeId, "updated_at": datetime.utcnow()}}
+    )
+    if result.matched_count > 0:
+        logger.info(f"[update_user_theme] 用户 {email} 主题已更新: theme={themeId}")
+    else:
+        logger.warning(f"[update_user_theme] 未找到用户 {email}")
     return result.matched_count > 0
 
 # ---- JWT Token ----

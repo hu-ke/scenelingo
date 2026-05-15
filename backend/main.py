@@ -26,6 +26,7 @@ from pydantic import BaseModel
 from auth import generate_code, verify_code, generate_token, verify_token, send_email, get_or_create_user
 from auth import save_photo_record, list_user_photos_mongo, delete_photo_record
 from auth import update_user_language
+from auth import update_user_theme
 from db import get_db, init_db, _client
 from oss_client import upload_photo, upload_metadata, list_user_photos, delete_photo
 
@@ -61,6 +62,9 @@ class LanguageUpdateRequest(BaseModel):
     nativeLang: str
     targetLang: str
 
+class ThemeUpdateRequest(BaseModel):
+    theme: str
+
 
 def require_auth(request: Request) -> str:
     auth_header = request.headers.get("Authorization", "")
@@ -95,7 +99,7 @@ async def verify(req: VerifyRequest):
         raise HTTPException(status_code=400, detail="验证码错误或已过期")
     user_info = await get_or_create_user(email)
     token = generate_token(email)
-    return {"token": token, "email": email, "nativeLang": user_info["nativeLang"], "targetLang": user_info["targetLang"]}
+    return {"token": token, "email": email, "nativeLang": user_info["nativeLang"], "targetLang": user_info["targetLang"], "theme": user_info.get("theme", "warm-orange")}
 
 
 @app.post("/scenelingo-service/api/user/language")
@@ -104,6 +108,15 @@ async def update_language(request: Request, req: LanguageUpdateRequest):
     success = await update_user_language(email, req.nativeLang, req.targetLang)
     if not success:
         raise HTTPException(status_code=500, detail="更新语言偏好失败")
+    return {"success": True}
+
+
+@app.post("/scenelingo-service/api/user/theme")
+async def update_theme(request: Request, req: ThemeUpdateRequest):
+    email = require_auth(request)
+    success = await update_user_theme(email, req.theme)
+    if not success:
+        raise HTTPException(status_code=500, detail="更新主题失败")
     return {"success": True}
 
 

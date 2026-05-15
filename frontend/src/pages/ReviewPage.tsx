@@ -6,15 +6,20 @@ import { api } from '../utils/api';
 import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs';
 import AnnotatedImage from '../components/AnnotatedImage';
 
-function dataURLtoBlob(dataURL: string): Blob {
-  const parts = dataURL.split(',');
-  const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
-  const bytes = atob(parts[1]);
-  const buffer = new Uint8Array(bytes.length);
-  for (let i = 0; i < bytes.length; i++) {
-    buffer[i] = bytes.charCodeAt(i);
+async function dataURLtoBlob(dataURL: string): Promise<Blob> {
+  if (dataURL.startsWith('data:')) {
+    const parts = dataURL.split(',');
+    const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+    const bytes = atob(parts[1]);
+    const buffer = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) {
+      buffer[i] = bytes.charCodeAt(i);
+    }
+    return new Blob([buffer], { type: mime });
   }
-  return new Blob([buffer], { type: mime });
+  const response = await fetch(dataURL);
+  if (!response.ok) throw new Error(`图片加载失败: ${response.status}`);
+  return response.blob();
 }
 
 function WordCard({ obj }: { obj: RecognizedObject }) {
@@ -99,7 +104,7 @@ export default function ReviewPage() {
     setError(null);
 
     try {
-      const blob = dataURLtoBlob(photo.dataUrl);
+      const blob = await dataURLtoBlob(photo.dataUrl);
       const formData = new FormData();
       formData.append('image', blob, 'photo.jpg');
       formData.append('nativeLang', nativeLang);
@@ -138,8 +143,8 @@ export default function ReviewPage() {
 
     if (loggedIn) {
       try {
-        const originalBlob = dataURLtoBlob(currentPhoto.dataUrl);
-        const annotatedBlob = dataURLtoBlob(annotatedDataUrl);
+        const originalBlob = await dataURLtoBlob(currentPhoto.dataUrl);
+        const annotatedBlob = await dataURLtoBlob(annotatedDataUrl);
 
         const formData = new FormData();
         formData.append('original', originalBlob, 'original.jpg');

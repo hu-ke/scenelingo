@@ -47,7 +47,7 @@ export const api = {
   },
 
   verify(email: string, code: string) {
-    return request<{ token: string; email: string; nativeLang: string; targetLang: string }>('/api/auth/verify', {
+    return request<{ token: string; email: string; nativeLang: string; targetLang: string; theme: string }>('/api/auth/verify', {
       method: 'POST',
       body: JSON.stringify({ email, code }),
     });
@@ -57,6 +57,13 @@ export const api = {
     return request<{ success: boolean }>('/api/user/language', {
       method: 'POST',
       body: JSON.stringify({ nativeLang, targetLang }),
+    });
+  },
+
+  updateTheme(themeId: string) {
+    return request<{ success: boolean }>('/api/user/theme', {
+      method: 'POST',
+      body: JSON.stringify({ theme: themeId }),
     });
   },
 

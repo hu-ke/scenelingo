@@ -1,6 +1,7 @@
 import { createContext, useContext, useReducer } from 'react';
 import type { Dispatch, ReactNode } from 'react';
 import { getLanguagePrefs } from '../utils/languagePrefs';
+import { getTheme } from '../utils/theme';
 
 export interface PhotoItem {
   id: string;
@@ -30,6 +31,7 @@ export interface ReviewState {
   wordDetailWord: string | null;
   nativeLang: string;
   targetLang: string;
+  theme: string;
 }
 
 export type ReviewAction =
@@ -45,7 +47,8 @@ export type ReviewAction =
   | { type: 'clearSelection' }
   | { type: 'resetReview' }
   | { type: 'setWordDetail'; word: string | null }
-  | { type: 'setLanguage'; nativeLang: string; targetLang: string };
+  | { type: 'setLanguage'; nativeLang: string; targetLang: string }
+  | { type: 'setTheme'; theme: string };
 
 const initialState: ReviewState = {
   photos: [],
@@ -58,6 +61,7 @@ const initialState: ReviewState = {
   wordDetailWord: null,
   nativeLang: getLanguagePrefs().nativeLang,
   targetLang: getLanguagePrefs().targetLang,
+  theme: getTheme(),
 };
 
 function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
@@ -160,6 +164,9 @@ function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
 
     case 'setLanguage':
       return { ...state, nativeLang: action.nativeLang, targetLang: action.targetLang };
+
+    case 'setTheme':
+      return { ...state, theme: action.theme };
 
     default:
       return state;
