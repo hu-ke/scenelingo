@@ -64,15 +64,12 @@ export default function HomePage() {
     if (loggedIn) {
       try {
         const result = await api.listPhotos();
-        console.log('[loadData] listPhotos 返回:', result);
         const cloudPhotos: PhotoItem[] = (result.photos || []).map((p: any) => ({
           id: p.id,
           dataUrl: p.originalUrl,
           annotatedDataUrl: p.annotatedUrl,
           objects: p.objects,
         }));
-
-        const cloudIds = new Set(cloudPhotos.map(p => p.id));
 
         const grouped: Record<string, PhotoItem[]> = {};
         for (const photo of cloudPhotos) {
@@ -81,25 +78,12 @@ export default function HomePage() {
           grouped[date].push(photo);
         }
 
-        const localGrouped = await getPhotosGroupedByDate();
-        for (const [date, photos] of Object.entries(localGrouped)) {
-          for (const photo of photos) {
-            if (!cloudIds.has(photo.id)) {
-              if (!grouped[date]) grouped[date] = [];
-              grouped[date].push(photo);
-            }
-          }
-        }
-
-        let totalCount = 0;
+        const totalCount = cloudPhotos.length;
         const wordSet = new Set<string>();
-        for (const photos of Object.values(grouped)) {
-          totalCount += photos.length;
-          for (const photo of photos) {
-            if (photo.objects) {
-              for (const obj of photo.objects) {
-                if (obj?.name) wordSet.add(obj.name.toLowerCase());
-              }
+        for (const photo of cloudPhotos) {
+          if (photo.objects) {
+            for (const obj of photo.objects) {
+              if (obj?.name) wordSet.add(obj.name.toLowerCase());
             }
           }
         }
@@ -107,12 +91,7 @@ export default function HomePage() {
         setGroupedPhotos(grouped);
         setTotalCount(totalCount);
         setWordCount(wordSet.size);
-
-        const allPhotos: PhotoItem[] = [];
-        for (const photos of Object.values(grouped)) {
-          allPhotos.push(...photos);
-        }
-        dispatch({ type: 'setSavedPhotos', photos: allPhotos });
+        dispatch({ type: 'setSavedPhotos', photos: cloudPhotos });
       } catch (err) {
         console.error('云端加载失败，尝试本地:', err);
         await loadLocalData();
