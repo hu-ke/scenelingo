@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
 import type { RecognizedObject } from '../context/ReviewContext';
 import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs';
+import { getApiBaseUrl } from '../utils/api';
 
 interface Props {
   dataUrl: string;
@@ -191,6 +192,11 @@ const AnnotatedImage = forwardRef<HTMLCanvasElement, Props>(
       if (!canvas) return;
 
       const img = new Image();
+      let src = dataUrl;
+      if (dataUrl.startsWith('http')) {
+        img.crossOrigin = 'anonymous';
+        src = `${getApiBaseUrl()}/api/image/proxy?url=${encodeURIComponent(dataUrl)}`;
+      }
       img.onload = () => {
         const MAX_SIZE = 1200;
         const canvasScale = Math.min(1, MAX_SIZE / Math.max(img.naturalWidth, img.naturalHeight));
@@ -321,7 +327,7 @@ const AnnotatedImage = forwardRef<HTMLCanvasElement, Props>(
 
         bubbleLayoutsRef.current = layouts;
       };
-      img.src = dataUrl;
+      img.src = src;
     }, [dataUrl, objects]);
 
     return (

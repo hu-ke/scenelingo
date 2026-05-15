@@ -128,6 +128,23 @@ export default function ReviewPage() {
     }
   }, [currentIndex, photos.length, recognizeImage, photos, dispatch]);
 
+  const handleDownload = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const today = new Date().toISOString().split('T')[0];
+      a.href = url;
+      a.download = `scene_lingo_${today}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  }, [canvasRef]);
+
   const handleSave = useCallback(async () => {
     if (!canvasRef.current) return;
     const annotatedDataUrl = canvasRef.current.toDataURL('image/jpeg', 0.9);
@@ -338,6 +355,9 @@ export default function ReviewPage() {
         </button>
         <button onClick={handleSave} disabled={loading || !currentObjects}>
           保存
+        </button>
+        <button onClick={handleDownload} disabled={!currentObjects}>
+          下载
         </button>
         <button onClick={handleSkip} disabled={loading}>
           跳过

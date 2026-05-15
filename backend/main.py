@@ -18,8 +18,9 @@ logger.add(
     colorize=True,
 )
 
-from fastapi import FastAPI, UploadFile, HTTPException, Request
+from fastapi import FastAPI, UploadFile, HTTPException, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from openai import OpenAI
 from PIL import Image
 from pydantic import BaseModel
@@ -295,6 +296,19 @@ async def upload_photos(request: Request):
         upload_metadata(email, photo_id, meta)
 
     return {"success": True, "photoId": photo_id}
+
+
+
+@app.get("/scenelingo-service/api/image/proxy")
+async def image_proxy(url: str = Query(...)):
+    try:
+        with urlopen(url, timeout=15) as resp:
+            content_type = resp.headers.get("Content-Type", "image/jpeg")
+            data = resp.read()
+        return Response(content=data, media_type=content_type)
+    except Exception as e:
+        logger.warning(f"图片代理失败: {url} - {e}")
+        raise HTTPException(status_code=502, detail="图片获取失败")
 
 
 @app.get("/scenelingo-service/api/photos/list")
