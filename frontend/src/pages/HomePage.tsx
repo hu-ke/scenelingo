@@ -64,12 +64,15 @@ export default function HomePage() {
     if (loggedIn) {
       try {
         const result = await api.listPhotos();
+        console.log('[loadData] listPhotos 返回:', result);
         const cloudPhotos: PhotoItem[] = (result.photos || []).map((p: any) => ({
           id: p.id,
           dataUrl: p.originalUrl,
           annotatedDataUrl: p.annotatedUrl,
           objects: p.objects,
         }));
+
+        const cloudIds = new Set(cloudPhotos.map(p => p.id));
 
         const grouped: Record<string, PhotoItem[]> = {};
         for (const photo of cloudPhotos) {
@@ -78,12 +81,25 @@ export default function HomePage() {
           grouped[date].push(photo);
         }
 
-        const totalCount = cloudPhotos.length;
+        const localGrouped = await getPhotosGroupedByDate();
+        for (const [date, photos] of Object.entries(localGrouped)) {
+          for (const photo of photos) {
+            if (!cloudIds.has(photo.id)) {
+              if (!grouped[date]) grouped[date] = [];
+              grouped[date].push(photo);
+            }
+          }
+        }
+
+        let totalCount = 0;
         const wordSet = new Set<string>();
-        for (const photo of cloudPhotos) {
-          if (photo.objects) {
-            for (const obj of photo.objects) {
-              if (obj?.name) wordSet.add(obj.name.toLowerCase());
+        for (const photos of Object.values(grouped)) {
+          totalCount += photos.length;
+          for (const photo of photos) {
+            if (photo.objects) {
+              for (const obj of photo.objects) {
+                if (obj?.name) wordSet.add(obj.name.toLowerCase());
+              }
             }
           }
         }
@@ -91,7 +107,12 @@ export default function HomePage() {
         setGroupedPhotos(grouped);
         setTotalCount(totalCount);
         setWordCount(wordSet.size);
-        dispatch({ type: 'setSavedPhotos', photos: cloudPhotos });
+
+        const allPhotos: PhotoItem[] = [];
+        for (const photos of Object.values(grouped)) {
+          allPhotos.push(...photos);
+        }
+        dispatch({ type: 'setSavedPhotos', photos: allPhotos });
       } catch (err) {
         console.error('云端加载失败，尝试本地:', err);
         await loadLocalData();
@@ -221,28 +242,45 @@ export default function HomePage() {
         <h1>场景英语</h1>
         <p>用照片探索身边的事物，轻松学习英语单词</p>
         {authState.isLoggedIn ? (
-          <button
-            onClick={() => {
-              logout();
-              dispatch({ type: 'setPage', page: 'home' });
-            }}
+          <div
             style={{
               position: 'absolute',
               top: '0.75rem',
               right: '0.75rem',
-              background: 'rgba(255,255,255,0.2)',
-              border: '1px solid rgba(255,255,255,0.4)',
-              borderRadius: 'var(--radius-full)',
-              color: '#fff',
-              fontSize: '0.75rem',
-              padding: '0.3rem 0.75rem',
-              minHeight: 'unset',
-              cursor: 'pointer',
-              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
             }}
           >
-            退出登录
-          </button>
+            <span
+              style={{
+                color: 'rgba(255,255,255,0.85)',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+              }}
+            >
+              {authState.email}
+            </span>
+            <button
+              onClick={() => {
+                logout();
+                dispatch({ type: 'setPage', page: 'home' });
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: '1px solid rgba(255,255,255,0.4)',
+                borderRadius: 'var(--radius-full)',
+                color: '#fff',
+                fontSize: '0.75rem',
+                padding: '0.3rem 0.75rem',
+                minHeight: 'unset',
+                cursor: 'pointer',
+                backdropFilter: 'blur(4px)',
+              }}
+            >
+              退出登录
+            </button>
+          </div>
         ) : (
           <button
             onClick={() => {

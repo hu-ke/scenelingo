@@ -172,6 +172,7 @@ def verify_token(token: str) -> str | None:
 async def save_photo_record(user_email: str, photo_id: str, metadata: dict) -> bool:
     from db import db
     if db is None:
+        logger.warning("[save_photo_record] db 为 None, 无法保存")
         return False
     bucket = os.environ.get("OSS_BUCKET_NAME", "scenelingo")
     endpoint = os.environ.get("OSS_ENDPOINT", "oss-cn-hangzhou.aliyuncs.com")
@@ -186,12 +187,15 @@ async def save_photo_record(user_email: str, photo_id: str, metadata: dict) -> b
         "objects": metadata.get("objects", []),
         "created_at": datetime.utcnow(),
     })
+    logger.info(f"[save_photo_record] 照片已保存 user_email={user_email} photo_id={photo_id}")
     return True
 
 async def list_user_photos_mongo(user_email: str) -> list[dict]:
     from db import db
     if db is None:
+        logger.warning("[list_user_photos_mongo] db 为 None, 无法查询 MongoDB")
         return None
+    logger.info(f"[list_user_photos_mongo] 查询 user_email={user_email}")
     cursor = db.photos.find({"user_email": user_email}).sort("collection_date", -1)
     photos = []
     async for doc in cursor:
@@ -203,6 +207,15 @@ async def list_user_photos_mongo(user_email: str) -> list[dict]:
             "collectionDate": doc["collection_date"],
             "createdAt": doc["created_at"].timestamp() if doc.get("created_at") else 0,
         })
+    logger.info(f"[list_user_photos_mongo] 找到 {len(photos)} 张照片 user_email={user_email}")
+
+    if len(photos) == 0:
+        total = await db.photos.count_documents({})
+        logger.warning(f"[list_user_photos_mongo] 查询为空! photos 集合总数={total}")
+        if total > 0:
+            sample = await db.photos.find_one()
+            logger.warning(f"[list_user_photos_mongo] 样例文档 user_email={sample.get('user_email')} photo_id={sample.get('photo_id')}")
+
     return photos
 
 async def delete_photo_record(user_email: str, photo_id: str) -> bool:

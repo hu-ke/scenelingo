@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [countdown, setCountdown] = useState(0);
+  const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +39,7 @@ export default function LoginPage() {
       return;
     }
     setError(null);
+    setSending(true);
     try {
       await api.sendCode(email);
       setCountdown(60);
@@ -48,6 +50,8 @@ export default function LoginPage() {
       } else {
         setError(err?.message || '发送验证码失败，请重试');
       }
+    } finally {
+      setSending(false);
     }
   };
 
@@ -82,7 +86,7 @@ export default function LoginPage() {
     dispatch({ type: 'setPage', page: 'home' });
   };
 
-  const sendCodeDisabled = countdown > 0 || !isValidEmail(email);
+  const sendCodeDisabled = sending || countdown > 0 || !isValidEmail(email);
   const loginDisabled = loading || !isValidEmail(email) || code.length < 6;
 
   return (
@@ -206,7 +210,7 @@ export default function LoginPage() {
                   : '#FFFFFF',
             }}
           >
-            {countdown > 0 ? `${countdown}s 后重试` : '获取验证码'}
+            {sending ? '发送中...' : countdown > 0 ? `${countdown}s 后重试` : '获取验证码'}
           </button>
         </div>
 

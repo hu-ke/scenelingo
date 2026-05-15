@@ -197,9 +197,12 @@ async def upload_photos(request: Request):
 @app.get("/scenelingo-service/api/photos/list")
 async def list_photos(request: Request):
     email = require_auth(request)
+    logger.info(f"[list_photos] 用户 {email} 请求照片列表")
     photos = await list_user_photos_mongo(email)
     if photos is None:
+        logger.warning(f"[list_photos] MongoDB 不可用, 降级到 OSS 查询")
         photos = list_user_photos(email)
+    logger.info(f"[list_photos] 返回 {len(photos)} 张照片给 {email}")
     return {"photos": photos}
 
 
