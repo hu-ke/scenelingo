@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ReviewProvider, useReview } from './context/ReviewContext';
 import HomePage from './pages/HomePage';
@@ -7,11 +8,16 @@ import WordBookPage from './pages/WordBookPage';
 import WordDetailPage from './pages/WordDetailPage';
 import LoginPage from './pages/LoginPage';
 import SettingsPage from './pages/SettingsPage';
+import { getTheme, applyTheme } from './utils/theme';
 import './App.css';
 
 function AppContent() {
   const { state: authState } = useAuth();
   const { state: reviewState } = useReview();
+
+  useEffect(() => {
+    applyTheme(getTheme());
+  }, []);
 
   if (authState.loading) {
     return (
