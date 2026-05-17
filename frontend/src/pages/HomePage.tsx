@@ -325,7 +325,6 @@ export default function HomePage() {
                   formData.append('annotated', blob, 'annotated.jpg');
                   formData.append('photo_id', photo.id);
                   await api.uploadAnnotated(formData);
-                  photo.annotatedDataUrl = 'uploaded';
                 } catch (err) {
                   console.error(`标注上传失败 ${photo.id}:`, err);
                 }
