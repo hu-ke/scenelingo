@@ -1,0 +1,36 @@
+# Checklist
+
+- [x] 后端内存任务存储字典 `recognition_tasks` 正确维护任务生命周期
+- [x] 后端 `asyncio.create_task` 后台处理不阻塞 API 响应，提交后立即返回
+- [x] `POST /api/recognize/async` 接收单张图片并返回 `{task_id, status: "pending"}`
+- [x] `GET /api/recognize/status/{task_id}` 返回任务状态，completed 时附带 objects
+- [x] `POST /api/recognize/status/batch` 批量返回所有任务状态
+- [x] 任务状态正确流转：pending → processing → completed/failed
+- [x] 处理失败时记录 error 信息，status 变为 failed
+- [x] 原始同步 `POST /api/recognize` 接口保持不变
+- [x] 首页选图后改为异步逐张提交，不再直接跳转
+- [x] 首页提交过程中显示进度提示
+- [x] 首页部分照片提交失败时仍跳转到复习页，失败照片正确标记
+- [x] 复习页进入后展示所有照片的列表/网格视图
+- [x] pending 状态照片显示"等待中"标记和旋转动画
+- [x] processing 状态照片显示"识别中"标记和进度动画
+- [x] completed 状态照片显示"已完成"标记
+- [x] failed 状态照片显示"失败"标记和错误信息
+- [x] pending/processing 照片不显示删除按钮，不可被删除
+- [x] completed/failed 照片显示删除按钮，可被移除
+- [x] 前端每 5 秒调用 `getRecognitionStatusBatch` 更新状态
+- [x] 所有照片完成后自动停止轮询
+- [x] 离开复习页时清除轮询定时器
+- [x] 已完成照片可点击进入详情视图（AnnotatedImage + WordCard）
+- [x] 处理中照片点击时显示"正在识别中"提示
+- [x] 识别完成后自动触发保存（已登录 → 云端，未登录 → 本地）
+- [x] 自动保存成功后照片标记为"已保存"
+- [x] 自动保存失败不阻塞其他照片处理
+- [x] 识别失败的照片不触发自动保存
+- [x] 详情视图只显示"重新识别"和"跳过"按钮，无"保存"按钮
+- [x] 详情视图无登录提示弹窗
+- [x] 失败照片可重试，重试后 status 重置为 pending，重新轮询
+- [x] 全部照片处理完毕后展示汇总界面（已保存 X 张，失败 X 张）
+- [x] 汇总界面提供"返回首页"按钮
+- [x] 旧同步 `recognizeImage` 逻辑和 `useEffect` 监听已移除
+- [x] 旧手动保存逻辑（`handleSave`、`handleSaveLocally`、登录提示弹窗）已移除

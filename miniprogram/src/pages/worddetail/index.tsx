@@ -1,0 +1,213 @@
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import Taro from '@tarojs/taro';
+import { View, Text, Button, Image, ScrollView } from '@tarojs/components';
+import { useReview } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
+import { api } from '../../utils/api';
+import { getJSONStorage } from '../../utils/storage';
+import { isMastered, toggleMastered } from '../../utils/wordMastery';
+import type { PhotoItem, RecognizedObject } from '../../context/AppContext';
+import './index.scss';
+
+export default function WordDetailPage() {
+  const { state, dispatch } = useReview();
+  const { state: authState } = useAuth();
+  const word = state.wordDetailWord;
+  const [loading, setLoading] = useState(true);
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [mastered, setMastered] = useState(false);
+
+  useEffect(() => {
+    loadPhotos();
+  }, [authState.isLoggedIn]);
+
+  useEffect(() => {
+    if (word) {
+      setMastered(isMastered(word));
+    }
+  }, [word]);
+
+  const loadPhotos = useCallback(async () => {
+    setLoading(true);
+    try {
+      if (authState.isLoggedIn) {
+        const res = await api.listPhotos();
+        const cloudPhotos: PhotoItem[] = (res.photos || []).map((p: Record<string, unknown>) => ({
+          id: (p.id || p._id || '') as string,
+          dataUrl: (p.dataUrl || p.annotatedDataUrl || '') as string,
+          annotatedDataUrl: p.annotatedDataUrl as string | undefined,
+          objects: (p.objects || []) as PhotoItem['objects'],
+          collectionDate: (p.collectionDate || p.createdAt) as string | undefined,
+        }));
+        setPhotos(cloudPhotos);
+      } else {
+        const localPhotos = getJSONStorage<PhotoItem[]>('saved_photos', []);
+        setPhotos(localPhotos);
+      }
+    } catch {
+      const localPhotos = getJSONStorage<PhotoItem[]>('saved_photos', []);
+      setPhotos(localPhotos);
+    } finally {
+      setLoading(false);
+    }
+  }, [authState.isLoggedIn]);
+
+  const wordData = useMemo(() => {
+    if (!word) return null;
+    const matchedObjects: RecognizedObject[] = [];
+    const relatedPhotos: PhotoItem[] = [];
+
+    for (const photo of photos) {
+      if (!photo.objects) continue;
+      for (const obj of photo.objects) {
+        if (obj.name && obj.name.toLowerCase() === word.toLowerCase()) {
+          matchedObjects.push(obj);
+          if (!relatedPhotos.find((p) => p.id === photo.id)) {
+            relatedPhotos.push(photo);
+          }
+        }
+      }
+    }
+
+    if (matchedObjects.length === 0) return null;
+
+    return {
+      phonetic: matchedObjects[0].phonetic || '',
+      chinese: matchedObjects[0].chinese || '',
+      examples: matchedObjects.flatMap((obj) => obj.examples || []),
+      relatedPhotos,
+    };
+  }, [word, photos]);
+
+  const handleToggleMastered = useCallback(() => {
+    if (!word) return;
+    const nowMastered = toggleMastered(word);
+    setMastered(nowMastered);
+  }, [word]);
+
+  const handleSpeak = useCallback(() => {
+    if (!word) return;
+    try {
+      const audioCtx = Taro.createInnerAudioContext();
+      console.log('[WordDetail] TTS play requested for:', word);
+    } catch {
+      console.log('[WordDetail] TTS play requested for:', word);
+    }
+  }, [word]);
+
+  const handleBack = useCallback(() => {
+    Taro.navigateBack();
+  }, []);
+
+  if (loading) {
+    return (
+      <View className="worddetail-page">
+        <View className="worddetail-header">
+          <View className="worddetail-header-top">
+            <View className="worddetail-back-btn" onClick={handleBack}>
+              <Text className="worddetail-back-arrow">←</Text>
+            </View>
+            <Text className="worddetail-header-title">单词详情</Text>
+            <View className="worddetail-back-btn" />
+          </View>
+        </View>
+        <View className="worddetail-loading">
+          <View className="spinner" />
+        </View>
+      </View>
+    );
+  }
+
+  if (!word) {
+    return (
+      <View className="worddetail-page">
+        <View className="worddetail-header">
+          <View className="worddetail-header-top">
+            <View className="worddetail-back-btn" onClick={handleBack}>
+              <Text className="worddetail-back-arrow">←</Text>
+            </View>
+            <Text className="worddetail-header-title">单词详情</Text>
+            <View className="worddetail-back-btn" />
+          </View>
+        </View>
+        <View className="worddetail-empty">
+          <Text className="worddetail-empty-icon">📖</Text>
+          <Text className="worddetail-empty-text">未选择单词，请从单词本中选择一个单词查看</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View className="worddetail-page">
+      <View className="worddetail-header">
+        <View className="worddetail-header-top">
+          <View className="worddetail-back-btn" onClick={handleBack}>
+            <Text className="worddetail-back-arrow">←</Text>
+          </View>
+          <Text className="worddetail-header-title">单词详情</Text>
+          <View className="worddetail-back-btn" />
+        </View>
+        <Text className="worddetail-header-subtitle">{word}</Text>
+      </View>
+
+      <ScrollView className="worddetail-content" scrollY>
+        <View className="worddetail-info-card">
+          <Text className="worddetail-word">{word}</Text>
+          {wordData?.chinese ? (
+            <Text className="worddetail-chinese">{wordData.chinese}</Text>
+          ) : null}
+          {wordData?.phonetic ? (
+            <Text className="worddetail-phonetic">{wordData.phonetic}</Text>
+          ) : null}
+
+          <View className="worddetail-actions">
+            <Button className="worddetail-speak-btn" onClick={handleSpeak}>
+              🔊 发音
+            </Button>
+            <Button
+              className={`worddetail-mastery-btn ${mastered ? 'worddetail-mastery-btn-active' : ''}`}
+              onClick={handleToggleMastered}
+            >
+              {mastered ? '✅ 该单词已掌握' : '标记为已掌握'}
+            </Button>
+          </View>
+        </View>
+
+        <View className="worddetail-section">
+          <Text className="worddetail-section-title">📸 学习照片</Text>
+          {wordData && wordData.relatedPhotos.length > 0 ? (
+            <View className="worddetail-photo-grid">
+              {wordData.relatedPhotos.slice(0, 3).map((photo) => (
+                <Image
+                  key={photo.id}
+                  className="worddetail-photo-thumb"
+                  src={photo.annotatedDataUrl || photo.dataUrl}
+                  mode="aspectFill"
+                />
+              ))}
+            </View>
+          ) : (
+            <Text className="worddetail-section-empty">暂无关联照片</Text>
+          )}
+        </View>
+
+        <View className="worddetail-section">
+          <Text className="worddetail-section-title">📖 例句</Text>
+          {wordData && wordData.examples.length > 0 ? (
+            <View className="worddetail-examples">
+              {wordData.examples.map((example, index) => (
+                <View key={index} className="worddetail-example-card">
+                  <Text className="worddetail-example-icon">📖</Text>
+                  <Text className="worddetail-example-text">{example}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text className="worddetail-section-empty">暂无例句</Text>
+          )}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
