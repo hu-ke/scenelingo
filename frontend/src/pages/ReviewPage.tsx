@@ -165,6 +165,11 @@ export default function ReviewPage() {
     dispatch({ type: 'nextPhoto' });
   }, [currentIndex, currentObjects, photos, dispatch, canvasRef]);
 
+  const handleSkip = useCallback(() => {
+    dispatch({ type: 'skipCurrent' });
+    dispatch({ type: 'nextPhoto' });
+  }, [dispatch]);
+
   // ===== 完成画面：所有照片处理完毕 =====
   if (!isReviewing && photos.length > 0) {
     return (
@@ -306,6 +311,11 @@ export default function ReviewPage() {
         {!isLoggedIn() && (
           <button onClick={handleSaveLocally} disabled={loading || !currentObjects}>
             保存到本地
+          </button>
+        )}
+        {!isLoggedIn() && (
+          <button onClick={handleSkip} disabled={loading}>
+            跳过
           </button>
         )}
         <button onClick={handleDownload} disabled={!currentObjects}>

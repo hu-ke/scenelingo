@@ -320,7 +320,7 @@ export default function HomePage() {
             annotationTasks.push(
               (async () => {
                 try {
-                  const blob = await renderAnnotatedImage(photo.dataUrl, photo.objects);
+                  const blob = await renderAnnotatedImage(photo.dataUrl, photo.objects!);
                   const formData = new FormData();
                   formData.append('annotated', blob, 'annotated.jpg');
                   formData.append('photo_id', photo.id);
