@@ -1,7 +1,7 @@
 import type { PhotoItem, RecognizedObject } from '../context/ReviewContext';
 
 const DB_NAME = 'ImageWordsDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAME = 'photos';
 
 interface PhotoRecord {

@@ -80,8 +80,6 @@ export default function ReviewPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [skipCount, setSkipCount] = useState(0);
-  const [savedCount, setSavedCount] = useState(0);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   const { photos, currentIndex, currentObjects, isReviewing, nativeLang, targetLang } = state;
@@ -145,65 +143,27 @@ export default function ReviewPage() {
     }, 'image/png');
   }, [canvasRef]);
 
-  const handleSave = useCallback(async () => {
+  const handleSaveLocally = useCallback(async () => {
     if (!canvasRef.current) return;
     const annotatedDataUrl = canvasRef.current.toDataURL('image/jpeg', 0.9);
     const currentPhoto = photos[currentIndex];
     if (!currentPhoto) return;
 
-    const loggedIn = isLoggedIn();
-
-    if (loggedIn) {
-      try {
-        const annotatedBlob = await dataURLtoBlob(annotatedDataUrl);
-
-        const formData = new FormData();
-        if (currentPhoto.dataUrl.startsWith('data:')) {
-          const originalBlob = await dataURLtoBlob(currentPhoto.dataUrl);
-          formData.append('original', originalBlob, 'original.jpg');
-        } else {
-          formData.append('original_url', currentPhoto.dataUrl);
-        }
-        formData.append('annotated', annotatedBlob, 'annotated.jpg');
-        formData.append('metadata', JSON.stringify({
-          id: currentPhoto.id,
-          objects: currentObjects || [],
-          collectionDate: new Date().toISOString().split('T')[0],
-          createdAt: Date.now(),
-        }));
-
-        await api.uploadPhoto(formData);
-      } catch (err) {
-        console.error('OSS上传失败:', err);
-        alert('云端保存失败，请稍后重试');
-        return;
-      }
-    } else {
-      const currentCount = await countPhotos();
-      if (currentCount >= 10) {
-        setShowLoginPrompt(true);
-        return;
-      }
-
-      await savePhoto({
-        id: currentPhoto.id,
-        dataUrl: currentPhoto.dataUrl,
-        annotatedDataUrl,
-        objects: currentObjects ?? undefined,
-        // createdAt: Date.now(),
-        // collectionDate: new Date().toISOString().split('T')[0],
-      });
+    const currentCount = await countPhotos();
+    if (currentCount >= 10) {
+      setShowLoginPrompt(true);
+      return;
     }
 
-    setSavedCount((c) => c + 1);
+    await savePhoto({
+      id: currentPhoto.id,
+      dataUrl: currentPhoto.dataUrl,
+      annotatedDataUrl,
+      objects: currentObjects ?? undefined,
+    });
+
     dispatch({ type: 'nextPhoto' });
   }, [currentIndex, currentObjects, photos, dispatch, canvasRef]);
-
-  const handleSkip = () => {
-    setSkipCount((c) => c + 1);
-    dispatch({ type: 'skipCurrent' });
-    dispatch({ type: 'nextPhoto' });
-  };
 
   // ===== 完成画面：所有照片处理完毕 =====
   if (!isReviewing && photos.length > 0) {
@@ -237,17 +197,7 @@ export default function ReviewPage() {
 
         <div className="review-completion">
           <span className="review-completion__icon">🎉</span>
-          <h1>太棒了！</h1>
-          <div className="review-completion__stats">
-            <div className="review-completion__stat">
-              <div className="review-completion__stat-number">{savedCount}</div>
-              <div className="review-completion__stat-label">已保存</div>
-            </div>
-            <div className="review-completion__stat">
-              <div className="review-completion__stat-number">{skipCount}</div>
-              <div className="review-completion__stat-label">已跳过</div>
-            </div>
-          </div>
+          <h1>全部完成！</h1>
           <button onClick={() => dispatch({ type: 'setPage', page: 'home' })}>
             返回首页
           </button>
@@ -353,14 +303,13 @@ export default function ReviewPage() {
         <button onClick={recognizeImage} disabled={loading}>
           {loading ? '识别中...' : '重新识别'}
         </button>
-        <button onClick={handleSave} disabled={loading || !currentObjects}>
-          保存
-        </button>
+        {!isLoggedIn() && (
+          <button onClick={handleSaveLocally} disabled={loading || !currentObjects}>
+            保存到本地
+          </button>
+        )}
         <button onClick={handleDownload} disabled={!currentObjects}>
           下载
-        </button>
-        <button onClick={handleSkip} disabled={loading}>
-          跳过
         </button>
       </div>
 
@@ -381,17 +330,17 @@ export default function ReviewPage() {
             boxShadow: 'var(--shadow-lg)',
           }} onClick={(e) => e.stopPropagation()}>
             <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🔒</div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-text)' }}>
               本地最多保存10张照片
             </div>
             <div style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)', marginBottom: '1.5rem' }}>
               登录后可无限存储，还能跨设备同步哦~
             </div>
-            <button onClick={() => { dispatch({ type: 'setPage', page: 'login' }); }} style={{ width: '100%', marginBottom: '0.5rem' }}>
+            <button onClick={() => { dispatch({ type: 'setPage', page: 'login' }); setShowLoginPrompt(false); }} style={{ width: '100%', marginBottom: '0.5rem' }}>
               去登录
             </button>
             <button className="secondary" onClick={() => setShowLoginPrompt(false)} style={{ width: '100%' }}>
-              继续使用
+              暂不登录
             </button>
           </div>
         </div>

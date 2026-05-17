@@ -233,6 +233,91 @@ async def save_photo_record(user_email: str, photo_id: str, metadata: dict) -> b
     logger.info(f"[save_photo_record] 照片已保存 user_email={user_email} photo_id={photo_id}")
     return True
 
+async def save_pending_photo_record(user_email: str, photo_id: str) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[save_pending_photo_record] db 为 None, 无法保存")
+        return False
+    bucket = os.environ.get("OSS_BUCKET_NAME", "scenelingo")
+    endpoint = os.environ.get("OSS_ENDPOINT", "oss-cn-hangzhou.aliyuncs.com")
+    base_url = f"https://{bucket}.{endpoint}"
+
+    await db.photos.insert_one({
+        "photo_id": photo_id,
+        "user_email": user_email,
+        "collection_date": datetime.utcnow().strftime('%Y-%m-%d'),
+        "original_url": f"{base_url}/photos/{user_email}/{photo_id}/original.jpg",
+        "annotated_url": "",
+        "objects": [],
+        "status": "pending",
+        "created_at": datetime.utcnow(),
+    })
+    logger.info(f"[save_pending_photo_record] 待处理照片已保存 user_email={user_email} photo_id={photo_id}")
+    return True
+
+async def claim_pending_photo() -> dict | None:
+    from db import db
+    if db is None:
+        # logger.warning("[claim_pending_photo] db 为 None")
+        return None
+
+    doc = await db.photos.find_one_and_update(
+        {"status": "pending"},
+        {"$set": {"status": "processing"}},
+        sort=[("created_at", 1)],
+    )
+    if doc:
+        logger.info(f"[claim_pending_photo] 认领照片 photo_id={doc.get('photo_id')} user_email={doc.get('user_email')}")
+        return doc
+    # logger.info("[claim_pending_photo] 无待处理照片")
+    return None
+
+async def complete_photo(photo_id: str, objects: list) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[complete_photo] db 为 None")
+        return False
+
+    result = await db.photos.update_one(
+        {"photo_id": photo_id},
+        {"$set": {"status": "completed", "objects": objects}},
+    )
+    if result.matched_count > 0:
+        logger.info(f"[complete_photo] 照片处理完成 photo_id={photo_id}")
+    else:
+        logger.warning(f"[complete_photo] 未找到照片 photo_id={photo_id}")
+    return result.matched_count > 0
+
+async def set_annotated_url(photo_id: str, annotated_url: str) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[set_annotated_url] db 为 None")
+        return False
+
+    result = await db.photos.update_one(
+        {"photo_id": photo_id},
+        {"$set": {"annotated_url": annotated_url}},
+    )
+    if result.matched_count > 0:
+        logger.info(f"[set_annotated_url] 标注图已更新 photo_id={photo_id}")
+    return result.matched_count > 0
+
+async def reset_photo_to_pending(photo_id: str) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[reset_photo_to_pending] db 为 None")
+        return False
+
+    result = await db.photos.update_one(
+        {"photo_id": photo_id},
+        {"$set": {"status": "pending"}},
+    )
+    if result.matched_count > 0:
+        logger.info(f"[reset_photo_to_pending] 照片重置为待处理 photo_id={photo_id}")
+    else:
+        logger.warning(f"[reset_photo_to_pending] 未找到照片 photo_id={photo_id}")
+    return result.matched_count > 0
+
 async def list_user_photos_mongo(user_email: str) -> list[dict]:
     from db import db
     if db is None:
@@ -249,6 +334,7 @@ async def list_user_photos_mongo(user_email: str) -> list[dict]:
             "objects": doc.get("objects", []),
             "collectionDate": doc["collection_date"],
             "createdAt": doc["created_at"].timestamp() if doc.get("created_at") else 0,
+            "status": doc.get("status", "completed"),
         })
     logger.info(f"[list_user_photos_mongo] 找到 {len(photos)} 张照片 user_email={user_email}")
 

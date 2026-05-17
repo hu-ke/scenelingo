@@ -85,6 +85,20 @@ export const api = {
     });
   },
 
+  uploadPending(formData: FormData) {
+    return request<{ photo_id: string; status: string }>('/api/photos/upload-pending', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  uploadAnnotated(formData: FormData) {
+    return request<{ success: boolean; photoId: string }>('/api/photos/upload-annotated', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
   listPhotos() {
     return request<{ photos: any[] }>('/api/photos/list');
   },

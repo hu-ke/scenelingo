@@ -1,0 +1,25 @@
+# Checklist
+
+- [x] MongoDB photos 集合存在 `(user_email, status)` 复合索引
+- [x] `save_pending_photo_record` 插入的记录 status="pending", objects=[]
+- [x] `claim_pending_photo(photo_id)` 原子地将 pending 更新为 processing 并返回文档
+- [x] `complete_photo(photo_id, objects)` 更新 status="completed" 并写入 objects
+- [x] `reset_photo_to_pending(photo_id)` 将 processing 重置为 pending
+- [x] `list_user_photos_mongo` 返回每条记录包含 `status` 字段（存量无此字段的数据默认视为 "completed"）
+- [x] `POST /api/photos/upload-pending` 登录用户可成功上传原图并返回 `{photo_id, status: "pending"}`
+- [x] `POST /api/photos/upload-pending` 未登录用户调用返回 401
+- [x] `GET /api/photos/list` 返回的每条 photo 包含 `status` 字段
+- [x] `backend/worker.py` 可独立运行，每 2 秒轮询一次 MongoDB
+- [x] Worker 正确识别 pending 照片 → 更新为 processing → 调用 AI → 更新为 completed
+- [x] Worker 识别失败时将照片重置为 pending（不退出主循环）
+- [x] Worker 无 pending 照片时正常休眠 2 秒后继续
+- [x] 前端 `PhotoItem` 接口包含 `status?: 'pending' | 'processing' | 'completed'` 字段
+- [x] 前端 `api.ts` 包含 `uploadPending` 方法
+- [x] 登录用户选图上传后调用 `uploadPending`，留在首页，不进入复习页
+- [x] 未登录用户选图上传后保持原有流程（进入复习页同步识别）
+- [x] 首页 pending 照片显示遮罩 + "等待识别" 样式
+- [x] 首页 processing 照片显示遮罩 + "识别中..." + 动画样式
+- [x] 首页 completed 照片正常展示，无遮罩
+- [x] 首页存在非 completed 照片时每 5 秒自动刷新列表
+- [x] 首页全部 completed 时停止 5 秒轮询
+- [x] 用户离开首页时清除轮询定时器

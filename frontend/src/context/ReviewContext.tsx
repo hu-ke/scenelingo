@@ -8,6 +8,7 @@ export interface PhotoItem {
   dataUrl: string;
   annotatedDataUrl?: string;
   objects?: RecognizedObject[];
+  status?: 'pending' | 'processing' | 'completed';
 }
 
 export interface RecognizedObject {
@@ -44,6 +45,8 @@ export type ReviewAction =
   | { type: 'removeSaved'; id: string }
   | { type: 'setPage'; page: AppPage }
   | { type: 'toggleSelectPhoto'; id: string }
+  | { type: 'removeSelected'; id: string }
+  | { type: 'cleanSelection'; ids: string[] }
   | { type: 'clearSelection' }
   | { type: 'resetReview' }
   | { type: 'setWordDetail'; word: string | null }
@@ -141,6 +144,20 @@ function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
         selectedPhotoIds: isSelected
           ? state.selectedPhotoIds.filter((sid) => sid !== action.id)
           : [...state.selectedPhotoIds, action.id],
+      };
+    }
+
+    case 'removeSelected':
+      return {
+        ...state,
+        selectedPhotoIds: state.selectedPhotoIds.filter((sid) => sid !== action.id),
+      };
+
+    case 'cleanSelection': {
+      const validIds = new Set(action.ids);
+      return {
+        ...state,
+        selectedPhotoIds: state.selectedPhotoIds.filter((sid) => validIds.has(sid)),
       };
     }
 

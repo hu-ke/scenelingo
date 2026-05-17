@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import type { PhotoItem } from '../context/ReviewContext';
 import { getPhotosGroupedByDate, deletePhoto, getAllPhotos, countPhotos, isLoggedIn } from '../utils/indexedDB';
 import { api } from '../utils/api';
+import { getApiBaseUrl } from '../utils/api';
 import { generateUUID } from '../utils/uuid';
 import { resizeImage } from '../utils/resizeImage';
 import AppLogo from '../components/AppLogo';
@@ -25,6 +26,227 @@ function formatDateLabel(dateStr: string): string {
   return `${m}月${d}日 ${weekDays[date.getDay()]}`;
 }
 
+const ANNOTATION_COLORS = ['#A29BFE', '#54A0FF', '#2ED573', '#FFA94D', '#FF6B6B'];
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function drawSpeakerIcon(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, size: number, color: string
+) {
+  const s = size;
+  ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+
+  const bodyW = s * 0.28;
+  const bodyH = s * 0.5;
+  const bodyX = x;
+  const bodyY = y + (s - bodyH) / 2;
+  ctx.fillRect(bodyX, bodyY, bodyW, bodyH);
+
+  const coneX = bodyX + bodyW;
+  ctx.beginPath();
+  ctx.moveTo(coneX, bodyY);
+  ctx.lineTo(coneX + s * 0.22, y + s * 0.15);
+  ctx.lineTo(coneX + s * 0.22, y + s * 0.85);
+  ctx.lineTo(coneX, bodyY + bodyH);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.lineWidth = 1.5;
+  const waveCX = coneX + s * 0.3;
+  const waveCY = y + s / 2;
+  ctx.beginPath();
+  ctx.arc(waveCX, waveCY, s * 0.12, -0.65, 0.65);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(waveCX, waveCY, s * 0.22, -0.65, 0.65);
+  ctx.stroke();
+}
+
+function drawBubbleTail(
+  ctx: CanvasRenderingContext2D,
+  centerX: number, attachY: number,
+  tailWidth: number, tailHeight: number, pointingUp: boolean
+) {
+  const halfW = tailWidth / 2;
+  ctx.beginPath();
+  if (pointingUp) {
+    ctx.moveTo(centerX - halfW, attachY);
+    ctx.lineTo(centerX, attachY - tailHeight);
+    ctx.lineTo(centerX + halfW, attachY);
+  } else {
+    ctx.moveTo(centerX - halfW, attachY);
+    ctx.lineTo(centerX, attachY + tailHeight);
+    ctx.lineTo(centerX + halfW, attachY);
+  }
+  ctx.closePath();
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fill();
+}
+
+function drawTailStroke(
+  ctx: CanvasRenderingContext2D,
+  centerX: number, attachY: number,
+  tailWidth: number, tailHeight: number, pointingUp: boolean, color: string
+) {
+  const halfW = tailWidth / 2;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  if (pointingUp) {
+    ctx.beginPath();
+    ctx.moveTo(centerX - halfW, attachY);
+    ctx.lineTo(centerX, attachY - tailHeight);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(centerX + halfW, attachY);
+    ctx.lineTo(centerX, attachY - tailHeight);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(centerX - halfW, attachY);
+    ctx.lineTo(centerX, attachY + tailHeight);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(centerX + halfW, attachY);
+    ctx.lineTo(centerX, attachY + tailHeight);
+    ctx.stroke();
+  }
+}
+
+function renderAnnotatedImage(dataUrl: string, objects: any[]): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('no context')); return; }
+
+      ctx.drawImage(img, 0, 0);
+
+      if (objects.length === 0) {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('blob failed'));
+        }, 'image/jpeg', 0.9);
+        return;
+      }
+
+      const scaleX = canvas.width / 1000;
+      const scaleY = canvas.height / 1000;
+      const fontSize = Math.max(14, Math.min(22, canvas.width / 35));
+      const phoneticFontSize = Math.max(10, Math.min(15, fontSize * 0.7));
+      const lineHeight = fontSize + 4;
+      const phoneticLineHeight = phoneticFontSize + 2;
+
+      const bubblePaddingX = 14;
+      const bubblePaddingY = 10;
+      const bubbleRadius = 12;
+      const speakerSize = 22;
+      const speakerGap = 8;
+      const tailWidth = 16;
+      const tailHeight = 10;
+      const bubbleGap = 8;
+
+      for (let i = 0; i < objects.length; i++) {
+        const obj = objects[i];
+        const color = ANNOTATION_COLORS[i % ANNOTATION_COLORS.length];
+
+        const [bx1, by1, bx2, by2] = obj.bbox || [0, 0, 0, 0];
+        const px = bx1 * scaleX;
+        const py = by1 * scaleY;
+        const pw = (bx2 - bx1) * scaleX;
+        const ph = (by2 - by1) * scaleY;
+
+        const bboxCenterX = px + pw / 2;
+
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        const wordWidth = ctx.measureText(obj.name || '').width;
+
+        ctx.font = `${phoneticFontSize}px sans-serif`;
+        const phoneticWidth = ctx.measureText(obj.phonetic || '').width;
+
+        const textWidth = Math.max(wordWidth, phoneticWidth);
+        const bubbleW = Math.max(140, Math.min(240, textWidth + speakerSize + speakerGap + bubblePaddingX * 2));
+        const bubbleH = bubblePaddingY * 2 + lineHeight + phoneticLineHeight;
+
+        let bubbleX = bboxCenterX - bubbleW / 2;
+        let bubbleY = py - bubbleH - tailHeight - bubbleGap;
+        let tailUp = false;
+
+        if (bubbleX < 0) bubbleX = 2;
+        if (bubbleX + bubbleW > canvas.width) bubbleX = canvas.width - bubbleW - 2;
+
+        if (bubbleY < 0) {
+          bubbleY = py + ph + bubbleGap;
+          tailUp = true;
+        }
+
+        const speakerX = bubbleX + bubbleW - bubblePaddingX - speakerSize;
+        const speakerY = bubbleY + (bubbleH - speakerSize) / 2;
+
+        roundRect(ctx, bubbleX, bubbleY, bubbleW, bubbleH, bubbleRadius);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        const attachY = tailUp ? bubbleY : bubbleY + bubbleH;
+        drawBubbleTail(ctx, bboxCenterX, attachY, tailWidth, tailHeight, tailUp);
+        drawTailStroke(ctx, bboxCenterX, attachY, tailWidth, tailHeight, tailUp, color);
+
+        ctx.fillStyle = '#333333';
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.textBaseline = 'top';
+        ctx.fillText(obj.name || '', bubbleX + bubblePaddingX, bubbleY + bubblePaddingY);
+
+        if (obj.phonetic) {
+          ctx.fillStyle = '#888888';
+          ctx.font = `${phoneticFontSize}px sans-serif`;
+          ctx.fillText(
+            obj.phonetic,
+            bubbleX + bubblePaddingX,
+            bubbleY + bubblePaddingY + lineHeight
+          );
+        }
+
+        drawSpeakerIcon(ctx, speakerX, speakerY, speakerSize, color);
+      }
+
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('blob failed'));
+      }, 'image/jpeg', 0.9);
+    };
+    img.onerror = () => reject(new Error('image load failed'));
+
+    if (dataUrl.startsWith('http')) {
+      img.src = `${getApiBaseUrl()}/api/image/proxy?url=${encodeURIComponent(dataUrl)}`;
+    } else {
+      img.src = dataUrl;
+    }
+  });
+}
+
 export default function HomePage() {
   const { state, dispatch } = useReview();
   const { state: authState, logout } = useAuth();
@@ -37,6 +259,9 @@ export default function HomePage() {
   const [expandedCollections, setExpandedCollections] = useState<Set<string>>(
     new Set()
   );
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const initialLoadDone = useRef(false);
 
   const loadLocalData = async () => {
     const photos = await getAllPhotos();
@@ -57,6 +282,16 @@ export default function HomePage() {
     setTotalCount(total);
     setWordCount(wordSet.size);
     dispatch({ type: 'setSavedPhotos', photos });
+
+    const today = new Date().toISOString().split('T')[0];
+    if (grouped[today]) {
+      setExpandedCollections((prev) => {
+        if (prev.has(today)) return prev;
+        const next = new Set(prev);
+        next.add(today);
+        return next;
+      });
+    }
   };
 
   const loadData = useCallback(async () => {
@@ -70,7 +305,35 @@ export default function HomePage() {
           dataUrl: p.originalUrl,
           annotatedDataUrl: p.annotatedUrl,
           objects: p.objects,
+          status: p.status || 'completed',
+          collectionDate: p.collectionDate,
         }));
+
+        const annotationTasks: Promise<void>[] = [];
+        for (const photo of cloudPhotos) {
+          if (
+            photo.status === 'completed' &&
+            !photo.annotatedDataUrl &&
+            photo.objects &&
+            photo.objects.length > 0
+          ) {
+            annotationTasks.push(
+              (async () => {
+                try {
+                  const blob = await renderAnnotatedImage(photo.dataUrl, photo.objects);
+                  const formData = new FormData();
+                  formData.append('annotated', blob, 'annotated.jpg');
+                  formData.append('photo_id', photo.id);
+                  await api.uploadAnnotated(formData);
+                  photo.annotatedDataUrl = 'uploaded';
+                } catch (err) {
+                  console.error(`标注上传失败 ${photo.id}:`, err);
+                }
+              })()
+            );
+          }
+        }
+        await Promise.allSettled(annotationTasks);
 
         const grouped: Record<string, PhotoItem[]> = {};
         for (const photo of cloudPhotos) {
@@ -93,6 +356,16 @@ export default function HomePage() {
         setTotalCount(totalCount);
         setWordCount(wordSet.size);
         dispatch({ type: 'setSavedPhotos', photos: cloudPhotos });
+
+        const today = new Date().toISOString().split('T')[0];
+        if (grouped[today]) {
+          setExpandedCollections((prev) => {
+            if (prev.has(today)) return prev;
+            const next = new Set(prev);
+            next.add(today);
+            return next;
+          });
+        }
       } catch (err) {
         console.error('云端加载失败，尝试本地:', err);
         await loadLocalData();
@@ -105,8 +378,32 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    loadData();
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      loadData();
+    }
   }, [loadData]);
+
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+
+    const hasNonCompleted = Object.values(groupedPhotos).some(photos =>
+      photos.some(p => p.status && p.status !== 'completed')
+    );
+
+    if (!hasNonCompleted) return;
+
+    const interval = setInterval(() => {
+      loadData();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [groupedPhotos, loadData]);
+
+  useEffect(() => {
+    const allIds = Object.values(groupedPhotos).flat().map(p => p.id);
+    dispatch({ type: 'cleanSelection', ids: allIds });
+  }, [groupedPhotos, dispatch]);
 
   const learningDays = Object.keys(groupedPhotos).length;
 
@@ -147,7 +444,27 @@ export default function HomePage() {
     }
 
     const loggedIn = isLoggedIn();
-    if (!loggedIn) {
+
+    if (loggedIn) {
+      setUploading(true);
+      setUploadProgress({ current: 0, total: imageFiles.length });
+
+      for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+        try {
+          const resizedBlob = await resizeImage(file, 1500);
+          const formData = new FormData();
+          formData.append('original', resizedBlob, file.name || 'original.jpg');
+          await api.uploadPending(formData);
+        } catch (err) {
+          console.error('上传失败:', err);
+        }
+        setUploadProgress({ current: i + 1, total: imageFiles.length });
+      }
+
+      setUploading(false);
+      await loadData();
+    } else {
       const currentCount = await countPhotos();
       if (currentCount >= 10) {
         setShowLoginPrompt(true);
@@ -157,20 +474,20 @@ export default function HomePage() {
         setShowLoginPrompt(true);
         return;
       }
-    }
 
-    const photoItems: PhotoItem[] = [];
-    for (const file of imageFiles) {
-      const resizedBlob = await resizeImage(file, 1500);
-      const dataUrl = await blobToDataURL(resizedBlob);
-      photoItems.push({
-        id: generateUUID(),
-        dataUrl,
-      });
-    }
+      const photoItems: PhotoItem[] = [];
+      for (const file of imageFiles) {
+        const resizedBlob = await resizeImage(file, 1500);
+        const dataUrl = await blobToDataURL(resizedBlob);
+        photoItems.push({
+          id: generateUUID(),
+          dataUrl,
+        });
+      }
 
-    dispatch({ type: 'setPhotos', photos: photoItems });
-    dispatch({ type: 'setPage', page: 'review' });
+      dispatch({ type: 'setPhotos', photos: photoItems });
+      dispatch({ type: 'setPage', page: 'review' });
+    }
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -194,7 +511,7 @@ export default function HomePage() {
       await deletePhoto(id);
     }
 
-    dispatch({ type: 'toggleSelectPhoto', id });
+    dispatch({ type: 'removeSelected', id });
     await loadData();
   };
 
@@ -207,9 +524,25 @@ export default function HomePage() {
     dispatch({ type: 'setPage', page: 'review' });
   };
 
-  const handleMerge = () => {
-    if (state.selectedPhotoIds.length < 2) return;
-    dispatch({ type: 'setPage', page: 'merge' });
+  const handleBatchDelete = async () => {
+    const ids = [...state.selectedPhotoIds];
+    if (ids.length === 0) return;
+    if (!confirm(`确定删除选中的 ${ids.length} 张照片吗？此操作不可恢复。`)) return;
+
+    const loggedIn = isLoggedIn();
+    for (const id of ids) {
+      try {
+        if (loggedIn) {
+          await api.deletePhoto(id);
+        } else {
+          await deletePhoto(id);
+        }
+      } catch (err) {
+        console.error('删除失败:', err);
+      }
+    }
+    dispatch({ type: 'clearSelection' });
+    await loadData();
   };
 
   const hasAnyPhotos = totalCount > 0;
@@ -306,6 +639,40 @@ export default function HomePage() {
         )}
       </div>
 
+      {!loading && (
+        <div style={{
+          background: 'var(--color-surface)',
+          borderRadius: 'var(--radius-md)',
+          padding: '0.7rem 1rem',
+          margin: '0.75rem 0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          fontSize: '0.82rem',
+          color: 'var(--color-text-secondary)',
+          boxShadow: 'var(--shadow-xs)',
+        }}>
+          <span style={{ fontSize: '1.1rem' }}>⏳</span>
+          <span>
+            每张图片AI识别大约需要5-10秒。
+            {authState.isLoggedIn
+              ? '上传后将自动后台处理，您可继续浏览。'
+              : (
+                <span>
+                  {' '}
+                  <span
+                    onClick={() => dispatch({ type: 'setPage', page: 'login' })}
+                    style={{ color: 'var(--color-primary-mid)', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    登录
+                  </span>
+                  后可异步批量处理，无需等待。
+                </span>
+              )}
+          </span>
+        </div>
+      )}
+
       {/* ===== 统计卡片行 ===== */}
       {hasAnyPhotos && (
         <div className="stats-row">
@@ -390,17 +757,52 @@ export default function HomePage() {
 
                 {isExpanded && (
                   <div className="collection-grid">
-                    {photos.map((photo) => (
+                    {photos.map((photo) => {
+                      const isPending = photo.status === 'pending';
+                      const isProcessing = photo.status === 'processing';
+                      const isCompleted = !photo.status || photo.status === 'completed';
+
+                      return (
                       <div
                       key={photo.id}
-                      style={{ position: 'relative', cursor: 'pointer' }}
-                      onClick={() => handleReProcess(photo)}
+                      style={{ position: 'relative', cursor: isCompleted ? 'pointer' : 'default' }}
+                      onClick={() => isCompleted && handleReProcess(photo)}
                     >
                         <img
                           src={photo.annotatedDataUrl || photo.dataUrl}
                           alt=""
+                          loading="lazy"
                           className="collection-grid__thumb"
+                          style={isPending || isProcessing ? { filter: 'brightness(0.5)' } : undefined}
                         />
+                        {(isPending || isProcessing) && (
+                          <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'rgba(0,0,0,0.35)',
+                            borderRadius: 'var(--radius-md)',
+                            color: '#fff',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            gap: '0.3rem',
+                          }}>
+                            <div style={{
+                              width: '24px',
+                              height: '24px',
+                              border: '2px solid rgba(255,255,255,0.3)',
+                              borderTopColor: '#fff',
+                              borderRadius: '50%',
+                              animation: 'spin 0.8s linear infinite',
+                            }} />
+                            <span>{isPending ? '等待识别' : '识别中...'}</span>
+                          </div>
+                        )}
+                        {isCompleted && (
+                          <>
                         <label
                           className="photo-card__check"
                           style={{
@@ -432,8 +834,11 @@ export default function HomePage() {
                         >
                           ×
                         </button>
+                          </>
+                        )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -473,20 +878,17 @@ export default function HomePage() {
         onChange={handleFileChange}
       />
 
-      {/* ===== 底部合并栏 ===== */}
+      {/* ===== 底部批量删除栏 ===== */}
       <div
-        className={`merge-bar${state.selectedPhotoIds.length >= 2 ? ' merge-bar--active' : ''}`}
+        className={`merge-bar${state.selectedPhotoIds.length >= 1 ? ' merge-bar--active' : ''}`}
       >
         <button
           className="merge-bar__btn"
-          disabled={state.selectedPhotoIds.length < 2}
-          onClick={handleMerge}
+          disabled={state.selectedPhotoIds.length === 0}
+          onClick={handleBatchDelete}
         >
-          合并导出 (
-          {state.selectedPhotoIds.length >= 2
-            ? state.selectedPhotoIds.length
-            : 0}
-          /2+)
+          删除选中 (
+          {state.selectedPhotoIds.length})
         </button>
       </div>
 
@@ -553,6 +955,44 @@ export default function HomePage() {
             >
               暂不登录
             </button>
+          </div>
+        </div>
+      )}
+
+      {uploading && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 200,
+        }}>
+          <div style={{
+            background: 'var(--color-surface)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '2rem 1.5rem',
+            maxWidth: '280px',
+            width: '90%',
+            textAlign: 'center',
+            boxShadow: 'var(--shadow-lg)',
+          }}>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              border: '3px solid var(--color-border)',
+              borderTopColor: 'var(--color-primary-mid)',
+              borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite',
+              margin: '0 auto 1rem',
+            }} />
+            <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--color-text)' }}>
+              正在上传...
+            </div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginTop: '0.3rem' }}>
+              {uploadProgress.current} / {uploadProgress.total}
+            </div>
           </div>
         </div>
       )}

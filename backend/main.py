@@ -2,6 +2,7 @@ import os
 import base64
 import json
 import re
+import uuid
 from io import BytesIO
 from urllib.request import urlopen
 
@@ -26,9 +27,10 @@ from PIL import Image
 from pydantic import BaseModel
 
 from auth import generate_code, verify_code, generate_token, verify_token, send_email, get_or_create_user
-from auth import save_photo_record, list_user_photos_mongo, delete_photo_record
+from auth import save_photo_record, list_user_photos_mongo, delete_photo_record, save_pending_photo_record
 from auth import update_user_language
 from auth import update_user_theme
+from auth import set_annotated_url
 from db import get_db, init_db, _client
 from oss_client import upload_photo, upload_metadata, list_user_photos, delete_photo
 
@@ -297,6 +299,49 @@ async def upload_photos(request: Request):
 
     return {"success": True, "photoId": photo_id}
 
+
+@app.post("/scenelingo-service/api/photos/upload-pending")
+async def upload_pending(request: Request):
+    email = require_auth(request)
+    form = await request.form()
+    original_file = form.get("original")
+
+    if not original_file:
+        raise HTTPException(status_code=400, detail="缺少原图")
+
+    photo_id = uuid.uuid4().hex[:16]
+
+    original_data = await original_file.read()
+    if not upload_photo(email, photo_id, original_data, "original.jpg"):
+        raise HTTPException(status_code=500, detail="原图上传失败")
+
+    saved = await save_pending_photo_record(email, photo_id)
+    if not saved:
+        raise HTTPException(status_code=500, detail="保存记录失败")
+
+    return {"photo_id": photo_id, "status": "pending"}
+
+
+@app.post("/scenelingo-service/api/photos/upload-annotated")
+async def upload_annotated(request: Request):
+    email = require_auth(request)
+    form = await request.form()
+    annotated_file = form.get("annotated")
+    photo_id = str(form.get("photo_id", ""))
+
+    if not annotated_file or not photo_id:
+        raise HTTPException(status_code=400, detail="缺少标注图或照片ID")
+
+    annotated_data = await annotated_file.read()
+    if not upload_photo(email, photo_id, annotated_data, "annotated.jpg"):
+        raise HTTPException(status_code=500, detail="标注图上传失败")
+
+    bucket = os.environ.get("OSS_BUCKET_NAME", "scenelingo")
+    endpoint = os.environ.get("OSS_ENDPOINT", "oss-cn-hangzhou.aliyuncs.com")
+    annotated_url = f"https://{bucket}.{endpoint}/photos/{email}/{photo_id}/annotated.jpg"
+    await set_annotated_url(photo_id, annotated_url)
+
+    return {"success": True, "photoId": photo_id}
 
 
 @app.get("/scenelingo-service/api/image/proxy")
