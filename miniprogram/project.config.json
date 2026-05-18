@@ -4,7 +4,7 @@
   "description": "Scene Lingo 场景英语 - 拍照学单词",
   "appid": "wx3ef2e561112c2a5a",
   "setting": {
-    "urlCheck": true,
+    "urlCheck": false,
     "es6": true,
     "enhance": true,
     "postcss": true,

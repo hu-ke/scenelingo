@@ -16,15 +16,13 @@ async function request<T>(path: string, options: Record<string, unknown> = {}): 
     header['Authorization'] = `Bearer ${token}`;
   }
 
-  if (!(options.body instanceof FormData)) {
-    header['Content-Type'] = 'application/json';
-  }
+  header['Content-Type'] = 'application/json';
 
   const res = await Taro.request({
     url: `${BASE_URL}${path}`,
     method: (options.method as string) || 'GET',
     header,
-    data: options.body instanceof FormData ? undefined : options.body,
+    data: options.body,
     ...options,
   });
 
