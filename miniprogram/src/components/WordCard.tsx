@@ -23,13 +23,14 @@ const WordCard: React.FC<WordCardProps> = ({ obj }) => {
 
   const handleSpeak = (e: any) => {
     e.stopPropagation()
-
     try {
       const audioCtx = Taro.createInnerAudioContext()
-      console.log('[WordCard] TTS play requested for:', name, 'audioCtx:', audioCtx)
-    } catch {
-      console.log('[WordCard] TTS play requested for:', name)
-    }
+      const ttsLang = 'en-US'
+      audioCtx.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(name)}&tl=${ttsLang}&client=tw-ob`
+      audioCtx.play()
+      audioCtx.onEnded(() => audioCtx.destroy())
+      audioCtx.onError(() => audioCtx.destroy())
+    } catch {}
   }
 
   return (
@@ -37,29 +38,25 @@ const WordCard: React.FC<WordCardProps> = ({ obj }) => {
       onClick={handleToggle}
       style={{
         backgroundColor: '#ffffff',
-        borderRadius: '16px',
-        border: '1px solid #e8e8e8',
-        padding: '20px',
-        marginBottom: '16px',
-        textAlign: 'center',
-        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
-        transition: 'box-shadow 0.3s ease',
+        borderRadius: '8rpx',
+        border: '1rpx solid #e8e8e8',
+        padding: '12rpx 16rpx',
+        width: '220rpx',
+        boxShadow: '0 1rpx 6rpx rgba(0, 0, 0, 0.05)',
       }}
     >
       <View
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          gap: '10px',
+          justifyContent: 'space-between',
         }}
       >
         <Text
           style={{
-            fontSize: '28px',
-            fontWeight: '700',
+            fontSize: '24rpx',
+            fontWeight: '600',
             color: '#1a1a1a',
-            lineHeight: '1.4',
           }}
         >
           {name}
@@ -68,9 +65,7 @@ const WordCard: React.FC<WordCardProps> = ({ obj }) => {
         <View
           onClick={handleSpeak}
           style={{
-            fontSize: '22px',
-            padding: '4px 8px',
-            cursor: 'pointer',
+            fontSize: '22rpx',
           }}
         >
           🔊
@@ -81,10 +76,9 @@ const WordCard: React.FC<WordCardProps> = ({ obj }) => {
         <Text
           style={{
             display: 'block',
-            fontSize: '18px',
+            fontSize: '20rpx',
             color: '#e8642e',
-            marginTop: '6px',
-            lineHeight: '1.4',
+            marginTop: '4rpx',
           }}
         >
           {chinese}
@@ -95,10 +89,9 @@ const WordCard: React.FC<WordCardProps> = ({ obj }) => {
         <Text
           style={{
             display: 'block',
-            fontSize: '14px',
-            color: '#999999',
-            marginTop: '4px',
-            lineHeight: '1.4',
+            fontSize: '18rpx',
+            color: '#999',
+            marginTop: '2rpx',
           }}
         >
           {phonetic}
@@ -108,9 +101,9 @@ const WordCard: React.FC<WordCardProps> = ({ obj }) => {
       {examples && examples.length > 0 && (
         <View
           style={{
-            marginTop: '6px',
-            fontSize: '12px',
-            color: '#bbbbbb',
+            marginTop: '6rpx',
+            fontSize: '18rpx',
+            color: '#bbb',
           }}
         >
           <Text>{expanded ? '收起例句 ▲' : '展开例句 ▼'}</Text>
@@ -120,11 +113,10 @@ const WordCard: React.FC<WordCardProps> = ({ obj }) => {
       {expanded && examples && examples.length > 0 && (
         <View
           style={{
-            marginTop: '14px',
-            padding: '12px 16px',
+            marginTop: '10rpx',
+            padding: '8rpx 12rpx',
             backgroundColor: '#f9f9fb',
-            borderRadius: '10px',
-            textAlign: 'left',
+            borderRadius: '8rpx',
           }}
         >
           {examples.map((example, index) => (
@@ -133,18 +125,18 @@ const WordCard: React.FC<WordCardProps> = ({ obj }) => {
               style={{
                 display: 'flex',
                 alignItems: 'flex-start',
-                gap: '8px',
-                padding: '8px 0',
+                gap: '6rpx',
+                padding: '6rpx 0',
                 borderBottom:
-                  index < examples.length - 1 ? '1px solid #eeeeee' : 'none',
+                  index < examples.length - 1 ? '1rpx solid #eee' : 'none',
               }}
             >
-              <Text style={{ fontSize: '16px', flexShrink: 0 }}>📖</Text>
+              <Text style={{ fontSize: '18rpx', flexShrink: 0 }}>📖</Text>
               <Text
                 style={{
-                  fontSize: '15px',
-                  color: '#444444',
-                  lineHeight: '1.6',
+                  fontSize: '18rpx',
+                  color: '#444',
+                  lineHeight: '1.5',
                 }}
               >
                 {example}
