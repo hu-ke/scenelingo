@@ -1,6 +1,6 @@
 import { getStorage, setJSONStorage } from './storage';
 
-const STORAGE_KEY = 'mastered_words';
+const STORAGE_KEY = 'scene_lingo_mastered_words';
 
 export function getMasteredWords(): string[] {
   try {

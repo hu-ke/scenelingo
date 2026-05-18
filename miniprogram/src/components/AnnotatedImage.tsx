@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Canvas, Text } from '@tarojs/components'
 import type { RecognizedObject } from '../context/AppContext'
+import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs'
 
 const MAX_SIZE = 1200
 const BUBBLE_PADDING_X = 14
@@ -81,12 +82,62 @@ function AnnotatedImage({ dataUrl, objects, style }: Props) {
 
   const canvasId = 'annotated-canvas'
 
+  const handleCanvasTap = useCallback((e: any) => {
+    if (!objects.length || !imageInfo) return
+    const tapX = e.detail.x
+    const tapY = e.detail.y
+    const { width: canvasW, height: canvasH } = imageInfo
+
+    const wordFontSize = Math.max(14, Math.min(22, Math.round(canvasW / 55)))
+    const phoneticFontSize = Math.max(10, Math.min(15, Math.round(canvasW / 80)))
+    const lineHeight = wordFontSize + 4
+
+    for (let i = 0; i < objects.length; i++) {
+      const obj = objects[i]
+      const [x0, y0, x1, y1] = obj.bbox
+      const scaleX = canvasW / 1000
+      const scaleY = canvasH / 1000
+      const drawX = x0 * scaleX
+      const drawY = y0 * scaleY
+      const drawW = (x1 - x0) * scaleX
+      const drawH = (y1 - y0) * scaleY
+      const centerX = drawX + drawW / 2
+
+      const wordEstimateW = obj.name.length * wordFontSize * 0.7
+      const phoneticEstimateW = obj.phonetic ? obj.phonetic.length * phoneticFontSize * 0.6 : 0
+      const textW = Math.max(wordEstimateW, phoneticEstimateW)
+      const bubbleW = textW + BUBBLE_PADDING_X * 2 + SPEAKER_SIZE + 12
+      const bubbleH = lineHeight * 2 + BUBBLE_PADDING_Y * 2
+
+      const bubbleAbove = drawY > bubbleH + TAIL_HEIGHT + 8
+      const bubbleY = bubbleAbove ? drawY - bubbleH - TAIL_HEIGHT - 4 : drawY + drawH + TAIL_HEIGHT + 4
+
+      let bubbleX = centerX - bubbleW / 2
+      bubbleX = Math.max(4, Math.min(bubbleX, canvasW - bubbleW - 4))
+
+      const speakerX = bubbleX + bubbleW - BUBBLE_PADDING_X - SPEAKER_SIZE
+      const speakerY = bubbleY + (bubbleH - SPEAKER_SIZE) / 2
+
+      if (tapX >= speakerX && tapX <= speakerX + SPEAKER_SIZE &&
+          tapY >= speakerY && tapY <= speakerY + SPEAKER_SIZE) {
+        try {
+          const audioCtx = Taro.createInnerAudioContext()
+          const ttsLang = getTtsLang(getLanguagePrefs().targetLang)
+          audioCtx.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(obj.name)}&tl=${ttsLang}&client=tw-ob`
+          audioCtx.play()
+          audioCtx.onEnded(() => audioCtx.destroy())
+          audioCtx.onError(() => audioCtx.destroy())
+        } catch {}
+        return
+      }
+    }
+  }, [objects, imageInfo])
+
   useEffect(() => {
     if (!dataUrl) {
       setImageInfo(null)
       return
     }
-    console.log('get image info', dataUrl)
     Taro.getImageInfo({ src: dataUrl })
       .then((info) => {
         const scale = Math.min(MAX_SIZE / info.width, MAX_SIZE / info.height, 1)
@@ -95,8 +146,7 @@ function AnnotatedImage({ dataUrl, objects, style }: Props) {
           height: Math.round(info.height * scale),
         })
       })
-      .catch((err) => {
-        console.error('Failed to get image info:', err)
+      .catch(() => {
         setImageInfo(null)
       })
   }, [dataUrl])
@@ -220,6 +270,7 @@ function AnnotatedImage({ dataUrl, objects, style }: Props) {
     <View style={style}>
       <Canvas
         canvasId={canvasId}
+        onTap={handleCanvasTap}
         style={{
           width: hasImage ? imageInfo.width + 'px' : '100%',
           height: hasImage ? imageInfo.height + 'px' : 'auto',

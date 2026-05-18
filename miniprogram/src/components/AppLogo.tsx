@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { View } from '@tarojs/components'
+import { useReview } from '../context/AppContext'
+import { getThemeColors } from '../utils/theme'
 
 interface AppLogoProps {
   size?: number
@@ -7,19 +9,20 @@ interface AppLogoProps {
 }
 
 const AppLogo: React.FC<AppLogoProps> = ({ size = 56, animated = false }) => {
+  const { state } = useReview()
   const [scale, setScale] = useState(1)
+  const colors = getThemeColors(state.theme)
 
   useEffect(() => {
     if (!animated) return
-
     const interval = setInterval(() => {
       setScale((prev) => (prev === 1 ? 1.12 : 1))
     }, 1200)
-
     return () => clearInterval(interval)
   }, [animated])
 
-  const gradientColors = ['#667eea', '#764ba2']
+  const startColor = colors?.['color-primary-start'] || '#667eea'
+  const endColor = colors?.['color-primary-end'] || '#764ba2'
 
   return (
     <View
@@ -30,13 +33,13 @@ const AppLogo: React.FC<AppLogoProps> = ({ size = 56, animated = false }) => {
         width: `${size}px`,
         height: `${size}px`,
         borderRadius: `${size * 0.3}px`,
-        background: `linear-gradient(135deg, ${gradientColors[0]}, ${gradientColors[1]})`,
+        background: `linear-gradient(135deg, ${startColor}, ${endColor})`,
         fontSize: `${size * 0.55}px`,
         lineHeight: `${size}px`,
         textAlign: 'center',
         transition: 'transform 0.8s ease-in-out',
         transform: `scale(${scale})`,
-        boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+        boxShadow: `0 4px 15px ${startColor}40`,
       }}
     >
       <View style={{ transform: 'rotate(-5deg)' }}>🔍</View>

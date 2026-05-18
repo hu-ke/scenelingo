@@ -36,10 +36,9 @@ export default function WordBookPage() {
         const res = await api.listPhotos();
         const cloudPhotos: PhotoItem[] = (res.photos || []).map((p: Record<string, unknown>) => ({
           id: (p.id || p._id || '') as string,
-          dataUrl: (p.dataUrl || p.annotatedDataUrl || '') as string,
-          annotatedDataUrl: p.annotatedDataUrl as string | undefined,
+          dataUrl: (p.originalUrl || '') as string,
+          annotatedDataUrl: p.annotatedUrl as string | undefined,
           objects: (p.objects || []) as PhotoItem['objects'],
-          collectionDate: (p.collectionDate || p.createdAt) as string | undefined,
         }));
         setPhotos(cloudPhotos);
       } else {
@@ -115,7 +114,7 @@ export default function WordBookPage() {
   }, [dispatch]);
 
   const handleBack = useCallback(() => {
-    Taro.navigateTo({ url: '/pages/home/index' });
+    Taro.navigateBack();
   }, []);
 
   const renderEmptyState = () => {

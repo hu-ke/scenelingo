@@ -4,7 +4,7 @@ import { View, Text, Button, Picker } from '@tarojs/components';
 import { useReview } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { LANGUAGES, setLanguagePrefs } from '../../utils/languagePrefs';
-import { THEMES, setTheme } from '../../utils/theme';
+import { THEMES, setTheme, applyTheme } from '../../utils/theme';
 import { api } from '../../utils/api';
 import './index.scss';
 
@@ -21,34 +21,8 @@ export default function SettingsPage() {
   const { state: authState } = useAuth();
   const [selectedLang, setSelectedLang] = useState(state.targetLang);
   const [selectedTheme, setSelectedTheme] = useState(state.theme);
-  const [saving, setSaving] = useState(false);
 
   const targetLanguages = LANGUAGES.filter((l) => l.code !== 'zh');
-
-  const handleSave = useCallback(async () => {
-    setSaving(true);
-    try {
-      setLanguagePrefs({ nativeLang: 'zh', targetLang: selectedLang });
-      setTheme(selectedTheme);
-      dispatch({ type: 'setLanguage', nativeLang: 'zh', targetLang: selectedLang });
-      dispatch({ type: 'setTheme', theme: selectedTheme });
-
-      if (authState.isLoggedIn) {
-        try {
-          await api.updateLanguage('zh', selectedLang);
-          await api.updateTheme(selectedTheme);
-        } catch {
-          // silent fail for server sync
-        }
-      }
-
-      Taro.showToast({ title: '保存成功', icon: 'success', duration: 1500 });
-    } catch (e: unknown) {
-      Taro.showToast({ title: (e as Error).message || '保存失败', icon: 'error' });
-    } finally {
-      setSaving(false);
-    }
-  }, [selectedLang, selectedTheme, dispatch, authState.isLoggedIn]);
 
   const handleBack = useCallback(() => {
     Taro.navigateBack();
@@ -57,9 +31,15 @@ export default function SettingsPage() {
   const handleLangChange = useCallback(
     (e: { detail: { value: number } }) => {
       const lang = targetLanguages[e.detail.value];
-      if (lang) setSelectedLang(lang.code);
+      if (!lang) return;
+      setSelectedLang(lang.code);
+      setLanguagePrefs({ nativeLang: 'zh', targetLang: lang.code });
+      dispatch({ type: 'setLanguage', nativeLang: 'zh', targetLang: lang.code });
+      if (authState.isLoggedIn) {
+        api.updateLanguage('zh', lang.code).catch(() => {});
+      }
     },
-    [targetLanguages],
+    [targetLanguages, dispatch, authState.isLoggedIn],
   );
 
   const currentLangIndex = targetLanguages.findIndex((l) => l.code === selectedLang);
@@ -103,7 +83,15 @@ export default function SettingsPage() {
                 key={theme.id}
                 className={`settings-theme-circle ${selectedTheme === theme.id ? 'settings-theme-selected' : ''}`}
                 style={{ background: GRADIENTS[theme.id] }}
-                onClick={() => setSelectedTheme(theme.id)}
+                onClick={() => {
+                  setSelectedTheme(theme.id);
+                  setTheme(theme.id);
+                  applyTheme(theme.id);
+                  dispatch({ type: 'setTheme', theme: theme.id });
+                  if (authState.isLoggedIn) {
+                    api.updateTheme(theme.id).catch(() => {});
+                  }
+                }}
               >
                 {selectedTheme === theme.id && (
                   <Text className="settings-theme-check">✓</Text>
@@ -112,15 +100,6 @@ export default function SettingsPage() {
             ))}
           </View>
         </View>
-
-        <Button
-          className="settings-save-btn"
-          loading={saving}
-          disabled={saving}
-          onClick={handleSave}
-        >
-          保存
-        </Button>
 
         <Button className="settings-back-btn" onClick={handleBack}>
           返回

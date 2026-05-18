@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../utils/api';
 import { getJSONStorage } from '../../utils/storage';
 import { isMastered, toggleMastered } from '../../utils/wordMastery';
+import { getTtsLang, getLanguagePrefs } from '../../utils/languagePrefs';
 import type { PhotoItem, RecognizedObject } from '../../context/AppContext';
 import './index.scss';
 
@@ -34,10 +35,9 @@ export default function WordDetailPage() {
         const res = await api.listPhotos();
         const cloudPhotos: PhotoItem[] = (res.photos || []).map((p: Record<string, unknown>) => ({
           id: (p.id || p._id || '') as string,
-          dataUrl: (p.dataUrl || p.annotatedDataUrl || '') as string,
-          annotatedDataUrl: p.annotatedDataUrl as string | undefined,
+          dataUrl: (p.originalUrl || '') as string,
+          annotatedDataUrl: p.annotatedUrl as string | undefined,
           objects: (p.objects || []) as PhotoItem['objects'],
-          collectionDate: (p.collectionDate || p.createdAt) as string | undefined,
         }));
         setPhotos(cloudPhotos);
       } else {
@@ -89,9 +89,17 @@ export default function WordDetailPage() {
     if (!word) return;
     try {
       const audioCtx = Taro.createInnerAudioContext();
-      console.log('[WordDetail] TTS play requested for:', word);
+      const ttsLang = getTtsLang(getLanguagePrefs().targetLang);
+      audioCtx.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(word)}&tl=${ttsLang}&client=tw-ob`;
+      audioCtx.play();
+      audioCtx.onEnded(() => {
+        audioCtx.destroy();
+      });
+      audioCtx.onError(() => {
+        audioCtx.destroy();
+      });
     } catch {
-      console.log('[WordDetail] TTS play requested for:', word);
+      // ignore
     }
   }, [word]);
 

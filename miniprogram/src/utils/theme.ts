@@ -1,3 +1,5 @@
+import Taro from '@tarojs/taro';
+
 export interface Theme {
   id: string;
   name: string;
@@ -173,13 +175,24 @@ export function setTheme(themeId: string): void {
 export function applyTheme(themeId: string): void {
   const theme = THEME_MAP.get(themeId);
   if (!theme) return;
-  console.log('Theme applied:', themeId, theme.colors);
-  // Theme colors will be consumed by components via the AppContext
+  Taro.setStorageSync('scene_lingo_theme', themeId);
+  try {
+    const pages = Taro.getCurrentPages();
+    if (pages.length > 0) {
+      const page = pages[pages.length - 1] as any;
+      if (page && typeof page.setStyle === 'function') {
+        const style: Record<string, string> = {};
+        for (const [key, value] of Object.entries(theme.colors)) {
+          style[key] = value;
+        }
+        page.setStyle(style);
+      }
+    }
+  } catch {
+  }
 }
 
 export function getThemeColors(themeId: string): Record<string, string> {
   const theme = THEME_MAP.get(themeId);
   return theme?.colors || THEME_MAP.get(DEFAULT_THEME)!.colors;
 }
-
-import Taro from '@tarojs/taro';

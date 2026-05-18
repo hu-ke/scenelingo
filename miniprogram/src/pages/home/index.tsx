@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Taro, { useDidShow } from '@tarojs/taro';
-import { View, Text, Image, Button } from '@tarojs/components';
+import { View, Text, Image, Button, Canvas } from '@tarojs/components';
 import { useReview } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../utils/api';
@@ -10,6 +10,7 @@ import type { PhotoItem, RecognizedObject } from '../../context/AppContext';
 import './index.scss';
 
 function formatDateLabel(dateStr: string): string {
+  if (dateStr === 'earlier') return '更早的照片';
   const [y, m, d] = dateStr.split('-').map(Number);
   const date = new Date(y, m - 1, d);
   const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
@@ -24,55 +25,67 @@ function getTodayStr(): string {
   return `${y}-${m}-${day}`;
 }
 
-function groupByDate(photos: PhotoItem[]): Record<string, PhotoItem[]> {
-  const grouped: Record<string, PhotoItem[]> = {};
-  const sorted = [...photos].sort((a, b) => {
-    const da = a.collectionDate || '';
-    const db = b.collectionDate || '';
-    return db.localeCompare(da);
-  });
-  for (const photo of sorted) {
-    const date = photo.collectionDate || getTodayStr();
-    if (!grouped[date]) grouped[date] = [];
-    grouped[date].push(photo);
-  }
-  return grouped;
-}
-
-function countUniqueWords(photos: PhotoItem[]): number {
-  const wordSet = new Set<string>();
-  for (const photo of photos) {
-    if (photo.objects) {
-      for (const obj of photo.objects) {
-        wordSet.add(obj.name.toLowerCase());
-      }
+async function compressImage(filePath: string, maxSize = 1500): Promise<string> {
+  try {
+    const info = await Taro.getImageInfo({ src: filePath });
+    let { width, height } = info;
+    if (width <= maxSize && height <= maxSize) {
+      return filePath;
+    }
+    if (width > height) {
+      height = Math.round((height / width) * maxSize);
+      width = maxSize;
+    } else {
+      width = Math.round((width / height) * maxSize);
+      height = maxSize;
+    }
+    const canvasId = 'resize-canvas';
+    const query = Taro.createSelectorQuery();
+    query.select(`#${canvasId}`).fields({ node: true, size: true });
+    const res = await new Promise<{ node: any }>((resolve, reject) => {
+      query.exec((r) => {
+        if (r && r[0] && r[0].node) resolve(r[0]);
+        else reject(new Error('canvas not found'));
+      });
+    });
+    const canvas = res.node;
+    const ctx = canvas.getContext('2d');
+    const dpr = 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    ctx.scale(dpr, dpr);
+    const img = canvas.createImage();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('image load failed'));
+      img.src = filePath;
+    });
+    ctx.drawImage(img, 0, 0, width, height);
+    const tempRes = await Taro.canvasToTempFilePath({
+      canvas,
+      canvasId,
+      x: 0,
+      y: 0,
+      width,
+      height,
+      destWidth: width,
+      destHeight: height,
+      fileType: 'jpeg',
+      quality: 0.8,
+    });
+    return tempRes.tempFilePath;
+  } catch {
+    try {
+      const fallback = await Taro.compressImage({ src: filePath, quality: 80 });
+      return fallback.tempFilePath;
+    } catch {
+      return filePath;
     }
   }
-  return wordSet.size;
-}
-
-function countUniqueDates(photos: PhotoItem[]): number {
-  const dateSet = new Set<string>();
-  for (const photo of photos) {
-    dateSet.add(photo.collectionDate || getTodayStr());
-  }
-  return dateSet.size;
-}
-
-function mapApiPhoto(p: Record<string, unknown>): PhotoItem {
-  return {
-    id: p.id as string,
-    dataUrl: (p.dataUrl as string) || (p.annotatedDataUrl as string) || '',
-    annotatedDataUrl: p.annotatedDataUrl as string | undefined,
-    objects: p.objects as RecognizedObject[] | undefined,
-    collectionDate: p.collectionDate as string | undefined,
-    status: (p.status as PhotoItem['status']) || 'completed',
-  };
 }
 
 export default function HomePage() {
   const { state, dispatch } = useReview();
-  const { nativeLang, targetLang } = state;
   const { state: authState, logout: doLogout } = useAuth();
 
   const [groupedPhotos, setGroupedPhotos] = useState<Record<string, PhotoItem[]>>({});
@@ -82,38 +95,118 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set());
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const initialLoadDone = useRef(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadPhotos = useCallback(async () => {
     let photos: PhotoItem[] = [];
+    let dateMap: Record<string, string> = {};
 
     if (authState.isLoggedIn) {
       try {
         const res = await api.listPhotos();
-        photos = res.photos.map(mapApiPhoto);
+        const rawPhotos = res.photos || [];
+        photos = rawPhotos.map((p: Record<string, unknown>) => {
+          const id = (p.id as string) || '';
+          const dateKey = (p.collectionDate as string) || getTodayStr();
+          dateMap[id] = dateKey;
+          return {
+            id,
+            dataUrl: (p.originalUrl as string) || '',
+            annotatedDataUrl: p.annotatedUrl as string | undefined,
+            objects: p.objects as RecognizedObject[] | undefined,
+            status: (p.status as PhotoItem['status']) || 'completed',
+          } as PhotoItem;
+        });
       } catch {
         photos = getJSONStorage<PhotoItem[]>('saved_photos', []);
+        for (const p of photos) {
+          dateMap[p.id] = getTodayStr();
+        }
       }
     } else {
       photos = getJSONStorage<PhotoItem[]>('saved_photos', []);
+      for (const p of photos) {
+        dateMap[p.id] = getTodayStr();
+      }
     }
 
-    const grouped = groupByDate(photos);
+    const grouped: Record<string, PhotoItem[]> = {};
+    const sorted = [...photos].sort((a, b) => {
+      const da = dateMap[a.id] || '';
+      const db = dateMap[b.id] || '';
+      return db.localeCompare(da);
+    });
+    for (const photo of sorted) {
+      const date = dateMap[photo.id] || getTodayStr();
+      if (!grouped[date]) grouped[date] = [];
+      grouped[date].push(photo);
+    }
+
     setGroupedPhotos(grouped);
     setTotalCount(photos.length);
-    setWordCount(countUniqueWords(photos));
-    setDayCount(countUniqueDates(photos));
+
+    const wordSet = new Set<string>();
+    for (const photo of photos) {
+      if (photo.objects) {
+        for (const obj of photo.objects) {
+          if (obj?.name) wordSet.add(obj.name.toLowerCase());
+        }
+      }
+    }
+    setWordCount(wordSet.size);
+    setDayCount(Object.keys(grouped).length);
 
     dispatch({ type: 'setSavedPhotos', photos });
+    dispatch({ type: 'cleanSelection', ids: photos.map(p => p.id) });
+
+    const today = getTodayStr();
+    if (grouped[today]) {
+      setExpandedCollections((prev) => {
+        if (prev.has(today)) return prev;
+        const next = new Set(prev);
+        next.add(today);
+        return next;
+      });
+    }
+
     setLoading(false);
   }, [authState.isLoggedIn, dispatch]);
 
   useEffect(() => {
-    loadPhotos();
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      loadPhotos();
+    }
   }, [loadPhotos]);
 
   useDidShow(() => {
-    loadPhotos();
+    if (initialLoadDone.current) {
+      loadPhotos();
+    }
   });
+
+  useEffect(() => {
+    if (!authState.isLoggedIn) return;
+    const hasNonCompleted = Object.values(groupedPhotos).some(photos =>
+      photos.some(p => p.status && p.status !== 'completed')
+    );
+    if (!hasNonCompleted) return;
+
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    pollingRef.current = setInterval(() => {
+      loadPhotos();
+    }, 5000);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [groupedPhotos, authState.isLoggedIn, loadPhotos]);
 
   const handleToggleCollection = useCallback((date: string) => {
     setExpandedCollections((prev) => {
@@ -183,54 +276,71 @@ export default function HomePage() {
         sourceType: ['album', 'camera'],
       });
 
-      Taro.showToast({ title: `正在提交 ${res.tempFiles.length} 张照片...`, icon: 'loading', duration: 30000 });
+      if (authState.isLoggedIn) {
+        setUploading(true);
+        setUploadProgress({ current: 0, total: res.tempFiles.length });
 
-      const todayStr = getTodayStr();
-      const newPhotos: PhotoItem[] = [];
-
-      for (const file of res.tempFiles) {
-        try {
-          const result = await api.recognizeAsync([file.tempFilePath], nativeLang, targetLang);
-          const taskResult = result[0];
-          newPhotos.push({
-            id: generateUUID(),
-            dataUrl: file.tempFilePath,
-            collectionDate: todayStr,
-            status: taskResult.status as PhotoItem['status'],
-            taskId: taskResult.task_id,
-          });
-        } catch {
-          newPhotos.push({
-            id: generateUUID(),
-            dataUrl: file.tempFilePath,
-            collectionDate: todayStr,
-            status: 'failed',
-            taskId: undefined,
-            errorMessage: '提交失败，请重试',
-          });
+        for (let i = 0; i < res.tempFiles.length; i++) {
+          const file = res.tempFiles[i];
+          try {
+            const compressedPath = await compressImage(file.tempFilePath);
+            await api.uploadPending(compressedPath);
+          } catch (err) {
+            console.error('上传失败:', err);
+          }
+          setUploadProgress({ current: i + 1, total: res.tempFiles.length });
         }
+
+        setUploading(false);
+        await loadPhotos();
+      } else {
+        const currentPhotos = getJSONStorage<PhotoItem[]>('saved_photos', []);
+        if (currentPhotos.length + res.tempFiles.length > 10) {
+          setShowLoginPrompt(true);
+          return;
+        }
+
+        const newPhotos: PhotoItem[] = res.tempFiles.map((file) => ({
+          id: generateUUID(),
+          dataUrl: file.tempFilePath,
+        }));
+
+        dispatch({ type: 'setPhotos', photos: newPhotos });
+        Taro.navigateTo({ url: '/pages/review/index' });
       }
-
-      Taro.hideToast();
-
-      if (!authState.isLoggedIn && totalCount + newPhotos.length > 10) {
-        setShowLoginPrompt(true);
-        return;
-      }
-
-      dispatch({ type: 'clearSelection' });
-      dispatch({ type: 'setPhotos', photos: newPhotos });
-      Taro.navigateTo({ url: '/pages/review/index' });
     } catch (err: unknown) {
       const msg = (err as { errMsg?: string })?.errMsg || '';
       if (msg.includes('cancel')) return;
       Taro.showToast({ title: '选择图片失败', icon: 'error' });
     }
-  }, [nativeLang, targetLang, authState.isLoggedIn, totalCount, dispatch]);
+  }, [authState.isLoggedIn, dispatch, loadPhotos]);
 
-  const handleMergeClick = useCallback(() => {
-    Taro.navigateTo({ url: '/pages/merge/index' });
-  }, []);
+  const handleBatchDelete = useCallback(async () => {
+    const ids = [...state.selectedPhotoIds];
+    if (ids.length === 0) return;
+
+    const confirmRes = await Taro.showModal({
+      title: '确认删除',
+      content: `确定删除选中的 ${ids.length} 张照片吗？此操作不可恢复。`,
+    });
+    if (!confirmRes.confirm) return;
+
+    for (const id of ids) {
+      try {
+        if (authState.isLoggedIn) {
+          await api.deletePhoto(id);
+        }
+        const currentPhotos = getJSONStorage<PhotoItem[]>('saved_photos', []);
+        const updatedPhotos = currentPhotos.filter((p) => p.id !== id);
+        setJSONStorage('saved_photos', updatedPhotos);
+      } catch (err) {
+        console.error('删除失败:', err);
+      }
+    }
+
+    dispatch({ type: 'clearSelection' });
+    await loadPhotos();
+  }, [state.selectedPhotoIds, authState.isLoggedIn, dispatch, loadPhotos]);
 
   const handleLoginClick = useCallback(() => {
     Taro.navigateTo({ url: '/pages/login/index' });
@@ -284,6 +394,18 @@ export default function HomePage() {
       </View>
     </View>
   );
+
+  const hintBarNode = !loading ? (
+    <View className="home-hint-bar">
+      <Text className="home-hint-icon">⏳</Text>
+      <Text className="home-hint-text">
+        每张图片AI识别大约需要5-10秒。
+        {authState.isLoggedIn
+          ? '上传后将自动后台处理，您可继续浏览。'
+          : '登录后可异步批量处理，无需等待。'}
+      </Text>
+    </View>
+  ) : null;
 
   const statsRowNode = hasPhotos ? (
     <View className="home-stats-row">
@@ -343,6 +465,7 @@ export default function HomePage() {
               <View className="home-photo-grid">
                 {groupedPhotos[date].map((photo) => {
                   const isSelected = state.selectedPhotoIds.includes(photo.id);
+                  const isProcessing = photo.status && photo.status !== 'completed';
                   return (
                     <View
                       key={photo.id}
@@ -351,9 +474,14 @@ export default function HomePage() {
                     >
                       <Image
                         className="home-photo-thumb"
-                        src={photo.dataUrl}
+                        src={photo.annotatedDataUrl || photo.dataUrl}
                         mode="aspectFill"
                       />
+                      {isProcessing && (
+                        <View className="home-photo-processing">
+                          <View className="home-photo-spinner" />
+                        </View>
+                      )}
                       <View
                         className={`home-photo-checkbox ${isSelected ? 'home-photo-checkbox-selected' : ''}`}
                         onClick={(e) => handleToggleSelect(photo.id, e)}
@@ -377,14 +505,25 @@ export default function HomePage() {
     </View>
   ) : null;
 
-  const mergeBarNode =
-    selectedCount >= 2 ? (
-      <View className="home-merge-bar">
-        <Button className="home-merge-btn" onClick={handleMergeClick}>
-          合并导出 ({selectedCount}/2+)
-        </Button>
+  const deleteBarNode = selectedCount >= 1 ? (
+    <View className="home-merge-bar">
+      <Button className="home-merge-btn" onClick={handleBatchDelete}>
+        删除选中 ({selectedCount})
+      </Button>
+    </View>
+  ) : null;
+
+  const uploadDialogNode = uploading ? (
+    <View className="home-upload-mask">
+      <View className="home-upload-card">
+        <View className="home-upload-spinner" />
+        <Text className="home-upload-title">正在上传...</Text>
+        <Text className="home-upload-progress">
+          {uploadProgress.current} / {uploadProgress.total}
+        </Text>
       </View>
-    ) : null;
+    </View>
+  ) : null;
 
   const loginPromptNode = showLoginPrompt ? (
     <View className="home-login-prompt-mask" onClick={handleLoginPromptCancel}>
@@ -414,6 +553,7 @@ export default function HomePage() {
   return (
     <View className="home-page">
       {headerNode}
+      {hintBarNode}
       {loading ? (
         <View className="home-loading">
           <Text className="home-loading-text">加载中...</Text>
@@ -428,11 +568,13 @@ export default function HomePage() {
       <View className="home-fab" onClick={handleFabClick}>
         <Text className="home-fab-icon">📷</Text>
       </View>
-      {mergeBarNode}
+      {deleteBarNode}
       <View className="home-footer">
         <Text className="home-footer-text">联系作者：📧 403392669@qq.com</Text>
       </View>
       {loginPromptNode}
+      {uploadDialogNode}
+      <Canvas id="resize-canvas" type="2d" style={{ position: 'fixed', left: '-9999px', top: '-9999px', width: '1px', height: '1px' }} />
     </View>
   );
 }

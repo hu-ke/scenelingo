@@ -1,5 +1,10 @@
 import Taro from '@tarojs/taro';
 
+export interface LanguagePrefs {
+  nativeLang: string;
+  targetLang: string;
+}
+
 export const LANGUAGES: { code: string; name: string }[] = [
   { code: 'zh', name: '中文' },
   { code: 'en', name: 'English' },
@@ -53,22 +58,24 @@ const AI_PHONETIC_DESC: Record<string, string> = {
 };
 
 const STORAGE_KEY = 'scene_lingo_language_prefs';
-const DEFAULT_PREFS = { nativeLang: 'zh', targetLang: 'en' };
+const DEFAULT_PREFS: LanguagePrefs = { nativeLang: 'zh', targetLang: 'en' };
 
-export function getLanguagePrefs(): { nativeLang: string; targetLang: string } {
+export function getLanguagePrefs(): LanguagePrefs {
+  let targetLang = DEFAULT_PREFS.targetLang;
   try {
     const raw = Taro.getStorageSync(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return { nativeLang: DEFAULT_PREFS.nativeLang, targetLang: parsed.targetLang || 'en' };
+      if (parsed.targetLang) {
+        targetLang = parsed.targetLang;
+      }
     }
   } catch {
-    // ignore
   }
-  return DEFAULT_PREFS;
+  return { nativeLang: 'zh', targetLang };
 }
 
-export function setLanguagePrefs(prefs: { nativeLang: string; targetLang: string }): void {
+export function setLanguagePrefs(prefs: LanguagePrefs): void {
   Taro.setStorageSync(STORAGE_KEY, JSON.stringify({ targetLang: prefs.targetLang }));
 }
 

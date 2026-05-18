@@ -3,10 +3,14 @@ import Taro from '@tarojs/taro';
 import { View, Text, Input, Button } from '@tarojs/components';
 import { api } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
+import { useReview } from '../../context/AppContext';
+import { setLanguagePrefs } from '../../utils/languagePrefs';
+import { setTheme } from '../../utils/theme';
 import './index.scss';
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { dispatch } = useReview();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [countdown, setCountdown] = useState(0);
@@ -57,7 +61,7 @@ export default function LoginPage() {
       setError('请输入有效的邮箱地址');
       return;
     }
-    if (!code || code.length < 4) {
+    if (!code || code.length < 6) {
       setError('请输入验证码');
       return;
     }
@@ -65,7 +69,15 @@ export default function LoginPage() {
     try {
       const res = await api.verify(email, code);
       login(res.token, res.email);
-      Taro.navigateTo({ url: '/pages/home/index' });
+      if (res.targetLang) {
+        setLanguagePrefs({ nativeLang: 'zh', targetLang: res.targetLang });
+        dispatch({ type: 'setLanguage', nativeLang: 'zh', targetLang: res.targetLang });
+      }
+      if (res.theme) {
+        setTheme(res.theme);
+        dispatch({ type: 'setTheme', theme: res.theme });
+      }
+      Taro.reLaunch({ url: '/pages/home/index' });
     } catch (e: unknown) {
       setError((e as Error).message || '登录失败，请稍后再试');
     } finally {
@@ -74,7 +86,7 @@ export default function LoginPage() {
   }, [email, code, login]);
 
   const handleSkip = useCallback(() => {
-    Taro.navigateTo({ url: '/pages/home/index' });
+    Taro.reLaunch({ url: '/pages/home/index' });
   }, []);
 
   return (
@@ -101,7 +113,7 @@ export default function LoginPage() {
             maxLength={6}
             placeholder="验证码"
             value={code}
-            onInput={(e) => setCode(e.detail.value)}
+            onInput={(e) => setCode(e.detail.value.replace(/\D/g, ''))}
           />
           <Button
             className="login-code-btn"

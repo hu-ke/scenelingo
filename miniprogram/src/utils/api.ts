@@ -1,7 +1,6 @@
-import { useCallback } from 'react';
 import Taro from '@tarojs/taro';
 
-const BASE_URL = 'http://localhost:8022/scenelingo-service';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:8022/scenelingo-service';
 
 function getToken(): string {
   return Taro.getStorageSync('scene_lingo_token') || '';
@@ -96,54 +95,66 @@ export const api = {
     });
   },
 
-  recognizeAsync(imagePaths: string[], nativeLang: string, targetLang: string) {
-    const token = getToken();
-    const uploadSingle = (imagePath: string) =>
-      new Promise<{ task_id: string; status: string }>((resolve, reject) => {
-        Taro.uploadFile({
-          url: `${BASE_URL}/api/recognize/async`,
-          filePath: imagePath,
-          name: 'images',
-          formData: { nativeLang, targetLang },
-          header: token ? { 'Authorization': `Bearer ${token}` } : {},
-          success(res) {
-            if (res.statusCode === 200) {
-              resolve(JSON.parse(res.data));
-            } else {
-              reject(new Error(`异步识别提交失败 (${res.statusCode})`));
-            }
-          },
-          fail(err) {
-            reject(err);
-          },
-        });
+  uploadPending(imagePath: string) {
+    return new Promise<{ photo_id: string; status: string }>((resolve, reject) => {
+      const token = getToken();
+      Taro.uploadFile({
+        url: `${BASE_URL}/api/photos/upload-pending`,
+        filePath: imagePath,
+        name: 'original',
+        header: token ? { 'Authorization': `Bearer ${token}` } : {},
+        success(res) {
+          if (res.statusCode === 200) {
+            resolve(JSON.parse(res.data));
+          } else {
+            reject(new Error(`上传失败 (${res.statusCode})`));
+          }
+        },
+        fail(err) {
+          reject(err);
+        },
       });
-
-    return Promise.all(imagePaths.map(uploadSingle));
-  },
-
-  getRecognitionStatus(taskId: string) {
-    return request<{ task_id: string; status: string; objects?: Record<string, unknown>[]; error?: string }>(`/api/recognize/status/${taskId}`);
-  },
-
-  getRecognitionStatusBatch(taskIds: string[]) {
-    return request<Array<{ task_id: string; status: string; objects?: Record<string, unknown>[]; error?: string }>>('/api/recognize/status/batch', {
-      method: 'POST',
-      body: JSON.stringify({ task_ids: taskIds }),
     });
   },
 
-  uploadPhoto(originalPath: string, annotatedPath: string, metadata: Record<string, unknown>) {
+  uploadAnnotated(imagePath: string, photoId: string) {
     return new Promise<{ success: boolean; photoId: string }>((resolve, reject) => {
       const token = getToken();
+      Taro.uploadFile({
+        url: `${BASE_URL}/api/photos/upload-annotated`,
+        filePath: imagePath,
+        name: 'annotated',
+        formData: { photo_id: photoId },
+        header: token ? { 'Authorization': `Bearer ${token}` } : {},
+        success(res) {
+          if (res.statusCode === 200) {
+            resolve(JSON.parse(res.data));
+          } else {
+            reject(new Error(`上传标注图失败 (${res.statusCode})`));
+          }
+        },
+        fail(err) {
+          reject(err);
+        },
+      });
+    });
+  },
+
+  uploadPhoto(annotatedPath: string, metadata: Record<string, unknown>, originalUrl?: string) {
+    return new Promise<{ success: boolean; photoId: string }>((resolve, reject) => {
+      const token = getToken();
+      const formData: Record<string, string> = {
+        metadata: JSON.stringify(metadata),
+      };
+      if (originalUrl) {
+        formData.original_url = originalUrl;
+      }
       Taro.uploadFile({
         url: `${BASE_URL}/api/photos/upload`,
         filePath: annotatedPath,
         name: 'annotated',
         header: token ? { 'Authorization': `Bearer ${token}` } : {},
-        formData: {
-          metadata: JSON.stringify(metadata),
-        },
+        formData,
         success(res) {
           if (res.statusCode === 200) {
             resolve(JSON.parse(res.data));
@@ -167,6 +178,12 @@ export const api = {
       method: 'DELETE',
     });
   },
+
+  imageProxy(url: string): string {
+    return `${BASE_URL}/api/image/proxy?url=${encodeURIComponent(url)}`;
+  },
 };
 
-export { BASE_URL, getToken, useCallback as useCallbackFn };
+export function getApiBaseUrl(): string {
+  return BASE_URL;
+}

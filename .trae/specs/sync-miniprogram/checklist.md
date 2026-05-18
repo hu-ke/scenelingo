@@ -1,0 +1,34 @@
+# Checklist
+
+- [x] API 层：BASE_URL 通过构建配置注入，开发环境 localhost，生产环境 https://scenelingo.today/scenelingo-service
+- [x] API 层：删除 `recognizeAsync`、`getRecognitionStatus`、`getRecognitionStatusBatch` 三个不存在的 API
+- [x] API 层：`recognize` 使用同步识别，调用 `/api/recognize`
+- [x] API 层：新增 `uploadPending`、`uploadAnnotated`、`getApiBaseUrl`、`imageProxy`
+- [x] API 层：`uploadPhoto` 同时上传原图+标注图+metadata，支持 `original_url`
+- [x] AppContext：`PhotoItem.status` 为可选字段，删除 `taskId`、`errorMessage`、`collectionDate`
+- [x] AppContext：删除 `updatePhotoStatus`、`setSubmitting`、`removePhoto` Action
+- [x] AppContext：新增 `removeSelected`、`cleanSelection` Action
+- [x] languagePrefs：`getLanguagePrefs` 强制返回 `nativeLang: 'zh'`
+- [x] wordMastery：Storage Key 为 `scene_lingo_mastered_words`
+- [x] uuid：使用 `crypto.getRandomValues` 替代 `Math.random()`
+- [x] theme：`applyTheme` 实际注入 CSS 变量，主题切换生效
+- [x] LoginPage：登录成功后同步服务端 `targetLang` 和 `theme`
+- [x] LoginPage：验证码长度校验为6位
+- [x] LoginPage：验证码输入仅保留数字
+- [x] HomePage：云端照片字段映射为 `originalUrl`/`annotatedUrl`
+- [x] HomePage：已登录用户使用 `uploadPending` 上传原图
+- [x] HomePage：未登录用户使用同步识别流程
+- [x] HomePage：图片上传前压缩至最大1500px（Canvas 重绘 + Taro.compressImage fallback）
+- [x] HomePage：底部栏为"删除选中 (N)"批量删除
+- [x] HomePage：显示 AI 识别耗时提示条
+- [x] ReviewPage：使用同步识别流程，删除异步轮询
+- [x] ReviewPage：逐张审查模式（进度条+重新识别/保存/跳过）
+- [x] ReviewPage：保存逻辑对齐前端（本地 Storage / uploadPhoto）
+- [x] SettingsPage：主题切换即时生效
+- [x] WordDetailPage：TTS 发音功能可用
+- [x] WordBookPage：云端照片字段映射正确
+- [x] WordBookPage：返回使用 `navigateBack`
+- [x] AnnotatedImage：点击喇叭图标可发音
+- [x] App.tsx：启动时调用 `applyTheme` 初始化主题
+- [x] AppLogo：颜色跟随当前主题
+- [x] 整体编译：`npm run build:weapp` 无报错

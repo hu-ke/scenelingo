@@ -8,10 +8,7 @@ export interface PhotoItem {
   dataUrl: string;
   annotatedDataUrl?: string;
   objects?: RecognizedObject[];
-  collectionDate?: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  taskId?: string;
-  errorMessage?: string;
+  status?: 'pending' | 'processing' | 'completed';
 }
 
 export interface RecognizedObject {
@@ -29,7 +26,6 @@ export interface ReviewState {
   currentIndex: number;
   currentObjects: RecognizedObject[] | null;
   isReviewing: boolean;
-  isSubmitting: boolean;
   savedPhotos: PhotoItem[];
   page: AppPage;
   selectedPhotoIds: string[];
@@ -49,21 +45,19 @@ export type ReviewAction =
   | { type: 'removeSaved'; id: string }
   | { type: 'setPage'; page: AppPage }
   | { type: 'toggleSelectPhoto'; id: string }
+  | { type: 'removeSelected'; id: string }
+  | { type: 'cleanSelection'; ids: string[] }
   | { type: 'clearSelection' }
   | { type: 'resetReview' }
   | { type: 'setWordDetail'; word: string | null }
   | { type: 'setLanguage'; nativeLang: string; targetLang: string }
-  | { type: 'setTheme'; theme: string }
-  | { type: 'updatePhotoStatus'; taskId: string; status: PhotoItem['status']; objects?: RecognizedObject[]; errorMessage?: string; newTaskId?: string }
-  | { type: 'setSubmitting'; isSubmitting: boolean }
-  | { type: 'removePhoto'; id: string };
+  | { type: 'setTheme'; theme: string };
 
 const initialState: ReviewState = {
   photos: [],
   currentIndex: 0,
   currentObjects: null,
   isReviewing: false,
-  isSubmitting: false,
   savedPhotos: [],
   page: 'home',
   selectedPhotoIds: [],
@@ -159,6 +153,20 @@ function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
         selectedPhotoIds: [],
       };
 
+    case 'removeSelected':
+      return {
+        ...state,
+        selectedPhotoIds: state.selectedPhotoIds.filter((sid) => sid !== action.id),
+      };
+
+    case 'cleanSelection': {
+      const validIds = new Set(action.ids);
+      return {
+        ...state,
+        selectedPhotoIds: state.selectedPhotoIds.filter((sid) => validIds.has(sid)),
+      };
+    }
+
     case 'resetReview':
       return {
         ...state,
@@ -176,31 +184,6 @@ function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
 
     case 'setTheme':
       return { ...state, theme: action.theme };
-
-    case 'updatePhotoStatus':
-      return {
-        ...state,
-        photos: state.photos.map((photo) =>
-          photo.taskId === action.taskId
-            ? {
-                ...photo,
-                status: action.status,
-                ...(action.objects !== undefined && { objects: action.objects }),
-                ...(action.errorMessage !== undefined && { errorMessage: action.errorMessage }),
-                ...(action.newTaskId !== undefined && { taskId: action.newTaskId }),
-              }
-            : photo
-        ),
-      };
-
-    case 'setSubmitting':
-      return { ...state, isSubmitting: action.isSubmitting };
-
-    case 'removePhoto':
-      return {
-        ...state,
-        photos: state.photos.filter((p) => p.id !== action.id),
-      };
 
     default:
       return state;
