@@ -4,12 +4,6 @@ import { View, Canvas, Text } from '@tarojs/components'
 import type { RecognizedObject } from '../context/AppContext'
 import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs'
 
-const BUBBLE_PADDING_X = 8
-const BUBBLE_PADDING_Y = 5
-const BUBBLE_RADIUS = 6
-const TAIL_WIDTH = 10
-const TAIL_HEIGHT = 6
-const SPEAKER_SIZE = 15
 const COLORS = ['#A29BFE', '#54A0FF', '#2ED573', '#FFA94D', '#FF6B6B']
 
 interface Props {
@@ -18,17 +12,19 @@ interface Props {
   style?: Record<string, string>
 }
 
+interface BubbleLayout {
+  x: number; y: number; w: number; h: number
+  word: string
+  speakerArea: { x: number; y: number; w: number; h: number }
+}
+
 function isRemoteUrl(url: string): boolean {
   return /^https?:\/\//.test(url)
 }
 
 function drawRoundedRect(
   ctx: Taro.CanvasContext,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number
+  x: number, y: number, w: number, h: number, r: number
 ) {
   ctx.beginPath()
   ctx.moveTo(x + r, y)
@@ -45,88 +41,99 @@ function drawRoundedRect(
 
 function drawSpeakerIcon(
   ctx: Taro.CanvasContext,
-  x: number,
-  y: number,
-  size: number,
-  color: string
+  x: number, y: number, size: number, color: string
 ) {
-  const spkBodyW = size * 0.28
-  const spkBodyH = size * 0.5
-  const spkBodyX = x
-  const spkBodyY = y + (size - spkBodyH) / 2
-
+  const s = size
   ctx.setFillStyle(color)
-  ctx.fillRect(spkBodyX, spkBodyY, spkBodyW, spkBodyH)
+  ctx.setStrokeStyle(color)
 
+  const bodyW = s * 0.28
+  const bodyH = s * 0.5
+  const bodyX = x
+  const bodyY = y + (s - bodyH) / 2
+  ctx.fillRect(bodyX, bodyY, bodyW, bodyH)
+
+  const coneX = bodyX + bodyW
   ctx.beginPath()
-  ctx.moveTo(spkBodyX + spkBodyW, y + 3)
-  ctx.lineTo(x + size * 0.65, y)
-  ctx.lineTo(x + size * 0.65, y + size)
+  ctx.moveTo(coneX, bodyY)
+  ctx.lineTo(coneX + s * 0.22, y + s * 0.15)
+  ctx.lineTo(coneX + s * 0.22, y + s * 0.85)
+  ctx.lineTo(coneX, bodyY + bodyH)
   ctx.closePath()
   ctx.fill()
 
-  const arcCenterX = x + size * 0.65
-  const midY = y + size / 2
-  ctx.setStrokeStyle(color)
-  ctx.setLineWidth(1.5)
-
+  ctx.setLineWidth(1)
+  const waveCX = coneX + s * 0.3
+  const waveCY = y + s / 2
   ctx.beginPath()
-  ctx.arc(arcCenterX, midY, size * 0.22, -Math.PI / 3, Math.PI / 3)
+  ctx.arc(waveCX, waveCY, s * 0.12, -0.65, 0.65)
   ctx.stroke()
-
   ctx.beginPath()
-  ctx.arc(arcCenterX, midY, size * 0.4, -Math.PI / 3, Math.PI / 3)
+  ctx.arc(waveCX, waveCY, s * 0.22, -0.65, 0.65)
   ctx.stroke()
 }
 
-function computeBubbleBounds(
-  obj: RecognizedObject,
-  canvasW: number,
-  canvasH: number,
-  wordFontSize: number,
-  phoneticFontSize: number,
-  lineHeight: number
+function drawBubbleTail(
+  ctx: Taro.CanvasContext,
+  centerX: number, attachY: number,
+  tailWidth: number, tailHeight: number,
+  pointingUp: boolean
 ) {
-  const [x0, y0, x1, y1] = obj.bbox
-  const scaleX = canvasW / 1000
-  const scaleY = canvasH / 1000
-  const drawX = x0 * scaleX
-  const drawY = y0 * scaleY
-  const drawW = (x1 - x0) * scaleX
-  const drawH = (y1 - y0) * scaleY
-  const centerX = drawX + drawW / 2
-
-  const wordEstimateW = obj.name.length * wordFontSize * 0.65
-  const phoneticEstimateW = obj.phonetic ? obj.phonetic.length * phoneticFontSize * 0.55 : 0
-  const textW = Math.max(wordEstimateW, phoneticEstimateW)
-  const bubbleW = textW + BUBBLE_PADDING_X * 2 + SPEAKER_SIZE + 8
-  const bubbleH = lineHeight * 2 + BUBBLE_PADDING_Y * 2
-
-  const bubbleAbove = drawY > bubbleH + TAIL_HEIGHT + 6
-  const bubbleY = bubbleAbove ? drawY - bubbleH - TAIL_HEIGHT - 3 : drawY + drawH + TAIL_HEIGHT + 3
-
-  let bubbleX = centerX - bubbleW / 2
-  bubbleX = Math.max(3, Math.min(bubbleX, canvasW - bubbleW - 3))
-
-  const speakerX = bubbleX + bubbleW - BUBBLE_PADDING_X - SPEAKER_SIZE
-  const speakerY = bubbleY + (bubbleH - SPEAKER_SIZE) / 2
-
-  const tailX = centerX - TAIL_WIDTH / 2
-  const tailY = bubbleAbove ? drawY - 3 : drawY + drawH + 3
-  const tailTipY = bubbleAbove ? tailY - TAIL_HEIGHT : tailY + TAIL_HEIGHT
-
-  return {
-    bubbleX, bubbleY, bubbleW, bubbleH,
-    speakerX, speakerY,
-    tailX, tailY, tailTipY, centerX,
-    drawX, drawY, drawW, drawH,
+  const halfW = tailWidth / 2
+  ctx.setFillStyle('#FFFFFF')
+  ctx.beginPath()
+  if (pointingUp) {
+    ctx.moveTo(centerX - halfW, attachY)
+    ctx.lineTo(centerX, attachY - tailHeight)
+    ctx.lineTo(centerX + halfW, attachY)
+  } else {
+    ctx.moveTo(centerX - halfW, attachY)
+    ctx.lineTo(centerX, attachY + tailHeight)
+    ctx.lineTo(centerX + halfW, attachY)
   }
+  ctx.closePath()
+  ctx.fill()
+}
+
+function drawTailStroke(
+  ctx: Taro.CanvasContext,
+  centerX: number, attachY: number,
+  tailWidth: number, tailHeight: number,
+  pointingUp: boolean, color: string
+) {
+  const halfW = tailWidth / 2
+  ctx.setStrokeStyle(color)
+  ctx.setLineWidth(1)
+  if (pointingUp) {
+    ctx.beginPath()
+    ctx.moveTo(centerX - halfW, attachY)
+    ctx.lineTo(centerX, attachY - tailHeight)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(centerX + halfW, attachY)
+    ctx.lineTo(centerX, attachY - tailHeight)
+    ctx.stroke()
+  } else {
+    ctx.beginPath()
+    ctx.moveTo(centerX - halfW, attachY)
+    ctx.lineTo(centerX, attachY + tailHeight)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(centerX + halfW, attachY)
+    ctx.lineTo(centerX, attachY + tailHeight)
+    ctx.stroke()
+  }
+}
+
+function estimateTextWidth(text: string, fontSize: number): number {
+  return text.length * fontSize * 0.65
 }
 
 function AnnotatedImage({ dataUrl, objects, style }: Props) {
   const [imageInfo, setImageInfo] = useState<{ width: number; height: number } | null>(null)
   const [localPath, setLocalPath] = useState<string | null>(null)
   const drawTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const bubbleLayoutsRef = useRef<BubbleLayout[]>([])
 
   const canvasId = 'annotated-canvas'
 
@@ -136,14 +143,11 @@ function AnnotatedImage({ dataUrl, objects, style }: Props) {
       setLocalPath(null)
       return
     }
-
     if (isRemoteUrl(dataUrl)) {
       Taro.downloadFile({
         url: dataUrl,
         success(res) {
-          if (res.statusCode === 200) {
-            setLocalPath(res.tempFilePath)
-          }
+          if (res.statusCode === 200) setLocalPath(res.tempFilePath)
         },
       })
     } else {
@@ -153,7 +157,6 @@ function AnnotatedImage({ dataUrl, objects, style }: Props) {
 
   useEffect(() => {
     if (!localPath) return
-
     const sysInfo = Taro.getSystemInfoSync()
     const containerWidth = sysInfo.windowWidth - 48
 
@@ -165,111 +168,129 @@ function AnnotatedImage({ dataUrl, objects, style }: Props) {
           height: Math.round(info.height * scale),
         })
       })
-      .catch(() => {
-        setImageInfo(null)
-      })
+      .catch(() => setImageInfo(null))
   }, [localPath])
 
   useEffect(() => {
     if (!imageInfo || !localPath) return
-
-    if (drawTimerRef.current) {
-      clearTimeout(drawTimerRef.current)
-    }
+    if (drawTimerRef.current) clearTimeout(drawTimerRef.current)
 
     drawTimerRef.current = setTimeout(() => {
       const ctx = Taro.createCanvasContext(canvasId)
       if (!ctx) return
 
       const { width: canvasW, height: canvasH } = imageInfo
-
       ctx.drawImage(localPath, 0, 0, canvasW, canvasH)
 
       if (objects.length === 0) {
+        bubbleLayoutsRef.current = []
         ctx.draw()
         return
       }
 
-      const wordFontSize = Math.max(11, Math.min(16, Math.round(canvasW / 75)))
-      const phoneticFontSize = Math.max(8, Math.min(12, Math.round(canvasW / 110)))
-      const lineHeight = wordFontSize + 3
+      const scaleX = canvasW / 1000
+      const scaleY = canvasH / 1000
 
-      objects.forEach((obj, index) => {
-        const color = COLORS[index % COLORS.length]
-        const b = computeBubbleBounds(obj, canvasW, canvasH, wordFontSize, phoneticFontSize, lineHeight)
+      const fontSize = Math.max(10, Math.min(13, Math.round(canvasW / 70)))
+      const phoneticFontSize = Math.max(8, Math.min(10, Math.round(fontSize * 0.7)))
+      const lineHeight = fontSize + 3
+      const phoneticLineHeight = phoneticFontSize + 1
+
+      const bubblePaddingX = 5
+      const bubblePaddingY = 3
+      const bubbleRadius = 5
+      const speakerSize = 12
+      const speakerGap = 3
+      const tailWidth = 8
+      const tailHeight = 5
+      const bubbleGap = 3
+
+      const layouts: BubbleLayout[] = []
+
+      for (let i = 0; i < objects.length; i++) {
+        const obj = objects[i]
+        const color = COLORS[i % COLORS.length]
+
+        const [bx1, by1, bx2, by2] = obj.bbox
+        const px = bx1 * scaleX
+        const py = by1 * scaleY
+        const pw = (bx2 - bx1) * scaleX
+        const ph = (by2 - by1) * scaleY
+        const bboxCenterX = px + pw / 2
+
+        const wordWidth = estimateTextWidth(obj.name, fontSize)
+        const phoneticWidth = estimateTextWidth(obj.phonetic || '', phoneticFontSize)
+
+        const textWidth = Math.max(wordWidth, phoneticWidth)
+        const bubbleW = Math.max(60, Math.min(120, textWidth + speakerSize + speakerGap + bubblePaddingX * 2))
+        const bubbleH = bubblePaddingY * 2 + lineHeight + phoneticLineHeight
+
+        let bubbleX = bboxCenterX - bubbleW / 2
+        let bubbleY = py - bubbleH - tailHeight - bubbleGap
+        let tailUp = false
+
+        if (bubbleX < 2) bubbleX = 2
+        if (bubbleX + bubbleW > canvasW - 2) bubbleX = canvasW - bubbleW - 2
+
+        if (bubbleY < 0) {
+          bubbleY = py + ph + bubbleGap
+          tailUp = true
+        }
+
+        const speakerX = bubbleX + bubbleW - bubblePaddingX - speakerSize
+        const speakerY = bubbleY + (bubbleH - speakerSize) / 2
 
         ctx.setFillStyle('#FFFFFF')
         ctx.setStrokeStyle(color)
-        ctx.setLineWidth(1.5)
-        drawRoundedRect(ctx, b.bubbleX, b.bubbleY, b.bubbleW, b.bubbleH, BUBBLE_RADIUS)
+        ctx.setLineWidth(1)
+        drawRoundedRect(ctx, bubbleX, bubbleY, bubbleW, bubbleH, bubbleRadius)
         ctx.fill()
         ctx.stroke()
 
-        ctx.setFillStyle('#FFFFFF')
-        ctx.beginPath()
-        ctx.moveTo(b.tailX, b.tailY)
-        ctx.lineTo(b.tailX + TAIL_WIDTH, b.tailY)
-        ctx.lineTo(b.centerX, b.tailTipY)
-        ctx.closePath()
-        ctx.fill()
+        const attachY = tailUp ? bubbleY : bubbleY + bubbleH
+        drawBubbleTail(ctx, bboxCenterX, attachY, tailWidth, tailHeight, tailUp)
+        drawTailStroke(ctx, bboxCenterX, attachY, tailWidth, tailHeight, tailUp, color)
 
-        ctx.setStrokeStyle(color)
-        ctx.setLineWidth(1.5)
-        ctx.beginPath()
-        ctx.moveTo(b.tailX, b.tailY)
-        ctx.lineTo(b.tailX + TAIL_WIDTH, b.tailY)
-        ctx.stroke()
-
-        ctx.setFillStyle('#000000')
-        ctx.setFontSize(wordFontSize)
+        ctx.setFillStyle('#333333')
+        ctx.setFontSize(fontSize)
         ctx.setTextAlign('left')
-        ctx.fillText(
-          obj.name,
-          b.bubbleX + BUBBLE_PADDING_X,
-          b.bubbleY + BUBBLE_PADDING_Y + wordFontSize
-        )
+        ctx.fillText(obj.name, bubbleX + bubblePaddingX, bubbleY + bubblePaddingY + fontSize)
 
         if (obj.phonetic) {
           ctx.setFillStyle('#888888')
           ctx.setFontSize(phoneticFontSize)
-          ctx.fillText(
-            obj.phonetic,
-            b.bubbleX + BUBBLE_PADDING_X,
-            b.bubbleY + BUBBLE_PADDING_Y + wordFontSize + lineHeight
-          )
+          ctx.fillText(obj.phonetic, bubbleX + bubblePaddingX, bubbleY + bubblePaddingY + fontSize + lineHeight)
         }
 
-        drawSpeakerIcon(ctx, b.speakerX, b.speakerY, SPEAKER_SIZE, color)
-      })
+        drawSpeakerIcon(ctx, speakerX, speakerY, speakerSize, color)
 
+        layouts.push({
+          x: bubbleX, y: bubbleY, w: bubbleW, h: bubbleH,
+          word: obj.name,
+          speakerArea: { x: speakerX, y: speakerY, w: speakerSize, h: speakerSize },
+        })
+      }
+
+      bubbleLayoutsRef.current = layouts
       ctx.draw()
     }, 200)
 
     return () => {
-      if (drawTimerRef.current) {
-        clearTimeout(drawTimerRef.current)
-      }
+      if (drawTimerRef.current) clearTimeout(drawTimerRef.current)
     }
   }, [localPath, imageInfo, objects])
 
   const handleCanvasTap = useCallback((e: any) => {
-    if (!objects.length || !imageInfo) return
-    const tapX = e.detail.x
-    const tapY = e.detail.y
-    const { width: canvasW, height: canvasH } = imageInfo
-
-    const wordFontSize = Math.max(11, Math.min(16, Math.round(canvasW / 75)))
-    const phoneticFontSize = Math.max(8, Math.min(12, Math.round(canvasW / 110)))
-    const lineHeight = wordFontSize + 3
-
-    for (let i = 0; i < objects.length; i++) {
-      const b = computeBubbleBounds(objects[i], canvasW, canvasH, wordFontSize, phoneticFontSize, lineHeight)
-      if (tapX >= b.speakerX && tapX <= b.speakerX + SPEAKER_SIZE &&
-          tapY >= b.speakerY && tapY <= b.speakerY + SPEAKER_SIZE) {
+    for (const layout of bubbleLayoutsRef.current) {
+      const sa = layout.speakerArea
+      if (
+        e.detail.x >= sa.x && e.detail.x <= sa.x + sa.w &&
+        e.detail.y >= sa.y && e.detail.y <= sa.y + sa.h
+      ) {
         try {
           const audioCtx = Taro.createInnerAudioContext()
           const ttsLang = getTtsLang(getLanguagePrefs().targetLang)
-          audioCtx.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(objects[i].name)}&tl=${ttsLang}&client=tw-ob`
+          audioCtx.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(layout.word)}&tl=${ttsLang}&client=tw-ob`
           audioCtx.play()
           audioCtx.onEnded(() => audioCtx.destroy())
           audioCtx.onError(() => audioCtx.destroy())
@@ -277,31 +298,28 @@ function AnnotatedImage({ dataUrl, objects, style }: Props) {
         return
       }
     }
-  }, [objects, imageInfo])
+  }, [])
 
   const hasImage = imageInfo !== null
   const isEmpty = objects.length === 0
 
   return (
-    <View style={style}>
+    <View style={{ textAlign: 'center', ...style }}>
       <Canvas
         canvasId={canvasId}
         onTap={handleCanvasTap}
         style={{
           width: hasImage ? imageInfo.width + 'px' : '100%',
           height: hasImage ? imageInfo.height + 'px' : 'auto',
+          maxWidth: '100%',
+          borderRadius: '12px',
+          display: 'block',
+          margin: '0 auto',
         }}
       />
       {isEmpty && (
-        <View
-          style={{
-            textAlign: 'center',
-            padding: '16px',
-            color: '#999',
-            fontSize: '14px',
-          }}
-        >
-          <Text>未识别到物体</Text>
+        <View style={{ marginTop: '8px', fontSize: '14px' }}>
+          <Text style={{ color: '#888' }}>未识别到物体</Text>
         </View>
       )}
     </View>

@@ -6,17 +6,10 @@
 
 .home-header {
   background: linear-gradient(135deg, #4A90D9, #6DB5F5);
-  padding: 60rpx 40rpx 50rpx;
+  padding: 40rpx 40rpx 36rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-.home-header-logo {
-  font-size: 44rpx;
-  font-weight: 700;
-  color: #fff;
-  margin-bottom: 12rpx;
 }
 
 .home-header-subtitle {
@@ -24,7 +17,7 @@
   color: rgba(255, 255, 255, 0.85);
   text-align: center;
   line-height: 1.5;
-  margin-bottom: 24rpx;
+  margin-bottom: 20rpx;
 }
 
 .home-header-auth {
@@ -48,6 +41,8 @@
 .home-header-settings-btn {
   width: 56rpx;
   height: 56rpx;
+  min-width: 56rpx;
+  min-height: 56rpx;
   background: rgba(255, 255, 255, 0.25);
   border-radius: 50%;
   display: flex;
@@ -57,7 +52,8 @@
   color: #fff;
   border: none;
   padding: 0;
-  line-height: 56rpx;
+  margin: 0;
+  line-height: 1;
 
   &::after {
     border: none;
@@ -104,29 +100,31 @@
 .home-hint-bar {
   display: flex;
   flex-direction: row;
-  align-items: center;
-  margin: 20rpx 30rpx 0;
-  padding: 16rpx 24rpx;
+  align-items: flex-start;
+  margin: 16rpx 24rpx 24rpx;
+  padding: 14rpx 20rpx;
   background: #fff8e1;
-  border-radius: 12rpx;
-  gap: 12rpx;
+  border-radius: 10rpx;
+  gap: 10rpx;
 }
 
 .home-hint-icon {
-  font-size: 28rpx;
+  font-size: 26rpx;
   flex-shrink: 0;
 }
 
 .home-hint-text {
-  font-size: 22rpx;
+  flex: 1;
+  font-size: 20rpx;
   color: #8d6e00;
-  line-height: 1.5;
+  line-height: 1.4;
+  word-break: break-all;
 }
 
 .home-stats-row {
   display: flex;
   flex-direction: row;
-  margin: -30rpx 30rpx 24rpx;
+  margin: 0 30rpx 24rpx;
   background: #fff;
   border-radius: 20rpx;
   padding: 24rpx 16rpx;

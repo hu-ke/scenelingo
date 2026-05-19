@@ -14,4 +14,9 @@ export default {
     navigationBarTitleText: '场景英语',
     navigationBarTextStyle: 'white',
   },
+  permission: {
+    'scope.camera': {
+      desc: '需要使用摄像头拍摄照片来识别物体学习英语',
+    },
+  },
 };

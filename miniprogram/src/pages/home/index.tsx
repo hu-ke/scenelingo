@@ -373,7 +373,6 @@ export default function HomePage() {
 
   const headerNode = (
     <View className="home-header">
-      <Text className="home-header-logo">🔍 场景英语</Text>
       <Text className="home-header-subtitle">用照片探索身边的事物，轻松学习英语单词</Text>
       <View className="home-header-auth">
         {authState.isLoggedIn ? (
@@ -401,8 +400,8 @@ export default function HomePage() {
       <Text className="home-hint-text">
         每张图片AI识别大约需要5-10秒。
         {authState.isLoggedIn
-          ? '上传后将自动后台处理，您可继续浏览。'
-          : '登录后可异步批量处理，无需等待。'}
+          ? '上传后自动后台处理，您可继续浏览。'
+          : '登录后可后台处理，无需等待。'}
       </Text>
     </View>
   ) : null;
