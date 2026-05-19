@@ -1,7 +1,7 @@
 export default {
   pages: [
-    'pages/login/index',
     'pages/home/index',
+    'pages/login/index',
     'pages/review/index',
     'pages/merge/index',
     'pages/wordbook/index',
