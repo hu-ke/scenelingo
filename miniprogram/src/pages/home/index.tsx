@@ -27,10 +27,18 @@ function getTodayStr(): string {
 
 async function compressImage(filePath: string, maxSize = 1500): Promise<string> {
   try {
-    const info = await Taro.getImageInfo({ src: filePath });
+    let workingPath = filePath;
+    try {
+      const preCompressed = await Taro.compressImage({ src: filePath, quality: 80 });
+      workingPath = preCompressed.tempFilePath;
+    } catch {
+      // 压缩失败则继续使用原始路径
+    }
+
+    const info = await Taro.getImageInfo({ src: workingPath });
     let { width, height } = info;
     if (width <= maxSize && height <= maxSize) {
-      return filePath;
+      return workingPath;
     }
     if (width > height) {
       height = Math.round((height / width) * maxSize);
@@ -58,7 +66,7 @@ async function compressImage(filePath: string, maxSize = 1500): Promise<string> 
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
       img.onerror = () => reject(new Error('image load failed'));
-      img.src = filePath;
+      img.src = workingPath;
     });
     ctx.drawImage(img, 0, 0, width, height);
     const tempRes = await Taro.canvasToTempFilePath({
@@ -287,6 +295,7 @@ export default function HomePage() {
             await api.uploadPending(compressedPath);
           } catch (err) {
             console.error('上传失败:', err);
+            Taro.showToast({ title: `第${i + 1}张上传失败，请重试`, icon: 'none' });
           }
           setUploadProgress({ current: i + 1, total: res.tempFiles.length });
         }

@@ -62,13 +62,46 @@ export default function ReviewPage() {
     }
   }, [currentIndex, photos.length, recognizeImage, photos, dispatch])
 
-  const handleSave = useCallback(async () => {
+  const handleDownload = useCallback(async () => {
     if (!currentPhoto) return
+
+    let annotatedPath = currentPhoto.dataUrl
+    try {
+      annotatedPath = await new Promise<string>((resolve, reject) => {
+        Taro.canvasToTempFilePath({
+          canvasId: 'annotated-canvas',
+          success: (res) => resolve(res.tempFilePath),
+          fail: (err) => reject(err),
+        })
+      })
+    } catch {
+    }
+
+    try {
+      const authResult = await Taro.getSetting()
+      if (!authResult.authSetting['scope.writePhotosAlbum']) {
+        await Taro.authorize({ scope: 'scope.writePhotosAlbum' })
+      }
+      await Taro.saveImageToPhotosAlbum({ filePath: annotatedPath })
+      Taro.showToast({ title: '已保存到相册', icon: 'success' })
+    } catch (e: unknown) {
+      const errMsg = (e as { errMsg?: string })?.errMsg || ''
+      if (errMsg.includes('auth deny')) {
+        Taro.showModal({
+          title: '提示',
+          content: '需要相册权限才能保存图片，请在小程序设置中开启',
+          showCancel: false,
+        })
+      } else {
+        Taro.showToast({ title: '保存到相册失败', icon: 'none' })
+      }
+    }
 
     if (!authState.isLoggedIn) {
       const localPhotos = getJSONStorage<PhotoItem[]>('saved_photos', [])
       if (localPhotos.length >= MAX_LOCAL_PHOTOS) {
         setShowLoginPrompt(true)
+        dispatch({ type: 'nextPhoto' })
         return
       }
       const savedPhoto: PhotoItem = {
@@ -80,18 +113,6 @@ export default function ReviewPage() {
       setJSONStorage('saved_photos', localPhotos)
     } else {
       try {
-        let annotatedPath = currentPhoto.dataUrl
-        try {
-          annotatedPath = await new Promise<string>((resolve, reject) => {
-            Taro.canvasToTempFilePath({
-              canvasId: 'annotated-canvas',
-              success: (res) => resolve(res.tempFilePath),
-              fail: (err) => reject(err),
-            })
-          })
-        } catch {
-        }
-
         await api.uploadPending(currentPhoto.dataUrl)
         await api.uploadPhoto(annotatedPath, {
           objects: currentObjects,
@@ -103,7 +124,6 @@ export default function ReviewPage() {
         })
       } catch {
         Taro.showToast({ title: '保存失败', icon: 'error' })
-        return
       }
     }
 
@@ -194,8 +214,8 @@ export default function ReviewPage() {
         <Button onClick={recognizeImage} disabled={loading}>
           {loading ? '识别中...' : '重新识别'}
         </Button>
-        <Button onClick={handleSave} disabled={loading || !currentObjects}>
-          保存
+        <Button onClick={handleDownload} disabled={loading || !currentObjects}>
+          下载
         </Button>
         <Button onClick={handleSkip} disabled={loading}>
           跳过

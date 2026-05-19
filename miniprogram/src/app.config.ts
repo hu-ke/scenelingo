@@ -18,5 +18,8 @@ export default {
     'scope.camera': {
       desc: '需要使用摄像头拍摄照片来识别物体学习英语',
     },
+    'scope.writePhotosAlbum': {
+      desc: '需要保存标注图片到相册',
+    },
   },
 };
