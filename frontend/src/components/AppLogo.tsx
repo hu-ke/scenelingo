@@ -8,7 +8,7 @@ interface AppLogoProps {
 }
 
 /**
- * SceneLingo (场景英语) App Logo
+ * SceneLingo (场景外语) App Logo
  *
  * Visual metaphor: a magnifying glass (exploration/discovery through photography)
  * containing a stylized letter "A" (language/alphabet learning).

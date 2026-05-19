@@ -34,7 +34,7 @@
 - [x] SubTask 3.1: 验证码生成逻辑：从 MongoDB `verification_codes` 集合写入验证码记录（含 `email`、`code`、`created_at`、`expires_at`、`used: false`），60 秒内同一邮箱不可重复发送（查 MongoDB 中该邮箱未过期且 created_at 在 60 秒内的记录）
 - [x] SubTask 3.2: 验证码校验逻辑：从 MongoDB `verification_codes` 集合查找匹配 email + code + 未过期 + 未使用的记录，校验通过后标记 `used: true`
 - [x] SubTask 3.3: JWT Token: `generate_token(email)` payload 中 `{"email": "..."}` 替代 `{"phone": "..."}`，`verify_token(token)` 返回 email
-- [x] SubTask 3.4: 实现 `send_email(to_email, code)` 函数：使用 `smtplib` 通过 SMTP 发送验证码邮件，邮件标题"场景英语 - 登录验证码"，内容包含验证码数字。SMTP 配置从环境变量读取（`SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`/`SMTP_FROM`），支持 STARTTLS
+- [x] SubTask 3.4: 实现 `send_email(to_email, code)` 函数：使用 `smtplib` 通过 SMTP 发送验证码邮件，邮件标题"场景外语 - 登录验证码"，内容包含验证码数字。SMTP 配置从环境变量读取（`SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`/`SMTP_FROM`），支持 STARTTLS
 - [x] SubTask 3.5: 用户管理：`get_or_create_user(email)` 函数，在 MongoDB `users` 集合中查找或创建用户记录，登录时更新 `last_login_at`
 - [x] SubTask 3.6: 降级兼容：若 MongoDB 不可用，验证码回退到内存字典存储；若 SMTP 未配置，验证码固定为 `"123456"` 并打印到控制台
 

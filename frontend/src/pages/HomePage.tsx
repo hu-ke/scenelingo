@@ -553,7 +553,7 @@ export default function HomePage() {
       <div className="home-header" style={{ position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <AppLogo size={40} />
-          <h1>场景英语</h1>
+          <h1>场景外语</h1>
         </div>
         <p>用照片探索身边的事物，轻松学习英语单词</p>
         {authState.isLoggedIn ? (

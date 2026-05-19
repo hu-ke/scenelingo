@@ -11,7 +11,7 @@ export default {
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#4A90D9',
-    navigationBarTitleText: '场景英语',
+    navigationBarTitleText: '场景外语',
     navigationBarTextStyle: 'white',
   },
   permission: {

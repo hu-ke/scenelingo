@@ -2,7 +2,7 @@
   "name": "scenelingo-miniprogram",
   "version": "1.0.0",
   "private": true,
-  "description": "Scene Lingo 场景英语 - 微信小程序",
+  "description": "Scene Lingo 场景外语 - 微信小程序",
   "templateInfo": {
     "name": "default",
     "typescript": true,

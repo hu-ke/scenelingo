@@ -108,7 +108,7 @@ def send_email(to_email: str, code: str) -> bool:
     msg = MIMEMultipart()
     msg["From"] = SMTP_FROM or SMTP_USER
     msg["To"] = to_email
-    msg["Subject"] = "场景英语 - 登录验证码"
+    msg["Subject"] = "场景外语 - 登录验证码"
     
     body = f"您的登录验证码是：{code}\n\n验证码5分钟内有效，请勿泄露给他人。\n\n—— Scene Lingo"
     msg.attach(MIMEText(body, "plain", "utf-8"))

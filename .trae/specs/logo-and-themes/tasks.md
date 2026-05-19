@@ -14,7 +14,7 @@
 - [x] Task 3: 替换所有页面中的 Logo
   - 在 `LoginPage.tsx` 中：替换 🎓 emoji 为 `<AppLogo size={56} animated />`
   - 在 `SettingsPage.tsx` 中：替换 🎓 emoji 为 `<AppLogo size={56} animated />`
-  - 在 `HomePage.tsx` 的 header 中：在"场景英语"标题左侧添加 `<AppLogo size={40} />`
+  - 在 `HomePage.tsx` 的 header 中：在"场景外语"标题左侧添加 `<AppLogo size={40} />`
   - 保持各页面的布局和间距不变
 
 - [x] Task 4: 定义主题数据与工具函数

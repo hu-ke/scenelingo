@@ -137,7 +137,7 @@ export default function LoginPage() {
               backgroundClip: 'text',
             }}
           >
-            场景英语
+            场景外语
           </h1>
           <p
             style={{

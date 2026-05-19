@@ -1,8 +1,8 @@
 {
   "miniprogramRoot": "dist/",
   "projectname": "scene-lingo",
-  "description": "Scene Lingo 场景英语 - 拍照学单词",
-  "appid": "wx3ef2e561112c2a5a",
+  "description": "Scene Lingo 场景外语 - 拍照学单词",
+  "appid": "wxaf0a522e1a1057b9",
   "setting": {
     "urlCheck": false,
     "es6": true,

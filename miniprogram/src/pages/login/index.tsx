@@ -93,7 +93,7 @@ export default function LoginPage() {
     <View className="login-page">
       <View className="login-card">
         <View className="login-logo">
-          <Text className="login-logo-text">🔍场景英语</Text>
+          <Text className="login-logo-text">🔍场景外语</Text>
         </View>
 
         <Text className="login-subtitle">邮箱登录，同步你的学习记录</Text>
