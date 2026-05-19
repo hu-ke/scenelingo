@@ -394,7 +394,7 @@ export default function HomePage() {
 
     const interval = setInterval(() => {
       loadData();
-    }, 5000);
+    }, 2000);
 
     return () => clearInterval(interval);
   }, [groupedPhotos, loadData]);

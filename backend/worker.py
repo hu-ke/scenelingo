@@ -83,7 +83,7 @@ async def main():
         try:
             doc = await claim_pending_photo()
             if doc is None:
-                await asyncio.sleep(2)
+                await asyncio.sleep(1)
                 continue
 
             photo_id = doc["photo_id"]
