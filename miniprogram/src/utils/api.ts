@@ -1,5 +1,7 @@
 import Taro from '@tarojs/taro';
 
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS';
+
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8022/scenelingo-service';
 
 function getToken(): string {
@@ -20,7 +22,7 @@ async function request<T>(path: string, options: Record<string, unknown> = {}): 
 
   const res = await Taro.request({
     url: `${BASE_URL}${path}`,
-    method: (options.method as string) || 'GET',
+    method: (options.method as HttpMethod) || 'GET',
     header,
     data: options.body,
     ...options,
@@ -79,6 +81,7 @@ export const api = {
         name: 'image',
         formData: { nativeLang, targetLang },
         header: token ? { 'Authorization': `Bearer ${token}` } : {},
+        timeout: 60000,
         success(res) {
           if (res.statusCode === 200) {
             resolve(JSON.parse(res.data));
@@ -87,7 +90,7 @@ export const api = {
           }
         },
         fail(err) {
-          reject(err);
+          reject(new Error(err.errMsg || '网络请求失败'));
         },
       });
     });
@@ -101,6 +104,7 @@ export const api = {
         filePath: imagePath,
         name: 'original',
         header: token ? { 'Authorization': `Bearer ${token}` } : {},
+        timeout: 30000,
         success(res) {
           if (res.statusCode === 200) {
             resolve(JSON.parse(res.data));
@@ -109,7 +113,7 @@ export const api = {
           }
         },
         fail(err) {
-          reject(err);
+          reject(new Error(err.errMsg || '网络请求失败'));
         },
       });
     });
@@ -124,6 +128,7 @@ export const api = {
         name: 'annotated',
         formData: { photo_id: photoId },
         header: token ? { 'Authorization': `Bearer ${token}` } : {},
+        timeout: 30000,
         success(res) {
           if (res.statusCode === 200) {
             resolve(JSON.parse(res.data));
@@ -132,7 +137,7 @@ export const api = {
           }
         },
         fail(err) {
-          reject(err);
+          reject(new Error(err.errMsg || '网络请求失败'));
         },
       });
     });
@@ -153,6 +158,7 @@ export const api = {
         name: 'annotated',
         header: token ? { 'Authorization': `Bearer ${token}` } : {},
         formData,
+        timeout: 30000,
         success(res) {
           if (res.statusCode === 200) {
             resolve(JSON.parse(res.data));
@@ -161,7 +167,7 @@ export const api = {
           }
         },
         fail(err) {
-          reject(err);
+          reject(new Error(err.errMsg || '网络请求失败'));
         },
       });
     });

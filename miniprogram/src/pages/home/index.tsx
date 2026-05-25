@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../utils/api';
 import { getJSONStorage, setJSONStorage } from '../../utils/storage';
 import { generateUUID } from '../../utils/uuid';
+import { renderAnnotatedImageToTempFile } from '../../utils/annotateImage';
 import type { PhotoItem, RecognizedObject } from '../../context/AppContext';
 import './index.scss';
 
@@ -27,64 +28,25 @@ function getTodayStr(): string {
 
 async function compressImage(filePath: string, maxSize = 1500): Promise<string> {
   try {
-    let workingPath = filePath;
-    try {
-      const preCompressed = await Taro.compressImage({ src: filePath, quality: 80 });
-      workingPath = preCompressed.tempFilePath;
-    } catch {
-      // 压缩失败则继续使用原始路径
+    const info = await Taro.getImageInfo({ src: filePath });
+    const { width, height } = info;
+
+    if (width <= maxSize && height <= maxSize) {
+      return filePath;
     }
 
-    const info = await Taro.getImageInfo({ src: workingPath });
-    let { width, height } = info;
-    if (width <= maxSize && height <= maxSize) {
-      return workingPath;
+    let quality = 80;
+    if (Math.max(width, height) > 3000) {
+      quality = 50;
+    } else if (Math.max(width, height) > 2000) {
+      quality = 60;
     }
-    if (width > height) {
-      height = Math.round((height / width) * maxSize);
-      width = maxSize;
-    } else {
-      width = Math.round((width / height) * maxSize);
-      height = maxSize;
-    }
-    const canvasId = 'resize-canvas';
-    const query = Taro.createSelectorQuery();
-    query.select(`#${canvasId}`).fields({ node: true, size: true });
-    const res = await new Promise<{ node: any }>((resolve, reject) => {
-      query.exec((r) => {
-        if (r && r[0] && r[0].node) resolve(r[0]);
-        else reject(new Error('canvas not found'));
-      });
-    });
-    const canvas = res.node;
-    const ctx = canvas.getContext('2d');
-    const dpr = 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    ctx.scale(dpr, dpr);
-    const img = canvas.createImage();
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('image load failed'));
-      img.src = workingPath;
-    });
-    ctx.drawImage(img, 0, 0, width, height);
-    const tempRes = await Taro.canvasToTempFilePath({
-      canvas,
-      canvasId,
-      x: 0,
-      y: 0,
-      width,
-      height,
-      destWidth: width,
-      destHeight: height,
-      fileType: 'jpeg',
-      quality: 0.8,
-    });
-    return tempRes.tempFilePath;
+
+    const compressed = await Taro.compressImage({ src: filePath, quality });
+    return compressed.tempFilePath;
   } catch {
     try {
-      const fallback = await Taro.compressImage({ src: filePath, quality: 80 });
+      const fallback = await Taro.compressImage({ src: filePath, quality: 40 });
       return fallback.tempFilePath;
     } catch {
       return filePath;
@@ -107,8 +69,11 @@ export default function HomePage() {
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const initialLoadDone = useRef(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const loadingRef = useRef(false);
 
   const loadPhotos = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     let photos: PhotoItem[] = [];
     let dateMap: Record<string, string> = {};
 
@@ -128,6 +93,51 @@ export default function HomePage() {
             status: (p.status as PhotoItem['status']) || 'completed',
           } as PhotoItem;
         });
+
+        let needsReload = false;
+        for (const photo of photos) {
+          if (
+            photo.status === 'completed' &&
+            !photo.annotatedDataUrl &&
+            photo.objects &&
+            photo.objects.length > 0
+          ) {
+            try {
+              const tempFilePath = await renderAnnotatedImageToTempFile(
+                photo.dataUrl,
+                photo.objects,
+                'annotate-render-canvas',
+              );
+              await api.uploadAnnotated(tempFilePath, photo.id);
+              needsReload = true;
+            } catch (err) {
+              console.error('标注上传失败:', err);
+            }
+          }
+        }
+
+        if (needsReload) {
+          try {
+            const reloadRes = await api.listPhotos();
+            const reloadRaw = reloadRes.photos || [];
+            const newDateMap: Record<string, string> = {};
+            photos = reloadRaw.map((p: Record<string, unknown>) => {
+              const id = (p.id as string) || '';
+              const dateKey = (p.collectionDate as string) || getTodayStr();
+              newDateMap[id] = dateKey;
+              return {
+                id,
+                dataUrl: (p.originalUrl as string) || '',
+                annotatedDataUrl: p.annotatedUrl as string | undefined,
+                objects: p.objects as RecognizedObject[] | undefined,
+                status: (p.status as PhotoItem['status']) || 'completed',
+              } as PhotoItem;
+            });
+            dateMap = newDateMap;
+          } catch {
+            // keep existing photos if reload fails
+          }
+        }
       } catch {
         photos = getJSONStorage<PhotoItem[]>('saved_photos', []);
         for (const p of photos) {
@@ -181,6 +191,7 @@ export default function HomePage() {
     }
 
     setLoading(false);
+    loadingRef.current = false;
   }, [authState.isLoggedIn, dispatch]);
 
   useEffect(() => {
@@ -201,7 +212,15 @@ export default function HomePage() {
     const hasNonCompleted = Object.values(groupedPhotos).some(photos =>
       photos.some(p => p.status && p.status !== 'completed')
     );
-    if (!hasNonCompleted) return;
+    const hasMissingAnnotation = Object.values(groupedPhotos).some(photos =>
+      photos.some(p =>
+        p.status === 'completed' &&
+        !p.annotatedDataUrl &&
+        p.objects &&
+        p.objects.length > 0
+      )
+    );
+    if (!hasNonCompleted && !hasMissingAnnotation) return;
 
     if (pollingRef.current) clearInterval(pollingRef.current);
     pollingRef.current = setInterval(() => {
@@ -292,10 +311,18 @@ export default function HomePage() {
           const file = res.tempFiles[i];
           try {
             const compressedPath = await compressImage(file.tempFilePath);
+            if (!compressedPath) {
+              throw new Error('图片压缩后路径为空');
+            }
             await api.uploadPending(compressedPath);
           } catch (err) {
-            console.error('上传失败:', err);
-            Taro.showToast({ title: `第${i + 1}张上传失败，请重试`, icon: 'none' });
+            const errMsg = err instanceof Error ? err.message : String(err);
+            console.error('上传失败:', errMsg);
+            if (errMsg.includes('压缩')) {
+              Taro.showToast({ title: `第${i + 1}张图片处理失败，请重试`, icon: 'none' });
+            } else {
+              Taro.showToast({ title: `第${i + 1}张上传失败，请重试`, icon: 'none' });
+            }
           }
           setUploadProgress({ current: i + 1, total: res.tempFiles.length });
         }
@@ -582,7 +609,16 @@ export default function HomePage() {
       </View>
       {loginPromptNode}
       {uploadDialogNode}
-      <Canvas id="resize-canvas" type="2d" style={{ position: 'fixed', left: '-9999px', top: '-9999px', width: '1px', height: '1px' }} />
+      <Canvas
+        canvasId="annotate-render-canvas"
+        style={{
+          position: 'fixed',
+          left: '-9999px',
+          top: '-9999px',
+          width: '2000px',
+          height: '2000px',
+        }}
+      />
     </View>
   );
 }
