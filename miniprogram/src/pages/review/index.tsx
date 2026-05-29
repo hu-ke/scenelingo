@@ -77,12 +77,14 @@ export default function ReviewPage() {
     } catch {
     }
 
+    let saveToAlbumSuccess = false
     try {
       const authResult = await Taro.getSetting()
       if (!authResult.authSetting['scope.writePhotosAlbum']) {
         await Taro.authorize({ scope: 'scope.writePhotosAlbum' })
       }
       await Taro.saveImageToPhotosAlbum({ filePath: annotatedPath })
+      saveToAlbumSuccess = true
       Taro.showToast({ title: '已保存到相册', icon: 'success' })
     } catch (e: unknown) {
       const errMsg = (e as { errMsg?: string })?.errMsg || ''
@@ -123,17 +125,14 @@ export default function ReviewPage() {
           createdAt: Date.now(),
         })
       } catch {
-        Taro.showToast({ title: '保存失败', icon: 'error' })
+        if (saveToAlbumSuccess) {
+          Taro.showToast({ title: '已保存到相册', icon: 'success' })
+        }
       }
     }
 
     dispatch({ type: 'nextPhoto' })
   }, [currentPhoto, currentObjects, authState.isLoggedIn, dispatch, nativeLang, targetLang])
-
-  const handleSkip = useCallback(() => {
-    dispatch({ type: 'skipCurrent' })
-    dispatch({ type: 'nextPhoto' })
-  }, [dispatch])
 
   const handleBack = useCallback(() => {
     dispatch({ type: 'resetReview' })
@@ -216,9 +215,6 @@ export default function ReviewPage() {
         </Button>
         <Button onClick={handleDownload} disabled={loading || !currentObjects}>
           下载
-        </Button>
-        <Button onClick={handleSkip} disabled={loading}>
-          跳过
         </Button>
       </View>
 

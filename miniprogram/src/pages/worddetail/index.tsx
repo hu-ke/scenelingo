@@ -3,7 +3,7 @@ import Taro from '@tarojs/taro';
 import { View, Text, Button, Image, ScrollView } from '@tarojs/components';
 import { useReview } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
-import { api } from '../../utils/api';
+import { api, getApiBaseUrl } from '../../utils/api';
 import { getJSONStorage } from '../../utils/storage';
 import { isMastered, toggleMastered } from '../../utils/wordMastery';
 import { getTtsLang, getLanguagePrefs } from '../../utils/languagePrefs';
@@ -90,7 +90,8 @@ export default function WordDetailPage() {
     try {
       const audioCtx = Taro.createInnerAudioContext();
       const ttsLang = getTtsLang(getLanguagePrefs().targetLang);
-      audioCtx.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(word)}&tl=${ttsLang}&client=tw-ob`;
+      const baseUrl = getApiBaseUrl();
+      audioCtx.src = `${baseUrl}/api/tts?text=${encodeURIComponent(word)}&lang=${ttsLang}`;
       audioCtx.play();
       audioCtx.onEnded(() => {
         audioCtx.destroy();

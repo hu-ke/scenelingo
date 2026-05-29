@@ -3,6 +3,7 @@ import Taro from '@tarojs/taro'
 import { View, Canvas, Text } from '@tarojs/components'
 import type { RecognizedObject } from '../context/AppContext'
 import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs'
+import { getApiBaseUrl } from '../utils/api'
 
 const COLORS = ['#A29BFE', '#54A0FF', '#2ED573', '#FFA94D', '#FF6B6B']
 
@@ -290,7 +291,8 @@ function AnnotatedImage({ dataUrl, objects, style }: Props) {
         try {
           const audioCtx = Taro.createInnerAudioContext()
           const ttsLang = getTtsLang(getLanguagePrefs().targetLang)
-          audioCtx.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(layout.word)}&tl=${ttsLang}&client=tw-ob`
+          const baseUrl = getApiBaseUrl()
+          audioCtx.src = `${baseUrl}/api/tts?text=${encodeURIComponent(layout.word)}&lang=${ttsLang}`
           audioCtx.play()
           audioCtx.onEnded(() => audioCtx.destroy())
           audioCtx.onError(() => audioCtx.destroy())

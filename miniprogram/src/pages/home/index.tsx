@@ -94,49 +94,77 @@ export default function HomePage() {
           } as PhotoItem;
         });
 
-        let needsReload = false;
-        for (const photo of photos) {
-          if (
+        const photosNeedAnnotated = photos.filter(
+          (photo) =>
             photo.status === 'completed' &&
             !photo.annotatedDataUrl &&
             photo.objects &&
             photo.objects.length > 0
-          ) {
-            try {
-              const tempFilePath = await renderAnnotatedImageToTempFile(
-                photo.dataUrl,
-                photo.objects,
-                'annotate-render-canvas',
-              );
-              await api.uploadAnnotated(tempFilePath, photo.id);
-              needsReload = true;
-            } catch (err) {
-              console.error('标注上传失败:', err);
-            }
-          }
-        }
+        );
 
-        if (needsReload) {
-          try {
-            const reloadRes = await api.listPhotos();
-            const reloadRaw = reloadRes.photos || [];
-            const newDateMap: Record<string, string> = {};
-            photos = reloadRaw.map((p: Record<string, unknown>) => {
-              const id = (p.id as string) || '';
-              const dateKey = (p.collectionDate as string) || getTodayStr();
-              newDateMap[id] = dateKey;
-              return {
-                id,
+        if (photosNeedAnnotated.length > 0) {
+          (async () => {
+            for (const photo of photosNeedAnnotated) {
+              try {
+                const tempFilePath = await renderAnnotatedImageToTempFile(
+                  photo.dataUrl,
+                  photo.objects!,
+                  'annotate-render-canvas',
+                );
+                await api.uploadAnnotated(tempFilePath, photo.id);
+              } catch (err) {
+                console.error('标注上传失败:', err);
+              }
+            }
+            try {
+              const reloadRes = await api.listPhotos();
+              const reloadRaw = reloadRes.photos || [];
+              const newPhotos = reloadRaw.map((p: Record<string, unknown>) => ({
+                id: (p.id as string) || '',
                 dataUrl: (p.originalUrl as string) || '',
                 annotatedDataUrl: p.annotatedUrl as string | undefined,
                 objects: p.objects as RecognizedObject[] | undefined,
                 status: (p.status as PhotoItem['status']) || 'completed',
-              } as PhotoItem;
-            });
-            dateMap = newDateMap;
-          } catch {
-            // keep existing photos if reload fails
-          }
+              } as PhotoItem));
+
+              const newDateMap: Record<string, string> = {};
+              for (const p of reloadRaw) {
+                const id = (p.id as string) || '';
+                newDateMap[id] = (p.collectionDate as string) || getTodayStr();
+              }
+
+              const grouped: Record<string, PhotoItem[]> = {};
+              const sorted = [...newPhotos].sort((a, b) => {
+                const da = newDateMap[a.id] || '';
+                const db = newDateMap[b.id] || '';
+                return db.localeCompare(da);
+              });
+              for (const p of sorted) {
+                const date = newDateMap[p.id] || getTodayStr();
+                if (!grouped[date]) grouped[date] = [];
+                grouped[date].push(p);
+              }
+
+              setGroupedPhotos(grouped);
+              setTotalCount(newPhotos.length);
+
+              const wordSet = new Set<string>();
+              for (const p of newPhotos) {
+                if (p.objects) {
+                  for (const obj of p.objects) {
+                    if (obj?.name) wordSet.add(obj.name.toLowerCase());
+                  }
+                }
+              }
+              setWordCount(wordSet.size);
+              setDayCount(Object.keys(grouped).length);
+
+              dispatch({ type: 'setSavedPhotos', photos: newPhotos });
+              dispatch({ type: 'cleanSelection', ids: newPhotos.map(p => p.id) });
+            } catch {
+              // reload fails, keep existing
+            }
+          })();
         }
       } catch {
         photos = getJSONStorage<PhotoItem[]>('saved_photos', []);

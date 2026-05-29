@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { getApiBaseUrl } from '../utils/api'
+import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs'
 
 interface WordObj {
   name: string
@@ -23,7 +25,9 @@ const WordCard: React.FC<WordCardProps> = ({ obj }) => {
     e.stopPropagation()
     try {
       const audioCtx = Taro.createInnerAudioContext()
-      audioCtx.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(name)}&tl=en-US&client=tw-ob`
+      const ttsLang = getTtsLang(getLanguagePrefs().targetLang)
+      const baseUrl = getApiBaseUrl()
+      audioCtx.src = `${baseUrl}/api/tts?text=${encodeURIComponent(name)}&lang=${ttsLang}`
       audioCtx.play()
       audioCtx.onEnded(() => audioCtx.destroy())
       audioCtx.onError(() => audioCtx.destroy())

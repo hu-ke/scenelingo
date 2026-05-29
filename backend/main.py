@@ -344,6 +344,19 @@ async def upload_annotated(request: Request):
     return {"success": True, "photoId": photo_id}
 
 
+@app.get("/scenelingo-service/api/tts")
+async def text_to_speech(text: str = Query(...), lang: str = Query(default="en-US")):
+    try:
+        tts_url = f"https://translate.google.com/translate_tts?ie=UTF-8&q={text}&tl={lang}&client=tw-ob"
+        with urlopen(tts_url, timeout=15) as resp:
+            content_type = resp.headers.get("Content-Type", "audio/mpeg")
+            data = resp.read()
+        return Response(content=data, media_type=content_type)
+    except Exception as e:
+        logger.warning(f"TTS代理失败: text={text}, lang={lang} - {e}")
+        raise HTTPException(status_code=502, detail="语音合成失败")
+
+
 @app.get("/scenelingo-service/api/image/proxy")
 async def image_proxy(url: str = Query(...)):
     try:
