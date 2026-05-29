@@ -5,6 +5,7 @@ import re
 import uuid
 from io import BytesIO
 from urllib.request import urlopen
+from urllib.parse import quote
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -347,7 +348,7 @@ async def upload_annotated(request: Request):
 @app.get("/scenelingo-service/api/tts")
 async def text_to_speech(text: str = Query(...), lang: str = Query(default="en-US")):
     try:
-        tts_url = f"https://translate.google.com/translate_tts?ie=UTF-8&q={text}&tl={lang}&client=tw-ob"
+        tts_url = f"https://translate.google.com/translate_tts?ie=UTF-8&q={quote(text)}&tl={lang}&client=tw-ob"
         with urlopen(tts_url, timeout=15) as resp:
             content_type = resp.headers.get("Content-Type", "audio/mpeg")
             data = resp.read()
