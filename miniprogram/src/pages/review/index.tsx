@@ -7,6 +7,7 @@ import { api } from '../../utils/api'
 import { getJSONStorage, setJSONStorage } from '../../utils/storage'
 import AnnotatedImage from '../../components/AnnotatedImage'
 import WordCard from '../../components/WordCard'
+import { useTheme } from '../../hooks/useTheme'
 import type { RecognizedObject, PhotoItem } from '../../context/AppContext'
 import './index.scss'
 
@@ -23,6 +24,7 @@ function mapObjects(raw: Record<string, unknown>[]): RecognizedObject[] {
 }
 
 export default function ReviewPage() {
+  const themeStyle = useTheme()
   const { state, dispatch } = useReview()
   const { state: authState } = useAuth()
   const { photos, currentIndex, currentObjects, isReviewing, nativeLang, targetLang } = state
@@ -161,7 +163,7 @@ export default function ReviewPage() {
   }
 
   return (
-    <View className="review-page">
+    <View className="review-page" style={themeStyle}>
       <View className="review-back-btn" onClick={handleBack}>
         <Text>←</Text>
       </View>

@@ -7,10 +7,12 @@ import { api, getApiBaseUrl } from '../../utils/api';
 import { getJSONStorage } from '../../utils/storage';
 import { isMastered, toggleMastered } from '../../utils/wordMastery';
 import { getTtsLang, getLanguagePrefs } from '../../utils/languagePrefs';
+import { useTheme } from '../../hooks/useTheme';
 import type { PhotoItem, RecognizedObject } from '../../context/AppContext';
 import './index.scss';
 
 export default function WordDetailPage() {
+  const themeStyle = useTheme();
   const { state, dispatch } = useReview();
   const { state: authState } = useAuth();
   const word = state.wordDetailWord;
@@ -110,7 +112,7 @@ export default function WordDetailPage() {
 
   if (loading) {
     return (
-      <View className="worddetail-page">
+      <View className="worddetail-page" style={themeStyle}>
         <View className="worddetail-header">
           <View className="worddetail-header-top">
             <View className="worddetail-back-btn" onClick={handleBack}>
@@ -129,7 +131,7 @@ export default function WordDetailPage() {
 
   if (!word) {
     return (
-      <View className="worddetail-page">
+      <View className="worddetail-page" style={themeStyle}>
         <View className="worddetail-header">
           <View className="worddetail-header-top">
             <View className="worddetail-back-btn" onClick={handleBack}>
@@ -148,7 +150,7 @@ export default function WordDetailPage() {
   }
 
   return (
-    <View className="worddetail-page">
+    <View className="worddetail-page" style={themeStyle}>
       <View className="worddetail-header">
         <View className="worddetail-header-top">
           <View className="worddetail-back-btn" onClick={handleBack}>

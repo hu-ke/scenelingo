@@ -6,9 +6,11 @@ import { useAuth } from '../../context/AuthContext';
 import { useReview } from '../../context/AppContext';
 import { setLanguagePrefs } from '../../utils/languagePrefs';
 import { setTheme } from '../../utils/theme';
+import { useTheme } from '../../hooks/useTheme';
 import './index.scss';
 
 export default function LoginPage() {
+  const themeStyle = useTheme();
   const { login } = useAuth();
   const { dispatch } = useReview();
   const [email, setEmail] = useState('');
@@ -90,7 +92,7 @@ export default function LoginPage() {
   }, []);
 
   return (
-    <View className="login-page">
+    <View className="login-page" style={themeStyle}>
       <View className="login-card">
         <View className="login-logo">
           <Text className="login-logo-text">🔍场景外语</Text>

@@ -1,14 +1,18 @@
 .wordbook-page {
   min-height: 100vh;
-  background-color: #F0F5FA;
+  background-color: var(--color-bg);
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .wordbook-header {
-  background: linear-gradient(135deg, #4A90D9, #6DB5F5);
+  background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
   padding: 48rpx 32rpx 40rpx;
   text-align: center;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .wordbook-header-top {
@@ -17,6 +21,8 @@
   justify-content: center;
   position: relative;
   margin-bottom: 8rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .wordbook-back-btn {
@@ -51,6 +57,8 @@
   display: flex;
   background-color: #FFFFFF;
   border-bottom: 1rpx solid #E0EAF3;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .wordbook-tab {
@@ -61,6 +69,8 @@
   justify-content: center;
   padding: 28rpx 0 0;
   position: relative;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .wordbook-tab-text {
@@ -71,14 +81,14 @@
 }
 
 .wordbook-tab-active .wordbook-tab-text {
-  color: #4A90D9;
+  color: var(--color-primary);
   font-weight: 600;
 }
 
 .wordbook-tab-indicator {
   width: 80rpx;
   height: 6rpx;
-  background: linear-gradient(135deg, #4A90D9, #6DB5F5);
+  background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
   border-radius: 3rpx;
 }
 
@@ -93,6 +103,9 @@
 .wordbook-list {
   flex: 1;
   padding: 24rpx;
+  box-sizing: border-box;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .wordbook-card {
@@ -101,6 +114,10 @@
   padding: 28rpx 24rpx;
   margin-bottom: 16rpx;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  width: calc(100% - 48rpx);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .wordbook-card-main {
@@ -119,10 +136,7 @@
 .wordbook-card-word {
   font-size: 34rpx;
   font-weight: 700;
-  background: linear-gradient(135deg, #4A90D9, #6DB5F5);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--color-primary);
   margin-bottom: 4rpx;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -131,7 +145,7 @@
 
 .wordbook-card-phonetic {
   font-size: 24rpx;
-  color: #A0AFBF;
+  color: var(--color-text-secondary);
   font-style: italic;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -157,9 +171,9 @@
 
 .wordbook-card-toggle {
   height: 52rpx;
-  padding: 0 24rpx;
-  font-size: 24rpx;
-  font-weight: 500;
+  padding: 0 20rpx;
+  font-size: 22rpx;
+  font-weight: 600;
   border-radius: 26rpx;
   border: none;
   display: flex;
@@ -167,16 +181,19 @@
   justify-content: center;
   line-height: 52rpx;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .wordbook-card-toggle-master {
-  background-color: #E8F5E9;
-  color: #27AE60;
+  background-color: #C8E6C9;
+  color: #1B5E20;
+  font-weight: 600;
 }
 
 .wordbook-card-toggle-remove {
-  background-color: #FFF3E0;
-  color: #E67E22;
+  background-color: #FFE0B2;
+  color: #E65100;
+  font-weight: 600;
 }
 
 .wordbook-empty {

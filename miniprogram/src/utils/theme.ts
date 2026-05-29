@@ -163,6 +163,8 @@ export const DEFAULT_THEME = 'ocean-blue';
 
 const THEME_MAP = new Map<string, Theme>(THEMES.map((t) => [t.id, t]));
 
+export const THEME_CHANGE_EVENT = 'theme_change';
+
 export function getTheme(): string {
   return Taro.getStorageSync('scene_lingo_theme') || DEFAULT_THEME;
 }
@@ -170,22 +172,28 @@ export function getTheme(): string {
 export function setTheme(themeId: string): void {
   Taro.setStorageSync('scene_lingo_theme', themeId);
   applyTheme(themeId);
+  Taro.eventCenter.trigger(THEME_CHANGE_EVENT, themeId);
 }
 
 export function applyTheme(themeId: string): void {
   const theme = THEME_MAP.get(themeId);
   if (!theme) return;
   Taro.setStorageSync('scene_lingo_theme', themeId);
+  
+  const style: Record<string, string> = {};
+  for (const [key, value] of Object.entries(theme.colors)) {
+    style[key] = value;
+  }
+  
   try {
     const pages = Taro.getCurrentPages();
-    if (pages.length > 0) {
-      const page = pages[pages.length - 1] as any;
-      if (page && typeof page.setStyle === 'function') {
-        const style: Record<string, string> = {};
-        for (const [key, value] of Object.entries(theme.colors)) {
-          style[key] = value;
-        }
-        page.setStyle(style);
+    for (const p of pages) {
+      const pageInstance = p as any;
+      if (pageInstance && typeof pageInstance.setStyle === 'function') {
+        pageInstance.setStyle(style);
+      }
+      if (pageInstance && typeof pageInstance.$setStyle === 'function') {
+        pageInstance.$setStyle(style);
       }
     }
   } catch {
@@ -195,4 +203,11 @@ export function applyTheme(themeId: string): void {
 export function getThemeColors(themeId: string): Record<string, string> {
   const theme = THEME_MAP.get(themeId);
   return theme?.colors || THEME_MAP.get(DEFAULT_THEME)!.colors;
+}
+
+export function onThemeChange(callback: (themeId: string) => void): () => void {
+  Taro.eventCenter.on(THEME_CHANGE_EVENT, callback);
+  return () => {
+    Taro.eventCenter.off(THEME_CHANGE_EVENT, callback);
+  };
 }

@@ -4,8 +4,9 @@ import { View, Text, Button, Picker } from '@tarojs/components';
 import { useReview } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { LANGUAGES, setLanguagePrefs } from '../../utils/languagePrefs';
-import { THEMES, setTheme, applyTheme } from '../../utils/theme';
+import { THEMES, setTheme } from '../../utils/theme';
 import { api } from '../../utils/api';
+import { useTheme } from '../../hooks/useTheme';
 import './index.scss';
 
 const GRADIENTS: Record<string, string> = {
@@ -17,6 +18,7 @@ const GRADIENTS: Record<string, string> = {
 };
 
 export default function SettingsPage() {
+  const themeStyle = useTheme();
   const { state, dispatch } = useReview();
   const { state: authState } = useAuth();
   const [selectedLang, setSelectedLang] = useState(state.targetLang);
@@ -42,10 +44,19 @@ export default function SettingsPage() {
     [targetLanguages, dispatch, authState.isLoggedIn],
   );
 
+  const handleThemeChange = useCallback((themeId: string) => {
+    setSelectedTheme(themeId);
+    setTheme(themeId);
+    dispatch({ type: 'setTheme', theme: themeId });
+    if (authState.isLoggedIn) {
+      api.updateTheme(themeId).catch(() => {});
+    }
+  }, [dispatch, authState.isLoggedIn]);
+
   const currentLangIndex = targetLanguages.findIndex((l) => l.code === selectedLang);
 
   return (
-    <View className="settings-page">
+    <View className="settings-page" style={themeStyle}>
       <View className="settings-card">
         <View className="settings-header">
           <Text className="settings-logo">🔍</Text>
@@ -83,15 +94,7 @@ export default function SettingsPage() {
                 key={theme.id}
                 className={`settings-theme-circle ${selectedTheme === theme.id ? 'settings-theme-selected' : ''}`}
                 style={{ background: GRADIENTS[theme.id] }}
-                onClick={() => {
-                  setSelectedTheme(theme.id);
-                  setTheme(theme.id);
-                  applyTheme(theme.id);
-                  dispatch({ type: 'setTheme', theme: theme.id });
-                  if (authState.isLoggedIn) {
-                    api.updateTheme(theme.id).catch(() => {});
-                  }
-                }}
+                onClick={() => handleThemeChange(theme.id)}
               >
                 {selectedTheme === theme.id && (
                   <Text className="settings-theme-check">✓</Text>

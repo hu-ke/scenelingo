@@ -7,6 +7,7 @@ import { api } from '../../utils/api';
 import { getJSONStorage, setJSONStorage } from '../../utils/storage';
 import { generateUUID } from '../../utils/uuid';
 import { renderAnnotatedImageToTempFile } from '../../utils/annotateImage';
+import { useTheme } from '../../hooks/useTheme';
 import type { PhotoItem, RecognizedObject } from '../../context/AppContext';
 import './index.scss';
 
@@ -55,6 +56,7 @@ async function compressImage(filePath: string, maxSize = 1500): Promise<string> 
 }
 
 export default function HomePage() {
+  const themeStyle = useTheme();
   const { state, dispatch } = useReview();
   const { state: authState, logout: doLogout } = useAuth();
 
@@ -614,7 +616,7 @@ export default function HomePage() {
   ) : null;
 
   return (
-    <View className="home-page">
+    <View className="home-page" style={themeStyle}>
       {headerNode}
       {hintBarNode}
       {loading ? (

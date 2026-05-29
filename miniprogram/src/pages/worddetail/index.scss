@@ -1,12 +1,12 @@
 .worddetail-page {
   min-height: 100vh;
-  background-color: #F0F5FA;
+  background-color: var(--color-bg);
   display: flex;
   flex-direction: column;
 }
 
 .worddetail-header {
-  background: linear-gradient(135deg, #4A90D9, #6DB5F5);
+  background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
   padding: 48rpx 32rpx 40rpx;
   text-align: center;
 }
@@ -96,10 +96,7 @@
 .worddetail-word {
   font-size: 80rpx;
   font-weight: 700;
-  background: linear-gradient(135deg, #4A90D9, #6DB5F5);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--color-primary);
   margin-bottom: 8rpx;
   text-align: center;
   word-break: break-all;
@@ -130,8 +127,8 @@
 .worddetail-speak-btn {
   flex: 1;
   height: 72rpx;
-  background-color: #F0F5FA;
-  color: #4A90D9;
+  background-color: var(--color-surface);
+  color: var(--color-primary);
   font-size: 28rpx;
   font-weight: 500;
   border-radius: 16rpx;

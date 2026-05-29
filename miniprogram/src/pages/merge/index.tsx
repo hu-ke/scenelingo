@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Canvas, Button, ScrollView } from '@tarojs/components'
 import { useReview } from '../../context/AppContext'
+import { useTheme } from '../../hooks/useTheme'
 import './index.scss'
 
 const CANVAS_ID = 'merge-canvas'
@@ -14,6 +15,7 @@ function getColumns(count: number): number {
 }
 
 export default function MergePage() {
+  const themeStyle = useTheme()
   const { state, dispatch } = useReview()
   const { savedPhotos, selectedPhotoIds } = state
 
@@ -166,7 +168,7 @@ export default function MergePage() {
 
   if (isEmpty) {
     return (
-      <View className="merge-page">
+      <View className="merge-page" style={themeStyle}>
         <View className="merge-topbar">
           <Text className="merge-back-btn" onClick={handleBack}>
             ← 返回
@@ -184,7 +186,7 @@ export default function MergePage() {
   }
 
   return (
-    <View className="merge-page">
+    <View className="merge-page" style={themeStyle}>
       <View className="merge-topbar">
         <Text className="merge-back-btn" onClick={handleBack}>
           ← 返回

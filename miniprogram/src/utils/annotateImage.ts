@@ -148,7 +148,17 @@ export async function renderAnnotatedImageToTempFile(
 
   ctx.drawImage(localPath, 0, 0, canvasW, canvasH)
 
-  if (objects.length > 0) {
+  const seenNames = new Set<string>()
+  const uniqueObjects = objects.filter(obj => {
+    const name = obj.name.toLowerCase()
+    if (seenNames.has(name)) {
+      return false
+    }
+    seenNames.add(name)
+    return true
+  })
+
+  if (uniqueObjects.length > 0) {
     const scaleX = canvasW / 1000
     const scaleY = canvasH / 1000
 
@@ -166,8 +176,8 @@ export async function renderAnnotatedImageToTempFile(
     const tailHeight = 5
     const bubbleGap = 3
 
-    for (let i = 0; i < objects.length; i++) {
-      const obj = objects[i]
+    for (let i = 0; i < uniqueObjects.length; i++) {
+      const obj = uniqueObjects[i]
       const color = COLORS[i % COLORS.length]
 
       const [bx1, by1, bx2, by2] = obj.bbox

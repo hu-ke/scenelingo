@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api } from '../../utils/api';
 import { getJSONStorage } from '../../utils/storage';
 import { isMastered, toggleMastered } from '../../utils/wordMastery';
+import { useTheme } from '../../hooks/useTheme';
 import type { PhotoItem } from '../../context/AppContext';
 import './index.scss';
 
@@ -18,6 +19,7 @@ interface WordEntry {
 }
 
 export default function WordBookPage() {
+  const themeStyle = useTheme();
   const { state, dispatch } = useReview();
   const { state: authState } = useAuth();
   const [activeTab, setActiveTab] = useState<'new' | 'mastered'>('new');
@@ -146,7 +148,7 @@ export default function WordBookPage() {
   };
 
   return (
-    <View className="wordbook-page">
+    <View className="wordbook-page" style={themeStyle}>
       <View className="wordbook-header">
         <View className="wordbook-header-top">
           <View className="wordbook-back-btn" onClick={handleBack}>
