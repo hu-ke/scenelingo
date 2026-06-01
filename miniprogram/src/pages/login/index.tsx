@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [agreed, setAgreed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -59,6 +60,10 @@ export default function LoginPage() {
 
   const handleLogin = useCallback(async () => {
     setError('');
+    if (!agreed) {
+      setError('请先阅读并同意用户协议和隐私政策');
+      return;
+    }
     if (!email.includes('@') || !email.includes('.')) {
       setError('请输入有效的邮箱地址');
       return;
@@ -85,10 +90,18 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  }, [email, code, login]);
+  }, [email, code, login, agreed]);
 
   const handleSkip = useCallback(() => {
     Taro.reLaunch({ url: '/pages/home/index' });
+  }, []);
+
+  const openUserAgreement = useCallback(() => {
+    Taro.navigateTo({ url: '/pages/user-agreement/index' });
+  }, []);
+
+  const openPrivacyPolicy = useCallback(() => {
+    Taro.navigateTo({ url: '/pages/privacy-policy/index' });
   }, []);
 
   return (
@@ -136,6 +149,21 @@ export default function LoginPage() {
         >
           登录 / 注册
         </Button>
+
+        <View className="login-agreement">
+          <View 
+            className={`login-checkbox ${agreed ? 'checked' : ''}`}
+            onClick={() => setAgreed(!agreed)}
+          >
+            {agreed && <Text className="login-checkbox-icon">✓</Text>}
+          </View>
+          <Text className="login-agreement-text">
+            我已阅读并同意
+            <Text className="login-agreement-link" onClick={openUserAgreement}>《用户服务协议》</Text>
+            和
+            <Text className="login-agreement-link" onClick={openPrivacyPolicy}>《隐私政策》</Text>
+          </Text>
+        </View>
 
         <Text className="login-skip" onClick={handleSkip}>
           暂不登录，先体验

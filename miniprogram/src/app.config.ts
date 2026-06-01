@@ -7,6 +7,8 @@ export default {
     'pages/wordbook/index',
     'pages/worddetail/index',
     'pages/settings/index',
+    'pages/user-agreement/index',
+    'pages/privacy-policy/index',
   ],
   window: {
     backgroundTextStyle: 'light',
