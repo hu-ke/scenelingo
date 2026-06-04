@@ -193,6 +193,25 @@ async def update_user_theme(email: str, themeId: str) -> bool:
         logger.warning(f"[update_user_theme] 未找到用户 {email}")
     return result.matched_count > 0
 
+async def get_user_language(email: str) -> dict:
+    """获取用户的语言偏好设置。如果用户不存在或未设置，返回默认值。"""
+    from db import db
+    default_prefs = {"nativeLang": "zh", "targetLang": "en"}
+    
+    if db is None:
+        logger.warning("[get_user_language] db 为 None, 返回默认语言偏好")
+        return default_prefs
+
+    user = await db.users.find_one({"email": email})
+    if user:
+        native_lang = user.get("native_lang", "zh")
+        target_lang = user.get("target_lang", "en")
+        logger.info(f"[get_user_language] 用户 {email} 语言偏好: native_lang={native_lang}, target_lang={target_lang}")
+        return {"nativeLang": native_lang, "targetLang": target_lang}
+    else:
+        logger.warning(f"[get_user_language] 未找到用户 {email}, 返回默认语言偏好")
+        return default_prefs
+
 # ---- JWT Token ----
 def generate_token(email: str) -> str:
     payload = {

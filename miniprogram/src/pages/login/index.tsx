@@ -76,10 +76,10 @@ export default function LoginPage() {
     try {
       const res = await api.verify(email, code);
       login(res.token, res.email);
-      if (res.targetLang) {
-        setLanguagePrefs({ nativeLang: 'zh', targetLang: res.targetLang });
-        dispatch({ type: 'setLanguage', nativeLang: 'zh', targetLang: res.targetLang });
-      }
+      const nativeLang = res.nativeLang || 'zh';
+      const targetLang = res.targetLang || 'en';
+      setLanguagePrefs({ nativeLang, targetLang });
+      dispatch({ type: 'setLanguage', nativeLang, targetLang });
       if (res.theme) {
         setTheme(res.theme);
         dispatch({ type: 'setTheme', theme: res.theme });

@@ -61,22 +61,26 @@ const STORAGE_KEY = 'scene_lingo_language_prefs';
 const DEFAULT_PREFS: LanguagePrefs = { nativeLang: 'zh', targetLang: 'en' };
 
 export function getLanguagePrefs(): LanguagePrefs {
+  let nativeLang = DEFAULT_PREFS.nativeLang;
   let targetLang = DEFAULT_PREFS.targetLang;
   try {
     const raw = Taro.getStorageSync(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
+      if (parsed.nativeLang) {
+        nativeLang = parsed.nativeLang;
+      }
       if (parsed.targetLang) {
         targetLang = parsed.targetLang;
       }
     }
   } catch {
   }
-  return { nativeLang: 'zh', targetLang };
+  return { nativeLang, targetLang };
 }
 
 export function setLanguagePrefs(prefs: LanguagePrefs): void {
-  Taro.setStorageSync(STORAGE_KEY, JSON.stringify({ targetLang: prefs.targetLang }));
+  Taro.setStorageSync(STORAGE_KEY, JSON.stringify({ nativeLang: prefs.nativeLang, targetLang: prefs.targetLang }));
 }
 
 export function getTtsLang(targetLang: string): string {
