@@ -5,7 +5,7 @@ import { useReview } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { api, getApiBaseUrl } from '../../utils/api';
 import { getJSONStorage } from '../../utils/storage';
-import { isMastered, toggleMastered, isInWordbook, toggleWordbook } from '../../utils/wordMastery';
+import { isMastered, toggleMastered } from '../../utils/wordMastery';
 import { getTtsLang, getLanguagePrefs } from '../../utils/languagePrefs';
 import { useTheme } from '../../hooks/useTheme';
 import type { PhotoItem, RecognizedObject } from '../../context/AppContext';
@@ -19,7 +19,6 @@ export default function WordDetailPage() {
   const [loading, setLoading] = useState(true);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [mastered, setMastered] = useState(false);
-  const [inWordbook, setInWordbook] = useState(false);
 
   useEffect(() => {
     loadPhotos();
@@ -28,7 +27,6 @@ export default function WordDetailPage() {
   useEffect(() => {
     if (word) {
       setMastered(isMastered(word));
-      setInWordbook(isInWordbook(word));
     }
   }, [word]);
 
@@ -88,17 +86,6 @@ export default function WordDetailPage() {
     if (!word) return;
     const nowMastered = toggleMastered(word);
     setMastered(nowMastered);
-  }, [word]);
-
-  const handleToggleWordbook = useCallback(() => {
-    if (!word) return;
-    const nowIn = toggleWordbook(word);
-    setInWordbook(nowIn);
-    if (nowIn) {
-      Taro.showToast({ title: '已加入生词本', icon: 'success', duration: 1500 });
-    } else {
-      Taro.showToast({ title: '已移出生词本', icon: 'none', duration: 1500 });
-    }
   }, [word]);
 
   const handleSpeak = useCallback(() => {
@@ -198,12 +185,6 @@ export default function WordDetailPage() {
               onClick={handleToggleMastered}
             >
               {mastered ? '✅ 该单词已掌握' : '标记为已掌握'}
-            </Button>
-            <Button
-              className={`worddetail-wordbook-btn ${inWordbook ? 'worddetail-wordbook-btn-active' : ''}`}
-              onClick={handleToggleWordbook}
-            >
-              {inWordbook ? '📖 已加入生词本' : '+ 加入生词本'}
             </Button>
           </View>
         </View>

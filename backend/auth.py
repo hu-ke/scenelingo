@@ -212,6 +212,30 @@ async def get_user_language(email: str) -> dict:
         logger.warning(f"[get_user_language] 未找到用户 {email}, 返回默认语言偏好")
         return default_prefs
 
+# ---- Wordbook operations (MongoDB) ----
+async def get_user_wordbook(user_email: str) -> list[str]:
+    from db import db
+    if db is None:
+        return []
+    doc = await db.wordbooks.find_one({"user_email": user_email})
+    if doc:
+        return doc.get("words", [])
+    return []
+
+async def sync_user_wordbook(user_email: str, words: list[str]) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[sync_user_wordbook] db 为 None")
+        return False
+    normalized = [w.lower() for w in words]
+    await db.wordbooks.update_one(
+        {"user_email": user_email},
+        {"$set": {"words": normalized, "updated_at": datetime.utcnow()}},
+        upsert=True,
+    )
+    logger.info(f"[sync_user_wordbook] 用户 {user_email} 生词本已同步, {len(normalized)} 个单词")
+    return True
+
 # ---- JWT Token ----
 def generate_token(email: str) -> str:
     payload = {

@@ -42,4 +42,6 @@ async def init_db(database: AsyncIOMotorDatabase) -> None:
     await database.photos.create_index([("user_email", 1), ("status", 1)])
     await database.photos.create_index("status")
 
+    await database.wordbooks.create_index("user_email", unique=True)
+
     logger.info("[DB] 索引初始化完成")

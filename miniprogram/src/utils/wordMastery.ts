@@ -1,4 +1,6 @@
+import Taro from '@tarojs/taro';
 import { getStorage, setJSONStorage } from './storage';
+import { api } from './api';
 
 const STORAGE_KEY = 'scene_lingo_mastered_words';
 const WORDBOOK_KEY = 'scene_lingo_wordbook_words';
@@ -34,7 +36,26 @@ export function toggleMastered(word: string): boolean {
   }
 }
 
-// 生词本：用户手动添加的单词列表
+// ─── 生词本：本地存储 + 服务端同步 ───
+
+function isLoggedIn(): boolean {
+  return !!Taro.getStorageSync('scene_lingo_token');
+}
+
+function _saveLocal(words: string[]): void {
+  setJSONStorage(WORDBOOK_KEY, words);
+}
+
+async function _syncToServer(): Promise<void> {
+  if (!isLoggedIn()) return;
+  try {
+    const words = getWordbookWords();
+    await api.syncWordbook(words);
+  } catch {
+    // 静默失败，下次操作会重试
+  }
+}
+
 export function getWordbookWords(): string[] {
   try {
     const raw = getStorage<string>(WORDBOOK_KEY, '[]');
@@ -56,7 +77,8 @@ export function addToWordbook(word: string): void {
   const key = word.toLowerCase();
   if (!words.includes(key)) {
     words.push(key);
-    setJSONStorage(WORDBOOK_KEY, words);
+    _saveLocal(words);
+    _syncToServer();
   }
 }
 
@@ -66,7 +88,8 @@ export function removeFromWordbook(word: string): void {
   const index = words.indexOf(key);
   if (index !== -1) {
     words.splice(index, 1);
-    setJSONStorage(WORDBOOK_KEY, words);
+    _saveLocal(words);
+    _syncToServer();
   }
 }
 
@@ -77,5 +100,28 @@ export function toggleWordbook(word: string): boolean {
   } else {
     addToWordbook(word);
     return true;
+  }
+}
+
+/** 登录后调用：从服务端拉取生词本，与本地合并，然后同步到服务端 */
+export async function syncWordbookFromServer(): Promise<void> {
+  if (!isLoggedIn()) return;
+  try {
+    const res = await api.listWordbook();
+    const serverWords = (res.words || []).map((w: string) => w.toLowerCase());
+    const localWords = getWordbookWords();
+
+    // 合并：取并集
+    const merged = new Set([...localWords, ...serverWords]);
+    const mergedList = Array.from(merged);
+
+    _saveLocal(mergedList);
+
+    // 如果合并后有变化，同步回服务端
+    if (mergedList.length !== serverWords.length) {
+      await api.syncWordbook(mergedList);
+    }
+  } catch {
+    // 静默失败
   }
 }

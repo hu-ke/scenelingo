@@ -108,4 +108,16 @@ export const api = {
       method: 'DELETE',
     });
   },
+
+  // 生词本
+  listWordbook() {
+    return request<{ words: string[] }>('/api/wordbook/list');
+  },
+
+  syncWordbook(words: string[]) {
+    return request<{ success: boolean }>('/api/wordbook/sync', {
+      method: 'POST',
+      body: JSON.stringify({ words }),
+    });
+  },
 };

@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useReview } from '../../context/AppContext';
 import { setLanguagePrefs } from '../../utils/languagePrefs';
 import { setTheme } from '../../utils/theme';
+import { syncWordbookFromServer } from '../../utils/wordMastery';
 import { useTheme } from '../../hooks/useTheme';
 import './index.scss';
 
@@ -84,6 +85,7 @@ export default function LoginPage() {
         setTheme(res.theme);
         dispatch({ type: 'setTheme', theme: res.theme });
       }
+      syncWordbookFromServer();
       Taro.reLaunch({ url: '/pages/home/index' });
     } catch (e: unknown) {
       setError((e as Error).message || '登录失败，请稍后再试');

@@ -7,6 +7,7 @@ import { api } from '../../utils/api';
 import { getJSONStorage, setJSONStorage } from '../../utils/storage';
 import { generateUUID } from '../../utils/uuid';
 import { renderAnnotatedImageToTempFile } from '../../utils/annotateImage';
+import { getWordbookWords } from '../../utils/wordMastery';
 import { useTheme } from '../../hooks/useTheme';
 import type { PhotoItem, RecognizedObject } from '../../context/AppContext';
 import './index.scss';
@@ -25,6 +26,19 @@ function getTodayStr(): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+function countWordbookWords(photos: PhotoItem[]): number {
+  const wordbookWords = getWordbookWords();
+  const photoWordSet = new Set<string>();
+  for (const photo of photos) {
+    if (photo.objects) {
+      for (const obj of photo.objects) {
+        if (obj?.name) photoWordSet.add(obj.name.toLowerCase());
+      }
+    }
+  }
+  return wordbookWords.filter(w => photoWordSet.has(w)).length;
 }
 
 async function compressImage(filePath: string, maxSize = 1500): Promise<string> {
@@ -149,16 +163,7 @@ export default function HomePage() {
 
               setGroupedPhotos(grouped);
               setTotalCount(newPhotos.length);
-
-              const wordSet = new Set<string>();
-              for (const p of newPhotos) {
-                if (p.objects) {
-                  for (const obj of p.objects) {
-                    if (obj?.name) wordSet.add(obj.name.toLowerCase());
-                  }
-                }
-              }
-              setWordCount(wordSet.size);
+              setWordCount(countWordbookWords(newPhotos));
               setDayCount(Object.keys(grouped).length);
 
               dispatch({ type: 'setSavedPhotos', photos: newPhotos });
@@ -195,16 +200,7 @@ export default function HomePage() {
 
     setGroupedPhotos(grouped);
     setTotalCount(photos.length);
-
-    const wordSet = new Set<string>();
-    for (const photo of photos) {
-      if (photo.objects) {
-        for (const obj of photo.objects) {
-          if (obj?.name) wordSet.add(obj.name.toLowerCase());
-        }
-      }
-    }
-    setWordCount(wordSet.size);
+    setWordCount(countWordbookWords(photos));
     setDayCount(Object.keys(grouped).length);
 
     dispatch({ type: 'setSavedPhotos', photos });
@@ -487,7 +483,7 @@ export default function HomePage() {
       <View className="home-stat-card home-stat-clickable" onClick={handleWordbookClick}>
         <Text className="home-stat-icon">📝</Text>
         <Text className="home-stat-value">{wordCount}</Text>
-        <Text className="home-stat-label">单词累计</Text>
+        <Text className="home-stat-label">生词累计</Text>
       </View>
     </View>
   ) : null;

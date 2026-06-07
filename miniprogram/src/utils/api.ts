@@ -186,6 +186,18 @@ export const api = {
   imageProxy(url: string): string {
     return `${BASE_URL}/api/image/proxy?url=${encodeURIComponent(url)}`;
   },
+
+  // 生词本
+  listWordbook() {
+    return request<{ words: string[] }>('/api/wordbook/list');
+  },
+
+  syncWordbook(words: string[]) {
+    return request<{ success: boolean }>('/api/wordbook/sync', {
+      method: 'POST',
+      body: JSON.stringify({ words }),
+    });
+  },
 };
 
 export function getApiBaseUrl(): string {

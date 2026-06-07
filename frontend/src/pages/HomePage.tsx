@@ -7,6 +7,7 @@ import { api } from '../utils/api';
 import { getApiBaseUrl } from '../utils/api';
 import { generateUUID } from '../utils/uuid';
 import { resizeImage } from '../utils/resizeImage';
+import { getWordbookWords } from '../utils/wordMastery';
 import AppLogo from '../components/AppLogo';
 
 function blobToDataURL(blob: Blob): Promise<string> {
@@ -263,24 +264,28 @@ export default function HomePage() {
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const initialLoadDone = useRef(false);
 
+  const countWordbookWords = (photos: PhotoItem[]): number => {
+    const wordbookWords = getWordbookWords();
+    const photoWordSet = new Set<string>();
+    for (const photo of photos) {
+      if (photo.objects) {
+        for (const obj of photo.objects) {
+          if (obj?.name) photoWordSet.add(obj.name.toLowerCase());
+        }
+      }
+    }
+    return wordbookWords.filter(w => photoWordSet.has(w)).length;
+  };
+
   const loadLocalData = async () => {
     const photos = await getAllPhotos();
     const total = photos.length;
 
     const grouped = await getPhotosGroupedByDate();
 
-    const wordSet = new Set<string>();
-    for (const photo of photos) {
-      if (photo.objects) {
-        for (const obj of photo.objects) {
-          if (obj?.name) wordSet.add(obj.name.toLowerCase());
-        }
-      }
-    }
-
     setGroupedPhotos(grouped);
     setTotalCount(total);
-    setWordCount(wordSet.size);
+    setWordCount(countWordbookWords(photos));
     dispatch({ type: 'setSavedPhotos', photos });
 
     const today = new Date().toISOString().split('T')[0];
@@ -342,18 +347,10 @@ export default function HomePage() {
         }
 
         const totalCount = cloudPhotos.length;
-        const wordSet = new Set<string>();
-        for (const photo of cloudPhotos) {
-          if (photo.objects) {
-            for (const obj of photo.objects) {
-              if (obj?.name) wordSet.add(obj.name.toLowerCase());
-            }
-          }
-        }
 
         setGroupedPhotos(grouped);
         setTotalCount(totalCount);
-        setWordCount(wordSet.size);
+        setWordCount(countWordbookWords(cloudPhotos));
         dispatch({ type: 'setSavedPhotos', photos: cloudPhotos });
 
         const today = new Date().toISOString().split('T')[0];
@@ -700,7 +697,7 @@ export default function HomePage() {
           >
             <div className="card__icon">📝</div>
             <div className="card__number">{wordCount}</div>
-            <div className="card__label">单词累计</div>
+            <div className="card__label">生词累计</div>
           </div>
         </div>
       )}
