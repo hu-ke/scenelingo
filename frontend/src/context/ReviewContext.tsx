@@ -18,6 +18,7 @@ export interface RecognizedObject {
   phonetic: string;
   chinese: string;
   examples: string[];
+  romaji?: string;
 }
 
 export interface RecognizedAction {
@@ -25,6 +26,7 @@ export interface RecognizedAction {
   phonetic: string;
   chinese: string;
   examples: string[];
+  romaji?: string;
 }
 
 export type AppPage = 'home' | 'review' | 'merge' | 'wordbook' | 'worddetail' | 'login' | 'settings';

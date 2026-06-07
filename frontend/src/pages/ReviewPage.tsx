@@ -4,6 +4,7 @@ import type { RecognizedObject, RecognizedAction } from '../context/ReviewContex
 import { isLoggedIn, countPhotos, savePhoto } from '../utils/indexedDB';
 import { api } from '../utils/api';
 import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs';
+import { isInWordbook, toggleWordbook } from '../utils/wordMastery';
 import AnnotatedImage from '../components/AnnotatedImage';
 
 async function dataURLtoBlob(dataURL: string): Promise<Blob> {
@@ -14,6 +15,14 @@ async function dataURLtoBlob(dataURL: string): Promise<Blob> {
 
 function WordCard({ obj }: { obj: RecognizedObject }) {
   const [expanded, setExpanded] = useState(false);
+  const [inWordbook, setInWordbook] = useState(() => isInWordbook(obj.name));
+
+  const handleToggleWordbook = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nowIn = toggleWordbook(obj.name);
+    setInWordbook(nowIn);
+  };
+
   return (
     <div style={{
       background: 'var(--color-surface)',
@@ -37,26 +46,49 @@ function WordCard({ obj }: { obj: RecognizedObject }) {
       <div style={{ fontSize: '0.75rem', color: '#888' }}>
         {obj.phonetic || ''}
       </div>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          const u = new SpeechSynthesisUtterance(obj.name);
-          u.lang = getTtsLang(getLanguagePrefs().targetLang);
-          speechSynthesis.speak(u);
-        }}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          fontSize: '0.85rem',
-          padding: '0.15rem',
-          minHeight: 'unset',
-          marginTop: '0.25rem',
-        }}
-        title="发音"
-      >
-        🔊
-      </button>
+      {obj.romaji && (
+        <div style={{ fontSize: '0.7rem', color: '#aaa' }}>
+          {obj.romaji}
+        </div>
+      )}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '0.25rem', alignItems: 'center' }}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            const u = new SpeechSynthesisUtterance(obj.name);
+            u.lang = getTtsLang(getLanguagePrefs().targetLang);
+            speechSynthesis.speak(u);
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '0.85rem',
+            padding: '0.15rem',
+            minHeight: 'unset',
+          }}
+          title="发音"
+        >
+          🔊
+        </button>
+        <button
+          onClick={handleToggleWordbook}
+          style={{
+            background: inWordbook ? '#e8f5e9' : '#f5f5f5',
+            border: inWordbook ? '1px solid #4caf50' : '1px solid #ddd',
+            borderRadius: '6px',
+            fontSize: '0.7rem',
+            padding: '0.15rem 0.45rem',
+            cursor: 'pointer',
+            color: inWordbook ? '#4caf50' : '#999',
+            whiteSpace: 'nowrap',
+            minHeight: 'unset',
+          }}
+          title={inWordbook ? '移出生词本' : '加入生词本'}
+        >
+          {inWordbook ? '📖 已加入' : '+ 生词本'}
+        </button>
+      </div>
       {expanded && obj.examples && obj.examples.length > 0 && (
         <div style={{
           marginTop: '0.4rem',
@@ -77,6 +109,14 @@ function WordCard({ obj }: { obj: RecognizedObject }) {
 
 function ActionCard({ action }: { action: RecognizedAction }) {
   const [expanded, setExpanded] = useState(false);
+  const [inWordbook, setInWordbook] = useState(() => isInWordbook(action.name));
+
+  const handleToggleWordbook = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nowIn = toggleWordbook(action.name);
+    setInWordbook(nowIn);
+  };
+
   return (
     <div style={{
       background: 'linear-gradient(135deg, #FFF3E0, #FFE0B2)',
@@ -103,26 +143,49 @@ function ActionCard({ action }: { action: RecognizedAction }) {
       <div style={{ fontSize: '0.75rem', color: '#888' }}>
         {action.phonetic || ''}
       </div>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          const u = new SpeechSynthesisUtterance(action.name);
-          u.lang = getTtsLang(getLanguagePrefs().targetLang);
-          speechSynthesis.speak(u);
-        }}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          fontSize: '0.85rem',
-          padding: '0.15rem',
-          minHeight: 'unset',
-          marginTop: '0.25rem',
-        }}
-        title="发音"
-      >
-        🔊
-      </button>
+      {action.romaji && (
+        <div style={{ fontSize: '0.7rem', color: '#aaa' }}>
+          {action.romaji}
+        </div>
+      )}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '0.25rem', alignItems: 'center' }}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            const u = new SpeechSynthesisUtterance(action.name);
+            u.lang = getTtsLang(getLanguagePrefs().targetLang);
+            speechSynthesis.speak(u);
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '0.85rem',
+            padding: '0.15rem',
+            minHeight: 'unset',
+          }}
+          title="发音"
+        >
+          🔊
+        </button>
+        <button
+          onClick={handleToggleWordbook}
+          style={{
+            background: inWordbook ? '#e8f5e9' : 'rgba(255,255,255,0.6)',
+            border: inWordbook ? '1px solid #4caf50' : '1px solid #E65100',
+            borderRadius: '6px',
+            fontSize: '0.7rem',
+            padding: '0.15rem 0.45rem',
+            cursor: 'pointer',
+            color: inWordbook ? '#4caf50' : '#E65100',
+            whiteSpace: 'nowrap',
+            minHeight: 'unset',
+          }}
+          title={inWordbook ? '移出生词本' : '加入生词本'}
+        >
+          {inWordbook ? '📖 已加入' : '+ 生词本'}
+        </button>
+      </div>
       {expanded && action.examples && action.examples.length > 0 && (
         <div style={{
           marginTop: '0.4rem',

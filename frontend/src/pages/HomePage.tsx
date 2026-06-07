@@ -155,8 +155,10 @@ function renderAnnotatedImage(dataUrl: string, objects: any[]): Promise<Blob> {
       const scaleY = canvas.height / 1000;
       const fontSize = Math.max(14, Math.min(22, canvas.width / 35));
       const phoneticFontSize = Math.max(10, Math.min(15, fontSize * 0.7));
+      const romajiFontSize = Math.max(9, Math.min(12, fontSize * 0.55));
       const lineHeight = fontSize + 4;
       const phoneticLineHeight = phoneticFontSize + 2;
+      const romajiLineHeight = romajiFontSize + 2;
 
       const bubblePaddingX = 14;
       const bubblePaddingY = 10;
@@ -194,9 +196,13 @@ function renderAnnotatedImage(dataUrl: string, objects: any[]): Promise<Blob> {
         ctx.font = `${phoneticFontSize}px sans-serif`;
         const phoneticWidth = ctx.measureText(obj.phonetic || '').width;
 
-        const textWidth = Math.max(wordWidth, phoneticWidth);
+        ctx.font = `${romajiFontSize}px sans-serif`;
+        const romajiWidth = ctx.measureText(obj.romaji || '').width;
+
+        const hasRomaji = !!(obj.romaji);
+        const textWidth = Math.max(wordWidth, phoneticWidth, romajiWidth);
         const bubbleW = Math.max(140, Math.min(240, textWidth + speakerSize + speakerGap + bubblePaddingX * 2));
-        const bubbleH = bubblePaddingY * 2 + lineHeight + phoneticLineHeight;
+        const bubbleH = bubblePaddingY * 2 + lineHeight + phoneticLineHeight + (hasRomaji ? romajiLineHeight : 0);
 
         let bubbleX = bboxCenterX - bubbleW / 2;
         let bubbleY = py - bubbleH - tailHeight - bubbleGap;
@@ -236,6 +242,16 @@ function renderAnnotatedImage(dataUrl: string, objects: any[]): Promise<Blob> {
             obj.phonetic,
             bubbleX + bubblePaddingX,
             bubbleY + bubblePaddingY + lineHeight
+          );
+        }
+
+        if (obj.romaji) {
+          ctx.fillStyle = '#aaaaaa';
+          ctx.font = `${romajiFontSize}px sans-serif`;
+          ctx.fillText(
+            obj.romaji,
+            bubbleX + bubblePaddingX,
+            bubbleY + bubblePaddingY + lineHeight + phoneticLineHeight
           );
         }
 
