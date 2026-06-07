@@ -3,6 +3,7 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { getApiBaseUrl } from '../utils/api'
 import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs'
+import { isInWordbook, toggleWordbook } from '../utils/wordMastery'
 
 interface WordObj {
   name: string
@@ -17,6 +18,7 @@ interface WordCardProps {
 
 const WordCard: React.FC<WordCardProps> = ({ obj }) => {
   const [expanded, setExpanded] = useState(false)
+  const [inWordbook, setInWordbook] = useState(isInWordbook(obj.name))
   const { name, chinese, phonetic, examples } = obj
 
   const handleToggle = () => setExpanded((prev) => !prev)
@@ -32,6 +34,17 @@ const WordCard: React.FC<WordCardProps> = ({ obj }) => {
       audioCtx.onEnded(() => audioCtx.destroy())
       audioCtx.onError(() => audioCtx.destroy())
     } catch {}
+  }
+
+  const handleToggleWordbook = (e: any) => {
+    e.stopPropagation()
+    const nowIn = toggleWordbook(name)
+    setInWordbook(nowIn)
+    if (nowIn) {
+      Taro.showToast({ title: '已加入生词本', icon: 'success', duration: 1500 })
+    } else {
+      Taro.showToast({ title: '已移出生词本', icon: 'none', duration: 1500 })
+    }
   }
 
   return (
@@ -57,17 +70,32 @@ const WordCard: React.FC<WordCardProps> = ({ obj }) => {
       <Text style={{ display: 'block', fontSize: '22rpx', color: '#888', marginTop: '2rpx' }}>
         {phonetic || ''}
       </Text>
-      <View
-        onClick={handleSpeak}
-        style={{
-          background: 'none',
-          border: 'none',
-          fontSize: '24rpx',
-          padding: '4rpx',
-          marginTop: '6rpx',
-        }}
-      >
-        🔊
+      <View style={{ display: 'flex', justifyContent: 'center', gap: '12rpx', marginTop: '6rpx' }}>
+        <View
+          onClick={handleSpeak}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: '24rpx',
+            padding: '4rpx',
+          }}
+        >
+          🔊
+        </View>
+        <View
+          onClick={handleToggleWordbook}
+          style={{
+            background: inWordbook ? '#e8f5e9' : '#f5f5f5',
+            border: inWordbook ? '1rpx solid #4caf50' : '1rpx solid #ddd',
+            borderRadius: '6rpx',
+            fontSize: '20rpx',
+            padding: '4rpx 10rpx',
+            color: inWordbook ? '#4caf50' : '#999',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {inWordbook ? '📖 已加入' : '+ 生词本'}
+        </View>
       </View>
       {expanded && examples && examples.length > 0 && (
         <View style={{

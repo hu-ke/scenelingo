@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import Taro from '@tarojs/taro';
+import Taro, { useDidShow } from '@tarojs/taro';
 import { View, Text, Button, ScrollView } from '@tarojs/components';
 import { useReview } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../utils/api';
 import { getJSONStorage } from '../../utils/storage';
-import { isMastered, toggleMastered } from '../../utils/wordMastery';
+import { isMastered, toggleMastered, getWordbookWords } from '../../utils/wordMastery';
 import { useTheme } from '../../hooks/useTheme';
 import type { PhotoItem } from '../../context/AppContext';
 import './index.scss';
@@ -30,6 +30,11 @@ export default function WordBookPage() {
   useEffect(() => {
     loadPhotos();
   }, [authState.isLoggedIn]);
+
+  useDidShow(() => {
+    loadPhotos();
+    setRefreshKey((k) => k + 1);
+  });
 
   const loadPhotos = useCallback(async () => {
     setLoading(true);
@@ -56,6 +61,7 @@ export default function WordBookPage() {
   }, [authState.isLoggedIn]);
 
   const wordEntries = useMemo(() => {
+    const wordbookWords = new Set(getWordbookWords());
     const wordMap = new Map<string, {
       phonetic: string;
       examples: string[];
@@ -67,6 +73,8 @@ export default function WordBookPage() {
       for (const obj of photo.objects) {
         const name = (obj.name || '').toLowerCase();
         if (!name) continue;
+        // 只显示用户手动加入生词本的单词
+        if (!wordbookWords.has(name)) continue;
         const existing = wordMap.get(name);
         if (existing) {
           existing.photoIds.add(photo.id);
