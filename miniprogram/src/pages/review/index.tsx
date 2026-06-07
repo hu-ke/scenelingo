@@ -8,7 +8,7 @@ import { getJSONStorage, setJSONStorage } from '../../utils/storage'
 import AnnotatedImage from '../../components/AnnotatedImage'
 import WordCard from '../../components/WordCard'
 import { useTheme } from '../../hooks/useTheme'
-import type { RecognizedObject, PhotoItem } from '../../context/AppContext'
+import type { RecognizedObject, RecognizedAction, PhotoItem } from '../../context/AppContext'
 import './index.scss'
 
 const MAX_LOCAL_PHOTOS = 10
@@ -24,11 +24,21 @@ function mapObjects(raw: Record<string, unknown>[]): RecognizedObject[] {
   }))
 }
 
+function mapActions(raw: Record<string, unknown>[]): RecognizedAction[] {
+  return (raw || []).map((act: Record<string, unknown>) => ({
+    name: (act.name as string) || '',
+    phonetic: (act.phonetic as string) || '',
+    chinese: (act.native as string) || (act.chinese as string) || '',
+    examples: (act.examples as string[]) || [],
+    romaji: act.romaji as string | undefined,
+  }))
+}
+
 export default function ReviewPage() {
   const themeStyle = useTheme()
   const { state, dispatch } = useReview()
   const { state: authState } = useAuth()
-  const { photos, currentIndex, currentObjects, isReviewing, nativeLang, targetLang } = state
+  const { photos, currentIndex, currentObjects, currentActions, isReviewing, nativeLang, targetLang } = state
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -47,6 +57,10 @@ export default function ReviewPage() {
       const data = await api.recognize(nativeLang, targetLang, currentPhoto.dataUrl)
       const objects = mapObjects(data.objects)
       dispatch({ type: 'setCurrentObjects', objects })
+      if (data.actions && data.actions.length > 0) {
+        const actions = mapActions(data.actions)
+        dispatch({ type: 'setCurrentActions', actions })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '识别失败')
     } finally {
@@ -59,6 +73,9 @@ export default function ReviewPage() {
       lastRecognizedRef.current = currentIndex
       if (currentPhoto?.objects && currentPhoto.objects.length > 0) {
         dispatch({ type: 'setCurrentObjects', objects: currentPhoto.objects })
+        if (currentPhoto.actions && currentPhoto.actions.length > 0) {
+          dispatch({ type: 'setCurrentActions', actions: currentPhoto.actions })
+        }
         return
       }
       recognizeImage()
@@ -198,6 +215,7 @@ export default function ReviewPage() {
           <AnnotatedImage
             dataUrl={currentPhoto.dataUrl}
             objects={currentObjects}
+            actions={currentActions ?? undefined}
           />
         ) : null}
       </View>
@@ -207,6 +225,20 @@ export default function ReviewPage() {
           {currentObjects.map((obj, idx) => (
             <View key={idx} className="review-word-card-item">
               <WordCard obj={obj} />
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* 动作单词 */}
+      {currentActions && currentActions.length > 0 && (
+        <View className="review-word-cards">
+          <View style={{ width: '100%', textAlign: 'center', marginBottom: '4px' }}>
+            <Text style={{ fontSize: '12px', color: '#E65100', fontWeight: 'bold' }}>🏃 动作</Text>
+          </View>
+          {currentActions.map((action, idx) => (
+            <View key={idx} className="review-word-card-item" style={{ borderColor: '#FF9800' }}>
+              <WordCard obj={action} />
             </View>
           ))}
         </View>

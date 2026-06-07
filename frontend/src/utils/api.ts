@@ -72,7 +72,7 @@ export const api = {
   },
 
   recognize(formData: FormData) {
-    return request<{ objects: any[] }>('/api/recognize', {
+    return request<{ objects: any[]; actions?: any[] }>('/api/recognize', {
       method: 'POST',
       body: formData,
     });

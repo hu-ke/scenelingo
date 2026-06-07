@@ -8,6 +8,7 @@ export interface PhotoItem {
   dataUrl: string;
   annotatedDataUrl?: string;
   objects?: RecognizedObject[];
+  actions?: RecognizedAction[];
   status?: 'pending' | 'processing' | 'completed';
 }
 
@@ -19,12 +20,20 @@ export interface RecognizedObject {
   examples: string[];
 }
 
+export interface RecognizedAction {
+  name: string;
+  phonetic: string;
+  chinese: string;
+  examples: string[];
+}
+
 export type AppPage = 'home' | 'review' | 'merge' | 'wordbook' | 'worddetail' | 'login' | 'settings';
 
 export interface ReviewState {
   photos: PhotoItem[];
   currentIndex: number;
   currentObjects: RecognizedObject[] | null;
+  currentActions: RecognizedAction[] | null;
   isReviewing: boolean;
   savedPhotos: PhotoItem[];
   page: AppPage;
@@ -38,6 +47,7 @@ export interface ReviewState {
 export type ReviewAction =
   | { type: 'setPhotos'; photos: PhotoItem[] }
   | { type: 'setCurrentObjects'; objects: RecognizedObject[] }
+  | { type: 'setCurrentActions'; actions: RecognizedAction[] }
   | { type: 'nextPhoto' }
   | { type: 'saveCurrent'; annotatedDataUrl: string }
   | { type: 'skipCurrent' }
@@ -57,6 +67,7 @@ const initialState: ReviewState = {
   photos: [],
   currentIndex: 0,
   currentObjects: null,
+  currentActions: null,
   isReviewing: false,
   savedPhotos: [],
   page: 'home',
@@ -76,12 +87,19 @@ function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
         currentIndex: 0,
         isReviewing: action.photos.length > 0,
         currentObjects: null,
+        currentActions: null,
       };
 
     case 'setCurrentObjects':
       return {
         ...state,
         currentObjects: action.objects,
+      };
+
+    case 'setCurrentActions':
+      return {
+        ...state,
+        currentActions: action.actions,
       };
 
     case 'nextPhoto': {
@@ -91,12 +109,14 @@ function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
           ...state,
           isReviewing: false,
           currentObjects: null,
+          currentActions: null,
         };
       }
       return {
         ...state,
         currentIndex: nextIndex,
         currentObjects: null,
+        currentActions: null,
       };
     }
 
@@ -173,6 +193,7 @@ function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
         photos: [],
         currentIndex: 0,
         currentObjects: null,
+        currentActions: null,
         isReviewing: false,
       };
 

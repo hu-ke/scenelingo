@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReview } from '../context/ReviewContext';
-import type { RecognizedObject } from '../context/ReviewContext';
+import type { RecognizedObject, RecognizedAction } from '../context/ReviewContext';
 import { isLoggedIn, countPhotos, savePhoto } from '../utils/indexedDB';
 import { api } from '../utils/api';
 import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs';
@@ -75,6 +75,72 @@ function WordCard({ obj }: { obj: RecognizedObject }) {
   );
 }
 
+function ActionCard({ action }: { action: RecognizedAction }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg, #FFF3E0, #FFE0B2)',
+      borderRadius: 'var(--radius-md)',
+      padding: '0.5rem 0.75rem',
+      boxShadow: 'var(--shadow-xs)',
+      cursor: 'pointer',
+      border: '2px solid #FF9800',
+      minWidth: '80px',
+      textAlign: 'center',
+      transition: 'all 0.2s ease',
+    }} onClick={() => setExpanded(!expanded)}>
+      <div style={{ fontSize: '0.65rem', color: '#E65100', fontWeight: 600, marginBottom: '0.15rem' }}>
+        🏃 动作
+      </div>
+      <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#E65100' }}>
+        {action.name}
+      </div>
+      {action.chinese && (
+        <div style={{ fontSize: '0.85rem', color: '#BF360C', fontWeight: 500 }}>
+          {action.chinese}
+        </div>
+      )}
+      <div style={{ fontSize: '0.75rem', color: '#888' }}>
+        {action.phonetic || ''}
+      </div>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          const u = new SpeechSynthesisUtterance(action.name);
+          u.lang = getTtsLang(getLanguagePrefs().targetLang);
+          speechSynthesis.speak(u);
+        }}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: '0.85rem',
+          padding: '0.15rem',
+          minHeight: 'unset',
+          marginTop: '0.25rem',
+        }}
+        title="发音"
+      >
+        🔊
+      </button>
+      {expanded && action.examples && action.examples.length > 0 && (
+        <div style={{
+          marginTop: '0.4rem',
+          paddingTop: '0.4rem',
+          borderTop: '1px solid #FFE0B2',
+          textAlign: 'left',
+          fontSize: '0.78rem',
+          color: 'var(--color-text-secondary)',
+        }}>
+          {action.examples.map((ex, i) => (
+            <div key={i} style={{ marginBottom: '0.25rem' }}>📖 {ex}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ReviewPage() {
   const { state, dispatch } = useReview();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -82,7 +148,7 @@ export default function ReviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-  const { photos, currentIndex, currentObjects, isReviewing, nativeLang, targetLang } = state;
+  const { photos, currentIndex, currentObjects, currentActions, isReviewing, nativeLang, targetLang } = state;
 
   const recognizeImage = useCallback(async () => {
     const photo = photos[currentIndex];
@@ -105,6 +171,9 @@ export default function ReviewPage() {
 
       const data = await api.recognize(formData);
       dispatch({ type: 'setCurrentObjects', objects: data.objects as RecognizedObject[] });
+      if (data.actions && data.actions.length > 0) {
+        dispatch({ type: 'setCurrentActions', actions: data.actions as RecognizedAction[] });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '网络错误');
     } finally {
@@ -120,6 +189,9 @@ export default function ReviewPage() {
       const photo = photos[currentIndex];
       if (photo?.objects && photo.objects.length > 0) {
         dispatch({ type: 'setCurrentObjects', objects: photo.objects });
+        if (photo.actions && photo.actions.length > 0) {
+          dispatch({ type: 'setCurrentActions', actions: photo.actions });
+        }
         return;
       }
       recognizeImage();
@@ -284,6 +356,7 @@ export default function ReviewPage() {
             ref={canvasRef}
             dataUrl={currentPhoto.dataUrl}
             objects={currentObjects}
+            actions={currentActions ?? undefined}
           />
         ) : null}
       </div>
@@ -299,6 +372,21 @@ export default function ReviewPage() {
         }}>
           {currentObjects.map((obj, idx) => (
             <WordCard key={idx} obj={obj} />
+          ))}
+        </div>
+      )}
+
+      {/* 动作单词 */}
+      {currentActions && currentActions.length > 0 && (
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '0.5rem',
+          justifyContent: 'center',
+          marginBottom: '0.75rem',
+        }}>
+          {currentActions.map((action, idx) => (
+            <ActionCard key={idx} action={action} />
           ))}
         </div>
       )}

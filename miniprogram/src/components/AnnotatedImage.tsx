@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Canvas, Text } from '@tarojs/components'
-import type { RecognizedObject } from '../context/AppContext'
+import type { RecognizedObject, RecognizedAction } from '../context/AppContext'
 import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs'
 import { getApiBaseUrl } from '../utils/api'
 
@@ -10,6 +10,7 @@ const COLORS = ['#A29BFE', '#54A0FF', '#2ED573', '#FFA94D', '#FF6B6B']
 interface Props {
   dataUrl: string
   objects: RecognizedObject[]
+  actions?: RecognizedAction[]
   style?: Record<string, string>
 }
 
@@ -130,7 +131,7 @@ function estimateTextWidth(text: string, fontSize: number): number {
   return text.length * fontSize * 0.65
 }
 
-function AnnotatedImage({ dataUrl, objects, style }: Props) {
+function AnnotatedImage({ dataUrl, objects, actions, style }: Props) {
   const [imageInfo, setImageInfo] = useState<{ width: number; height: number } | null>(null)
   const [localPath, setLocalPath] = useState<string | null>(null)
   const drawTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -291,6 +292,43 @@ function AnnotatedImage({ dataUrl, objects, style }: Props) {
         })
       }
 
+      // 绘制动作标签（底部居中排列）
+      if (actions && actions.length > 0) {
+        const actionFontSize = fontSize
+        const actionPaddingX = 6
+        const actionPaddingY = 3
+        const actionRadius = 8
+        const actionGap = 4
+        const actionTopMargin = 6
+
+        const actionWidths = actions.map(a => estimateTextWidth(a.name, actionFontSize))
+        const totalActionW = actionWidths.reduce((sum, w, i) =>
+          sum + w + actionPaddingX * 2 + (i > 0 ? actionGap : 0), 0)
+        const actionStartX = (canvasW - totalActionW) / 2
+        const actionY = canvasH - actionFontSize - actionPaddingY * 2 - actionTopMargin
+
+        let curX = actionStartX
+        for (let i = 0; i < actions.length; i++) {
+          const act = actions[i]
+          const aw = actionWidths[i] + actionPaddingX * 2
+          const ah = actionFontSize + actionPaddingY * 2
+
+          ctx.setFillStyle('rgba(255, 152, 0, 0.85)')
+          ctx.setStrokeStyle('#E65100')
+          ctx.setLineWidth(1)
+          drawRoundedRect(ctx, curX, actionY, aw, ah, actionRadius)
+          ctx.fill()
+          ctx.stroke()
+
+          ctx.setFillStyle('#FFFFFF')
+          ctx.setFontSize(actionFontSize)
+          ctx.setTextAlign('left')
+          ctx.fillText(act.name, curX + actionPaddingX, actionY + ah / 2 + actionFontSize / 2)
+
+          curX += aw + actionGap
+        }
+      }
+
       bubbleLayoutsRef.current = layouts
       ctx.draw()
     }, 200)
@@ -298,7 +336,7 @@ function AnnotatedImage({ dataUrl, objects, style }: Props) {
     return () => {
       if (drawTimerRef.current) clearTimeout(drawTimerRef.current)
     }
-  }, [localPath, imageInfo, objects])
+  }, [localPath, imageInfo, objects, actions])
 
   const handleCanvasTap = useCallback((e: any) => {
     for (const layout of bubbleLayoutsRef.current) {

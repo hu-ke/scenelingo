@@ -161,15 +161,26 @@ def build_prompt(nativeLang: str, targetLang: str) -> str:
         extra_example = ', "romaji": "ringo"'
 
     return (
-        f"Please identify only the obvious and prominent objects in the image. "
-        f"Each object should contain name (object name in {target_name}), "
-        f"phonetic ({phonetic_desc}){extra_fields}, "
-        f"chinese (the {native_name} translation of the word), "
-        f"bbox (bounding box coordinates), "
-        f"and examples (an array of 2 simple {target_name} example sentences using the word). "
-        f"The bbox format is [x1, y1, x2, y2], with coordinate values normalized to the 0-1000 range. "
-        f"Return only a JSON array with no other text. "
-        f'Format example: [{{"name": "apple", "phonetic": "/ˈæp.l/"{extra_example}, "chinese": "苹果", "bbox": [100, 200, 300, 400], "examples": ["I ate a red apple.", "The apple fell from the tree."]}}]'
+        f"Please identify the obvious objects and the main action in the image.\n"
+        f"\n"
+        f"Objects (nouns): Identify the prominent physical objects. Each object should have:\n"
+        f"- name: object name in {target_name}\n"
+        f"- phonetic: {phonetic_desc}{extra_fields}\n"
+        f"- chinese: {native_name} translation\n"
+        f"- bbox: bounding box [x1, y1, x2, y2] normalized to 0-1000\n"
+        f"- examples: 2 simple {target_name} example sentences\n"
+        f"\n"
+        f"Actions (verbs): Identify the single most prominent action being performed in the image. "
+        f"Return only ONE main action. If there is no clear action (e.g. just objects sitting still), "
+        f"return an empty actions array. Each action should have:\n"
+        f"- name: the main verb/action word in {target_name} (e.g. running, eating, jumping)\n"
+        f"- phonetic: {phonetic_desc}{extra_fields}\n"
+        f"- chinese: {native_name} translation\n"
+        f"- examples: 2 simple {target_name} example sentences using the action word\n"
+        f"\n"
+        f"Return ONLY a JSON object with two arrays, no other text:\n"
+        f'{{"objects": [{{"name": "apple", "phonetic": "/ˈæp.l/"{extra_example}, "chinese": "苹果", "bbox": [100, 200, 300, 400], "examples": ["I ate a red apple.", "The apple fell from the tree."]}}], '
+        f'"actions": [{{"name": "running", "phonetic": "/ˈrʌn.ɪŋ/"{extra_example}, "chinese": "跑步", "examples": ["She is running in the park.", "I like running every morning."]}}]}}'
     )
 
 
@@ -183,6 +194,47 @@ def deduplicate_objects(objects: list) -> list:
             seen.add(name)
             result.append(obj)
     return result
+
+
+def parse_ai_response(text: str) -> dict:
+    """解析AI返回，支持新旧两种格式，返回 {"objects": [], "actions": []}"""
+    text = re.sub(r'```json\s*', '', text)
+    text = re.sub(r'\s*```\s*$', '', text)
+
+    # Try to parse as JSON
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        # Try to extract JSON from text
+        json_match = re.search(r'\{.*\}', text, re.DOTALL)
+        if json_match:
+            try:
+                data = json.loads(json_match.group())
+            except json.JSONDecodeError:
+                # Try old array format
+                arr_match = re.search(r'\[.*\]', text, re.DOTALL)
+                if arr_match:
+                    try:
+                        data = json.loads(arr_match.group())
+                    except json.JSONDecodeError:
+                        return {"objects": [], "actions": []}
+                else:
+                    return {"objects": [], "actions": []}
+        else:
+            return {"objects": [], "actions": []}
+
+    # New format: {"objects": [...], "actions": [...]}
+    if isinstance(data, dict):
+        return {
+            "objects": data.get("objects", []),
+            "actions": data.get("actions", []),
+        }
+
+    # Old format: [...]  (array of objects)
+    if isinstance(data, list):
+        return {"objects": data, "actions": []}
+
+    return {"objects": [], "actions": []}
 
 
 @app.post("/scenelingo-service/api/recognize")
@@ -257,24 +309,10 @@ async def recognize(image: UploadFile = None, request: Request = None):
 
         text = response.choices[0].message.content.strip()
 
-        text = re.sub(r'```json\s*', '', text)
-        text = re.sub(r'\s*```\s*$', '', text)
-
-        json_match = re.search(r'\[.*\]', text, re.DOTALL)
-        if json_match:
-            json_str = json_match.group()
-            json_str = re.sub(r'(\d+)"(\s*\])', r'"\1"\2', json_str)
-            try:
-                objects = json.loads(json_str)
-                return {"objects": deduplicate_objects(objects)}
-            except json.JSONDecodeError:
-                pass
-
-        try:
-            objects = json.loads(text)
-            return {"objects": deduplicate_objects(objects)}
-        except json.JSONDecodeError:
-            return {"objects": [], "raw_response": text}
+        result = parse_ai_response(text)
+        objects = deduplicate_objects(result["objects"])
+        actions = result["actions"]
+        return {"objects": objects, "actions": actions}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

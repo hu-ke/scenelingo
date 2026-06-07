@@ -271,6 +271,7 @@ async def save_photo_record(user_email: str, photo_id: str, metadata: dict) -> b
         "original_url": f"{base_url}/photos/{user_email}/{photo_id}/original.jpg",
         "annotated_url": f"{base_url}/photos/{user_email}/{photo_id}/annotated.jpg",
         "objects": metadata.get("objects", []),
+        "actions": metadata.get("actions", []),
         "created_at": datetime.utcnow(),
     })
     logger.info(f"[save_photo_record] 照片已保存 user_email={user_email} photo_id={photo_id}")
@@ -315,15 +316,19 @@ async def claim_pending_photo() -> dict | None:
     # logger.info("[claim_pending_photo] 无待处理照片")
     return None
 
-async def complete_photo(photo_id: str, objects: list) -> bool:
+async def complete_photo(photo_id: str, objects: list, actions: list = None) -> bool:
     from db import db
     if db is None:
         logger.warning("[complete_photo] db 为 None")
         return False
 
+    update_fields = {"status": "completed", "objects": objects}
+    if actions is not None:
+        update_fields["actions"] = actions
+
     result = await db.photos.update_one(
         {"photo_id": photo_id},
-        {"$set": {"status": "completed", "objects": objects}},
+        {"$set": update_fields},
     )
     if result.matched_count > 0:
         logger.info(f"[complete_photo] 照片处理完成 photo_id={photo_id}")
@@ -375,6 +380,7 @@ async def list_user_photos_mongo(user_email: str) -> list[dict]:
             "originalUrl": doc["original_url"],
             "annotatedUrl": doc["annotated_url"],
             "objects": doc.get("objects", []),
+            "actions": doc.get("actions", []),
             "collectionDate": doc["collection_date"],
             "createdAt": doc["created_at"].timestamp() if doc.get("created_at") else 0,
             "status": doc.get("status", "completed"),

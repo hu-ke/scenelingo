@@ -1,11 +1,12 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
-import type { RecognizedObject } from '../context/ReviewContext';
+import type { RecognizedObject, RecognizedAction } from '../context/ReviewContext';
 import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs';
 import { getApiBaseUrl } from '../utils/api';
 
 interface Props {
   dataUrl: string;
   objects: RecognizedObject[];
+  actions?: RecognizedAction[];
 }
 
 const COLORS = ['#A29BFE', '#54A0FF', '#2ED573', '#FFA94D', '#FF6B6B'];
@@ -149,7 +150,7 @@ function drawTailStroke(
 }
 
 const AnnotatedImage = forwardRef<HTMLCanvasElement, Props>(
-  ({ dataUrl, objects }, ref) => {
+  ({ dataUrl, objects, actions }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const bubbleLayoutsRef = useRef<BubbleLayout[]>([]);
 
@@ -334,10 +335,62 @@ const AnnotatedImage = forwardRef<HTMLCanvasElement, Props>(
           });
         }
 
+        // 绘制动作标签（底部居中排列）
+        if (actions && actions.length > 0) {
+          const actionFontSize = fontSize;
+          const actionPaddingX = 12;
+          const actionPaddingY = 6;
+          const actionRadius = 16;
+          const actionGap = 8;
+          const actionTopMargin = 10;
+
+          // Calculate total width of all action labels
+          ctx.font = `bold ${actionFontSize}px sans-serif`;
+          const actionWidths = actions.map(a => ctx.measureText(a.name).width);
+          const totalActionW = actionWidths.reduce((sum, w, i) =>
+            sum + w + actionPaddingX * 2 + (i > 0 ? actionGap : 0), 0);
+          const actionStartX = (canvas.width - totalActionW) / 2;
+          const actionY = canvas.height - actionFontSize - actionPaddingY * 2 - actionTopMargin;
+
+          let curX = actionStartX;
+          for (let i = 0; i < actions.length; i++) {
+            const act = actions[i];
+            const aw = actionWidths[i] + actionPaddingX * 2;
+            const ah = actionFontSize + actionPaddingY * 2;
+
+            // Pill background
+            roundRect(ctx, curX, actionY, aw, ah, actionRadius);
+            ctx.fillStyle = 'rgba(255, 152, 0, 0.85)';
+            ctx.fill();
+            ctx.strokeStyle = '#E65100';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Text
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = `bold ${actionFontSize}px sans-serif`;
+            ctx.textBaseline = 'middle';
+            ctx.fillText(act.name, curX + actionPaddingX, actionY + ah / 2);
+
+            // Speaker area for click detection
+            layouts.push({
+              x: curX,
+              y: actionY,
+              w: aw,
+              h: ah,
+              word: act.name,
+              tailUp: false,
+              speakerArea: { x: curX, y: actionY, w: aw, h: ah },
+            });
+
+            curX += aw + actionGap;
+          }
+        }
+
         bubbleLayoutsRef.current = layouts;
       };
       img.src = src;
-    }, [dataUrl, objects]);
+    }, [dataUrl, objects, actions]);
 
     return (
       <div style={{ textAlign: 'center' }}>
