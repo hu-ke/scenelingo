@@ -20,6 +20,7 @@ function mapObjects(raw: Record<string, unknown>[]): RecognizedObject[] {
     phonetic: (obj.phonetic as string) || '',
     chinese: (obj.native as string) || (obj.chinese as string) || '',
     examples: (obj.examples as string[]) || [],
+    romaji: obj.romaji as string | undefined,
   }))
 }
 

@@ -17,6 +17,7 @@ export interface RecognizedObject {
   phonetic: string;
   chinese: string;
   examples: string[];
+  romaji?: string;
 }
 
 export type AppPage = 'home' | 'review' | 'merge' | 'wordbook' | 'worddetail' | 'login' | 'settings';

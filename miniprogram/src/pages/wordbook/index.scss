@@ -152,6 +152,14 @@
   white-space: nowrap;
 }
 
+.wordbook-card-romaji {
+  font-size: 22rpx;
+  color: #aaa;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .wordbook-card-meta {
   display: flex;
   flex-direction: column;

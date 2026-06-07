@@ -13,6 +13,7 @@ import './index.scss';
 interface WordEntry {
   word: string;
   phonetic: string;
+  romaji: string;
   examples: string[];
   photoCount: number;
   photoIds: string[];
@@ -64,6 +65,7 @@ export default function WordBookPage() {
     const wordbookWords = new Set(getWordbookWords());
     const wordMap = new Map<string, {
       phonetic: string;
+      romaji: string;
       examples: string[];
       photoIds: Set<string>;
     }>();
@@ -81,6 +83,7 @@ export default function WordBookPage() {
         } else {
           wordMap.set(name, {
             phonetic: obj.phonetic || '',
+            romaji: obj.romaji || '',
             examples: obj.examples || [],
             photoIds: new Set([photo.id]),
           });
@@ -93,6 +96,7 @@ export default function WordBookPage() {
       entries.push({
         word,
         phonetic: value.phonetic,
+        romaji: value.romaji,
         examples: value.examples,
         photoCount: value.photoIds.size,
         photoIds: Array.from(value.photoIds),
@@ -204,6 +208,9 @@ export default function WordBookPage() {
                   <Text className="wordbook-card-word">{entry.word}</Text>
                   {entry.phonetic ? (
                     <Text className="wordbook-card-phonetic">{entry.phonetic}</Text>
+                  ) : null}
+                  {entry.romaji ? (
+                    <Text className="wordbook-card-romaji">{entry.romaji}</Text>
                   ) : null}
                 </View>
                 <View className="wordbook-card-meta">

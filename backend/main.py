@@ -134,7 +134,7 @@ LANG_NAMES = {
 PHONETIC_DESCS = {
     "zh": "the Pinyin of the word",
     "en": 'the English phonetic transcription of the word, e.g. "/ˈæp.l/"',
-    "ja": "the Romaji reading of the word",
+    "ja": "the Hiragana reading of the word",
     "ko": "the Romanized reading of the word",
     "fr": "the IPA phonetic transcription of the word",
     "de": "the IPA phonetic transcription of the word",
@@ -150,16 +150,22 @@ def build_prompt(nativeLang: str, targetLang: str) -> str:
     target_name = LANG_NAMES.get(targetLang, targetLang)
     phonetic_desc = PHONETIC_DESCS.get(targetLang, "the phonetic transcription of the word")
 
+    extra_fields = ""
+    extra_example = ""
+    if targetLang == "ja":
+        extra_fields = ', romaji (the Romaji reading of the word)'
+        extra_example = ', "romaji": "ringo"'
+
     return (
         f"Please identify only the obvious and prominent objects in the image. "
         f"Each object should contain name (object name in {target_name}), "
-        f"phonetic ({phonetic_desc}), "
+        f"phonetic ({phonetic_desc}){extra_fields}, "
         f"chinese (the {native_name} translation of the word), "
         f"bbox (bounding box coordinates), "
         f"and examples (an array of 2 simple {target_name} example sentences using the word). "
         f"The bbox format is [x1, y1, x2, y2], with coordinate values normalized to the 0-1000 range. "
         f"Return only a JSON array with no other text. "
-        f'Format example: [{{"name": "apple", "phonetic": "/ˈæp.l/", "chinese": "苹果", "bbox": [100, 200, 300, 400], "examples": ["I ate a red apple.", "The apple fell from the tree."]}}]'
+        f'Format example: [{{"name": "apple", "phonetic": "/ˈæp.l/"{extra_example}, "chinese": "苹果", "bbox": [100, 200, 300, 400], "examples": ["I ate a red apple.", "The apple fell from the tree."]}}]'
     )
 
 

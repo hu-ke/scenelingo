@@ -194,8 +194,10 @@ function AnnotatedImage({ dataUrl, objects, style }: Props) {
 
       const fontSize = Math.max(10, Math.min(13, Math.round(canvasW / 70)))
       const phoneticFontSize = Math.max(8, Math.min(10, Math.round(fontSize * 0.7)))
+      const romajiFontSize = Math.max(7, Math.min(9, Math.round(fontSize * 0.6)))
       const lineHeight = fontSize + 3
       const phoneticLineHeight = phoneticFontSize + 1
+      const romajiLineHeight = romajiFontSize + 1
 
       const bubblePaddingX = 5
       const bubblePaddingY = 3
@@ -221,10 +223,12 @@ function AnnotatedImage({ dataUrl, objects, style }: Props) {
 
         const wordWidth = estimateTextWidth(obj.name, fontSize)
         const phoneticWidth = estimateTextWidth(obj.phonetic || '', phoneticFontSize)
+        const romajiWidth = estimateTextWidth(obj.romaji || '', romajiFontSize)
 
-        const textWidth = Math.max(wordWidth, phoneticWidth)
+        const textWidth = Math.max(wordWidth, phoneticWidth, romajiWidth)
+        const hasRomaji = !!(obj.romaji)
         const bubbleW = Math.max(60, Math.min(120, textWidth + speakerSize + speakerGap + bubblePaddingX * 2))
-        const bubbleH = bubblePaddingY * 2 + lineHeight + phoneticLineHeight
+        const bubbleH = bubblePaddingY * 2 + lineHeight + phoneticLineHeight + (hasRomaji ? romajiLineHeight : 0)
 
         let bubbleX = bboxCenterX - bubbleW / 2
         let bubbleY = py - bubbleH - tailHeight - bubbleGap
@@ -261,6 +265,12 @@ function AnnotatedImage({ dataUrl, objects, style }: Props) {
           ctx.setFillStyle('#888888')
           ctx.setFontSize(phoneticFontSize)
           ctx.fillText(obj.phonetic, bubbleX + bubblePaddingX, bubbleY + bubblePaddingY + fontSize + lineHeight)
+        }
+
+        if (obj.romaji) {
+          ctx.setFillStyle('#AAAAAA')
+          ctx.setFontSize(romajiFontSize)
+          ctx.fillText(obj.romaji, bubbleX + bubblePaddingX, bubbleY + bubblePaddingY + fontSize + lineHeight + phoneticLineHeight)
         }
 
         drawSpeakerIcon(ctx, speakerX, speakerY, speakerSize, color)

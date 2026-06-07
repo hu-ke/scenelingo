@@ -47,7 +47,7 @@ const AI_LANG_NAMES: Record<string, string> = {
 const AI_PHONETIC_DESC: Record<string, string> = {
   zh: 'the Pinyin of the word',
   en: 'the English phonetic transcription of the word, e.g. "/ˈæp.l/"',
-  ja: 'the Romaji reading of the word',
+  ja: 'the Hiragana reading of the word',
   ko: 'the Romanized reading of the word',
   fr: 'the IPA phonetic transcription of the word',
   de: 'the IPA phonetic transcription of the word',

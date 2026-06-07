@@ -10,6 +10,7 @@ interface WordObj {
   chinese?: string
   phonetic?: string
   examples?: string[]
+  romaji?: string
 }
 
 interface WordCardProps {
@@ -70,6 +71,11 @@ const WordCard: React.FC<WordCardProps> = ({ obj }) => {
       <Text style={{ display: 'block', fontSize: '22rpx', color: '#888', marginTop: '2rpx' }}>
         {phonetic || ''}
       </Text>
+      {obj.romaji ? (
+        <Text style={{ display: 'block', fontSize: '20rpx', color: '#aaa', marginTop: '1rpx' }}>
+          {obj.romaji}
+        </Text>
+      ) : null}
       <View style={{ display: 'flex', justifyContent: 'center', gap: '12rpx', marginTop: '6rpx' }}>
         <View
           onClick={handleSpeak}

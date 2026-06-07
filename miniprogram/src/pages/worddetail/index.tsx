@@ -77,6 +77,7 @@ export default function WordDetailPage() {
 
     return {
       phonetic: matchedObjects[0].phonetic || '',
+      romaji: matchedObjects[0].romaji || '',
       chinese: matchedObjects[0].chinese || '',
       examples: matchedObjects.flatMap((obj) => obj.examples || []),
       relatedPhotos,
@@ -183,6 +184,9 @@ export default function WordDetailPage() {
           ) : null}
           {wordData?.phonetic ? (
             <Text className="worddetail-phonetic">{wordData.phonetic}</Text>
+          ) : null}
+          {wordData?.romaji ? (
+            <Text className="worddetail-romaji">{wordData.romaji}</Text>
           ) : null}
 
           <View className="worddetail-actions">
