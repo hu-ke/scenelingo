@@ -167,8 +167,17 @@ function renderAnnotatedImage(dataUrl: string, objects: any[]): Promise<Blob> {
       const tailHeight = 10;
       const bubbleGap = 8;
 
-      for (let i = 0; i < objects.length; i++) {
-        const obj = objects[i];
+      // 去重：相同单词只保留第一个
+      const seenNames = new Set<string>();
+      const uniqueObjects = objects.filter(obj => {
+        const name = (obj.name || '').toLowerCase();
+        if (seenNames.has(name)) return false;
+        seenNames.add(name);
+        return true;
+      });
+
+      for (let i = 0; i < uniqueObjects.length; i++) {
+        const obj = uniqueObjects[i];
         const color = ANNOTATION_COLORS[i % ANNOTATION_COLORS.length];
 
         const [bx1, by1, bx2, by2] = obj.bbox || [0, 0, 0, 0];
@@ -650,7 +659,7 @@ export default function HomePage() {
         }}>
           <span style={{ fontSize: '1.1rem' }}>⏳</span>
           <span>
-            每张图片AI识别大约需要5-10秒。
+            每张图片识别大约需要5-10秒。
             {authState.isLoggedIn
               ? '上传后将自动后台处理，您可继续浏览。'
               : (

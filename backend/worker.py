@@ -80,6 +80,18 @@ def build_prompt(nativeLang: str, targetLang: str) -> str:
     )
 
 
+def deduplicate_objects(objects: list) -> list:
+    """对识别结果去重，相同单词只保留第一个"""
+    seen = set()
+    result = []
+    for obj in objects:
+        name = obj.get("name", "").lower()
+        if name and name not in seen:
+            seen.add(name)
+            result.append(obj)
+    return result
+
+
 
 async def main():
     await get_db()
@@ -153,6 +165,7 @@ async def main():
                     logger.warning(f"JSON 解析失败: {text[:200]}")
 
             if objects:
+                objects = deduplicate_objects(objects)
                 await complete_photo(photo_id, objects)
                 logger.info(f"照片处理完成 photo_id={photo_id}, 识别到 {len(objects)} 个物体")
             else:

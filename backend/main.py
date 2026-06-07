@@ -173,6 +173,18 @@ def build_prompt(nativeLang: str, targetLang: str) -> str:
     )
 
 
+def deduplicate_objects(objects: list) -> list:
+    """对识别结果去重，相同单词只保留第一个"""
+    seen = set()
+    result = []
+    for obj in objects:
+        name = obj.get("name", "").lower()
+        if name and name not in seen:
+            seen.add(name)
+            result.append(obj)
+    return result
+
+
 @app.post("/scenelingo-service/api/recognize")
 async def recognize(image: UploadFile = None, request: Request = None):
     logger.info("收到识别请求，开始处理...")
@@ -254,13 +266,13 @@ async def recognize(image: UploadFile = None, request: Request = None):
             json_str = re.sub(r'(\d+)"(\s*\])', r'"\1"\2', json_str)
             try:
                 objects = json.loads(json_str)
-                return {"objects": objects}
+                return {"objects": deduplicate_objects(objects)}
             except json.JSONDecodeError:
                 pass
 
         try:
             objects = json.loads(text)
-            return {"objects": objects}
+            return {"objects": deduplicate_objects(objects)}
         except json.JSONDecodeError:
             return {"objects": [], "raw_response": text}
 

@@ -210,8 +210,17 @@ function AnnotatedImage({ dataUrl, objects, style }: Props) {
 
       const layouts: BubbleLayout[] = []
 
-      for (let i = 0; i < objects.length; i++) {
-        const obj = objects[i]
+      // 去重：相同单词只保留第一个
+      const seenNames = new Set<string>()
+      const uniqueObjects = objects.filter(obj => {
+        const name = obj.name.toLowerCase()
+        if (seenNames.has(name)) return false
+        seenNames.add(name)
+        return true
+      })
+
+      for (let i = 0; i < uniqueObjects.length; i++) {
+        const obj = uniqueObjects[i]
         const color = COLORS[i % COLORS.length]
 
         const [bx1, by1, bx2, by2] = obj.bbox

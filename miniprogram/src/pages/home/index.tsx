@@ -460,7 +460,7 @@ export default function HomePage() {
     <View className="home-hint-bar">
       <Text className="home-hint-icon">⏳</Text>
       <Text className="home-hint-text">
-        每张图片AI识别大约需要5-10秒。
+        每张图片识别大约需要5-10秒。
         {authState.isLoggedIn
           ? '上传后自动后台处理，您可继续浏览。'
           : '登录后可后台处理，无需等待。'}
