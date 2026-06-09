@@ -4,7 +4,7 @@ import { useReview } from '../context/ReviewContext';
 import { api } from '../utils/api';
 import { setLanguagePrefs } from '../utils/languagePrefs';
 import { setTheme } from '../utils/theme';
-import { syncWordbookFromServer } from '../utils/wordMastery';
+import { migrateLocalWordbook } from '../utils/wordMastery';
 import AppLogo from '../components/AppLogo';
 
 export default function LoginPage() {
@@ -81,7 +81,8 @@ export default function LoginPage() {
         setTheme(result.theme);
         dispatch({ type: 'setTheme', theme: result.theme });
       }
-      syncWordbookFromServer();
+      // 将本地残留的生词本数据迁移到服务端
+      migrateLocalWordbook();
       dispatch({ type: 'setPage', page: 'home' });
     } catch (err: any) {
       if (err?.name === 'TypeError' || err?.message?.includes('fetch')) {

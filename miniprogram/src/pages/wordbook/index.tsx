@@ -5,7 +5,7 @@ import { useReview } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../utils/api';
 import { getJSONStorage } from '../../utils/storage';
-import { isMastered, toggleMastered, getWordbookWords } from '../../utils/wordMastery';
+import { isMastered, toggleMastered, getWordbookWords, removeFromWordbook } from '../../utils/wordMastery';
 import { useTheme } from '../../hooks/useTheme';
 import type { PhotoItem } from '../../context/AppContext';
 import './index.scss';
@@ -33,12 +33,13 @@ function getDateBefore(days: number): string {
 
 export default function WordBookPage() {
   const themeStyle = useTheme();
-  const { state, dispatch } = useReview();
+  const { dispatch } = useReview();
   const { state: authState } = useAuth();
   const [activeTab, setActiveTab] = useState<'new' | 'mastered'>('new');
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [wordbookWordList, setWordbookWordList] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [loadedDays, setLoadedDays] = useState(0); // 已加载的天数
   const [hasMore, setHasMore] = useState(true); // 是否还有更多数据可加载
@@ -76,12 +77,15 @@ export default function WordBookPage() {
     setLoading(true);
     try {
       if (authState.isLoggedIn) {
+        // 从服务端获取生词本列表
+        const words = await getWordbookWords();
+        setWordbookWordList(words);
         // 先加载今天和昨天的数据
         const today = getDateString(new Date());
         const yesterday = getDateBefore(1);
-        
+
         console.log('[WordBook] 加载今天和昨天的数据:', yesterday, today);
-        
+
         const cloudPhotos = await loadPhotosByDateRange(yesterday, today);
         setPhotos(cloudPhotos);
         setLoadedDays(2);
@@ -106,18 +110,18 @@ export default function WordBookPage() {
 
     try {
       setLoadingMore(true);
-      
+
       // 计算下一个要加载的日期范围
       const nextDay = loadedDays;
       const startDate = getDateBefore(nextDay);
       const endDate = startDate;
-      
+
       console.log('[WordBook] 加载更多数据:', startDate);
-      
+
       const newPhotos = await loadPhotosByDateRange(startDate, endDate);
-      
+
       console.log('[WordBook] 加载更多照片数:', newPhotos.length);
-      
+
       if (newPhotos.length === 0) {
         setHasMore(false);
       } else {
@@ -132,7 +136,7 @@ export default function WordBookPage() {
   }, [loadingMore, hasMore, authState.isLoggedIn, loadedDays, loadPhotosByDateRange]);
 
   const wordEntries = useMemo(() => {
-    const wordbookWords = new Set(getWordbookWords());
+    const wordbookWordsSet = new Set(wordbookWordList);
     const wordMap = new Map<string, {
       phonetic: string;
       romaji: string;
@@ -146,7 +150,7 @@ export default function WordBookPage() {
         const name = (obj.name || '').toLowerCase();
         if (!name) continue;
         // 只显示用户手动加入生词本的单词
-        if (!wordbookWords.has(name)) continue;
+        if (!wordbookWordsSet.has(name)) continue;
         const existing = wordMap.get(name);
         if (existing) {
           existing.photoIds.add(photo.id);
@@ -175,7 +179,7 @@ export default function WordBookPage() {
 
     entries.sort((a, b) => a.word.localeCompare(b.word));
     return entries;
-  }, [photos, refreshKey]);
+  }, [photos, wordbookWordList, refreshKey]);
 
   const newWords = useMemo(() => {
     return wordEntries.filter((entry) => !isMastered(entry.word));
@@ -190,6 +194,16 @@ export default function WordBookPage() {
   const handleToggleMastered = useCallback((word: string) => {
     toggleMastered(word);
     setRefreshKey((k) => k + 1);
+  }, []);
+
+  const handleRemoveFromWordbook = useCallback(async (word: string) => {
+    try {
+      await removeFromWordbook(word);
+      setWordbookWordList(prev => prev.filter(w => w !== word.toLowerCase()));
+      setRefreshKey((k) => k + 1);
+    } catch {
+      Taro.showToast({ title: '移除失败', icon: 'none' });
+    }
   }, []);
 
   const handleWordClick = useCallback((word: string) => {
@@ -298,11 +312,11 @@ export default function WordBookPage() {
               </View>
             </View>
           ))}
-          
+
           {/* 加载更多按钮 */}
           {hasMore && authState.isLoggedIn && (
             <View className="wordbook-loadmore">
-              <Button 
+              <Button
                 className="wordbook-loadmore-btn"
                 onClick={handleLoadMore}
                 disabled={loadingMore}

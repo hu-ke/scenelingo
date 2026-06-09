@@ -4,7 +4,7 @@ import type { RecognizedObject, RecognizedAction } from '../context/ReviewContex
 import { isLoggedIn, countPhotos, savePhoto } from '../utils/indexedDB';
 import { api } from '../utils/api';
 import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs';
-import { isInWordbook, toggleWordbook } from '../utils/wordMastery';
+import { isInWordbookList, toggleWordbook, getWordbookWords } from '../utils/wordMastery';
 import AnnotatedImage from '../components/AnnotatedImage';
 
 async function dataURLtoBlob(dataURL: string): Promise<Blob> {
@@ -13,14 +13,19 @@ async function dataURLtoBlob(dataURL: string): Promise<Blob> {
   return response.blob();
 }
 
-function WordCard({ obj }: { obj: RecognizedObject }) {
+function WordCard({ obj, wordbookWords, onWordbookChange }: { obj: RecognizedObject; wordbookWords: string[]; onWordbookChange?: (word: string, inWordbook: boolean) => void }) {
   const [expanded, setExpanded] = useState(false);
-  const [inWordbook, setInWordbook] = useState(() => isInWordbook(obj.name));
+  const [inWordbook, setInWordbook] = useState(() => isInWordbookList(obj.name, wordbookWords));
 
-  const handleToggleWordbook = (e: React.MouseEvent) => {
+  const handleToggleWordbook = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const nowIn = toggleWordbook(obj.name);
-    setInWordbook(nowIn);
+    try {
+      const nowIn = await toggleWordbook(obj.name, inWordbook);
+      setInWordbook(nowIn);
+      onWordbookChange?.(obj.name, nowIn);
+    } catch {
+      // 静默失败
+    }
   };
 
   return (
@@ -107,14 +112,19 @@ function WordCard({ obj }: { obj: RecognizedObject }) {
   );
 }
 
-function ActionCard({ action }: { action: RecognizedAction }) {
+function ActionCard({ action, wordbookWords, onWordbookChange }: { action: RecognizedAction; wordbookWords: string[]; onWordbookChange?: (word: string, inWordbook: boolean) => void }) {
   const [expanded, setExpanded] = useState(false);
-  const [inWordbook, setInWordbook] = useState(() => isInWordbook(action.name));
+  const [inWordbook, setInWordbook] = useState(() => isInWordbookList(action.name, wordbookWords));
 
-  const handleToggleWordbook = (e: React.MouseEvent) => {
+  const handleToggleWordbook = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const nowIn = toggleWordbook(action.name);
-    setInWordbook(nowIn);
+    try {
+      const nowIn = await toggleWordbook(action.name, inWordbook);
+      setInWordbook(nowIn);
+      onWordbookChange?.(action.name, nowIn);
+    } catch {
+      // 静默失败
+    }
   };
 
   return (
@@ -212,8 +222,16 @@ export default function ReviewPage() {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showReRecognizeDialog, setShowReRecognizeDialog] = useState(false);
   const [reRecognizeHint, setReRecognizeHint] = useState('');
+  const [wordbookWords, setWordbookWords] = useState<string[]>([]);
 
   const { photos, currentIndex, currentObjects, currentActions, isReviewing, nativeLang, targetLang } = state;
+
+  // 加载生词本列表
+  useEffect(() => {
+    if (isLoggedIn()) {
+      getWordbookWords().then(setWordbookWords);
+    }
+  }, []);
 
   const recognizeImage = useCallback(async (hint?: string) => {
     const photo = photos[currentIndex];
@@ -454,7 +472,9 @@ export default function ReviewPage() {
           marginBottom: '0.75rem',
         }}>
           {currentObjects.map((obj, idx) => (
-            <WordCard key={idx} obj={obj} />
+            <WordCard key={idx} obj={obj} wordbookWords={wordbookWords} onWordbookChange={(word, inWb) => {
+              setWordbookWords(prev => inWb ? [...prev, word.toLowerCase()] : prev.filter(w => w !== word.toLowerCase()))
+            }} />
           ))}
         </div>
       )}
@@ -469,7 +489,9 @@ export default function ReviewPage() {
           marginBottom: '0.75rem',
         }}>
           {currentActions.map((action, idx) => (
-            <ActionCard key={idx} action={action} />
+            <ActionCard key={idx} action={action} wordbookWords={wordbookWords} onWordbookChange={(word, inWb) => {
+              setWordbookWords(prev => inWb ? [...prev, word.toLowerCase()] : prev.filter(w => w !== word.toLowerCase()))
+            }} />
           ))}
         </div>
       )}

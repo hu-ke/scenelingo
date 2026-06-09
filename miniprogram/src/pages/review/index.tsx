@@ -7,6 +7,7 @@ import { api } from '../../utils/api'
 import { getJSONStorage, setJSONStorage } from '../../utils/storage'
 import AnnotatedImage from '../../components/AnnotatedImage'
 import WordCard from '../../components/WordCard'
+import { getWordbookWords } from '../../utils/wordMastery'
 import { useTheme } from '../../hooks/useTheme'
 import type { RecognizedObject, RecognizedAction, PhotoItem } from '../../context/AppContext'
 import './index.scss'
@@ -45,9 +46,17 @@ export default function ReviewPage() {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false)
   const [showReRecognizeDialog, setShowReRecognizeDialog] = useState(false)
   const [reRecognizeHint, setReRecognizeHint] = useState('')
+  const [wordbookWords, setWordbookWords] = useState<string[]>([])
   const lastRecognizedRef = useRef(-1)
 
   const currentPhoto = photos[currentIndex]
+
+  // 加载生词本列表
+  useEffect(() => {
+    if (authState.isLoggedIn) {
+      getWordbookWords().then(setWordbookWords)
+    }
+  }, [authState.isLoggedIn])
 
   const recognizeImage = useCallback(async (hint?: string) => {
     if (!currentPhoto) return
@@ -242,7 +251,9 @@ export default function ReviewPage() {
         <View className="review-word-cards">
           {currentObjects.map((obj, idx) => (
             <View key={idx} className="review-word-card-item">
-              <WordCard obj={obj} />
+              <WordCard obj={obj} wordbookWords={wordbookWords} onWordbookChange={(word, inWb) => {
+                setWordbookWords(prev => inWb ? [...prev, word.toLowerCase()] : prev.filter(w => w !== word.toLowerCase()))
+              }} />
             </View>
           ))}
         </View>
@@ -256,7 +267,9 @@ export default function ReviewPage() {
           </View>
           {currentActions.map((action, idx) => (
             <View key={idx} className="review-word-card-item" style={{ borderColor: '#FF9800' }}>
-              <WordCard obj={action} />
+              <WordCard obj={action} wordbookWords={wordbookWords} onWordbookChange={(word, inWb) => {
+                setWordbookWords(prev => inWb ? [...prev, word.toLowerCase()] : prev.filter(w => w !== word.toLowerCase()))
+              }} />
             </View>
           ))}
         </View>

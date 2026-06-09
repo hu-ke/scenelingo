@@ -7,7 +7,7 @@ import { api } from '../../utils/api';
 import { getJSONStorage, setJSONStorage } from '../../utils/storage';
 import { generateUUID } from '../../utils/uuid';
 import { renderAnnotatedImageToTempFile } from '../../utils/annotateImage';
-import { getWordbookWords } from '../../utils/wordMastery';
+import { getWordbookWords, migrateLocalWordbook } from '../../utils/wordMastery';
 import { useTheme } from '../../hooks/useTheme';
 import type { PhotoItem, RecognizedObject } from '../../context/AppContext';
 import './index.scss';
@@ -28,8 +28,7 @@ function getTodayStr(): string {
   return `${y}-${m}-${day}`;
 }
 
-function countWordbookWords(photos: PhotoItem[]): number {
-  const wordbookWords = getWordbookWords();
+function countWordbookWords(photos: PhotoItem[], wordbookWords: string[]): number {
   const photoWordSet = new Set<string>();
   for (const photo of photos) {
     if (photo.objects) {
@@ -92,8 +91,13 @@ export default function HomePage() {
     loadingRef.current = true;
     let photos: PhotoItem[] = [];
     let dateMap: Record<string, string> = {};
+    let wordbookWords: string[] = [];
 
     if (authState.isLoggedIn) {
+      // 迁移本地残留的生词本数据到服务端
+      migrateLocalWordbook();
+      // 从服务端获取生词本列表
+      wordbookWords = await getWordbookWords();
       try {
         const res = await api.listPhotos();
         const rawPhotos = res.photos || [];
@@ -163,7 +167,7 @@ export default function HomePage() {
 
               setGroupedPhotos(grouped);
               setTotalCount(newPhotos.length);
-              setWordCount(countWordbookWords(newPhotos));
+              setWordCount(countWordbookWords(newPhotos, wordbookWords));
               setDayCount(Object.keys(grouped).length);
 
               dispatch({ type: 'setSavedPhotos', photos: newPhotos });
@@ -200,7 +204,7 @@ export default function HomePage() {
 
     setGroupedPhotos(grouped);
     setTotalCount(photos.length);
-    setWordCount(countWordbookWords(photos));
+    setWordCount(countWordbookWords(photos, wordbookWords));
     setDayCount(Object.keys(grouped).length);
 
     dispatch({ type: 'setSavedPhotos', photos });

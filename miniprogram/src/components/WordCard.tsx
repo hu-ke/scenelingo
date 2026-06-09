@@ -3,7 +3,7 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { getApiBaseUrl } from '../utils/api'
 import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs'
-import { isInWordbook, toggleWordbook } from '../utils/wordMastery'
+import { isInWordbookList, toggleWordbook } from '../utils/wordMastery'
 
 interface WordObj {
   name: string
@@ -15,11 +15,12 @@ interface WordObj {
 
 interface WordCardProps {
   obj: WordObj
+  wordbookWords: string[]
+  onWordbookChange?: (word: string, inWordbook: boolean) => void
 }
 
-const WordCard: React.FC<WordCardProps> = ({ obj }) => {
-  const [expanded, setExpanded] = useState(false)
-  const [inWordbook, setInWordbook] = useState(isInWordbook(obj.name))
+const WordCard: React.FC<WordCardProps> = ({ obj, wordbookWords, onWordbookChange }) => {
+  const [inWordbook, setInWordbook] = useState(isInWordbookList(obj.name, wordbookWords))
   const { name, chinese, phonetic, examples } = obj
 
   const handleToggle = () => setExpanded((prev) => !prev)
@@ -37,16 +38,23 @@ const WordCard: React.FC<WordCardProps> = ({ obj }) => {
     } catch {}
   }
 
-  const handleToggleWordbook = (e: any) => {
+  const handleToggleWordbook = async (e: any) => {
     e.stopPropagation()
-    const nowIn = toggleWordbook(name)
-    setInWordbook(nowIn)
-    if (nowIn) {
-      Taro.showToast({ title: '已加入生词本', icon: 'success', duration: 1500 })
-    } else {
-      Taro.showToast({ title: '已移出生词本', icon: 'none', duration: 1500 })
+    try {
+      const nowIn = await toggleWordbook(name, inWordbook)
+      setInWordbook(nowIn)
+      onWordbookChange?.(name, nowIn)
+      if (nowIn) {
+        Taro.showToast({ title: '已加入生词本', icon: 'success', duration: 1500 })
+      } else {
+        Taro.showToast({ title: '已移出生词本', icon: 'none', duration: 1500 })
+      }
+    } catch {
+      Taro.showToast({ title: '操作失败', icon: 'none' })
     }
   }
+
+  const [expanded, setExpanded] = useState(false)
 
   return (
     <View

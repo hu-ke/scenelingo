@@ -201,6 +201,20 @@ export const api = {
     return request<{ words: string[] }>('/api/wordbook/list');
   },
 
+  addWordbookWord(word: string) {
+    return request<{ success: boolean }>('/api/wordbook/add', {
+      method: 'POST',
+      body: JSON.stringify({ word }),
+    });
+  },
+
+  removeWordbookWord(word: string) {
+    return request<{ success: boolean }>('/api/wordbook/remove', {
+      method: 'POST',
+      body: JSON.stringify({ word }),
+    });
+  },
+
   syncWordbook(words: string[]) {
     return request<{ success: boolean }>('/api/wordbook/sync', {
       method: 'POST',

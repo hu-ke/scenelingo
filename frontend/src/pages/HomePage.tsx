@@ -7,7 +7,7 @@ import { api } from '../utils/api';
 import { getApiBaseUrl } from '../utils/api';
 import { generateUUID } from '../utils/uuid';
 import { resizeImage } from '../utils/resizeImage';
-import { getWordbookWords } from '../utils/wordMastery';
+import { getWordbookWords, migrateLocalWordbook } from '../utils/wordMastery';
 import AppLogo from '../components/AppLogo';
 
 function blobToDataURL(blob: Blob): Promise<string> {
@@ -289,8 +289,7 @@ export default function HomePage() {
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const initialLoadDone = useRef(false);
 
-  const countWordbookWords = (photos: PhotoItem[]): number => {
-    const wordbookWords = getWordbookWords();
+  const countWordbookWords = (photos: PhotoItem[], wordbookWords: string[]): number => {
     const photoWordSet = new Set<string>();
     for (const photo of photos) {
       if (photo.objects) {
@@ -310,7 +309,8 @@ export default function HomePage() {
 
     setGroupedPhotos(grouped);
     setTotalCount(total);
-    setWordCount(countWordbookWords(photos));
+    // 未登录时生词本列表为空
+    setWordCount(0);
     dispatch({ type: 'setSavedPhotos', photos });
 
     const today = new Date().toISOString().split('T')[0];
@@ -329,6 +329,10 @@ export default function HomePage() {
 
     if (loggedIn) {
       try {
+        // 迁移本地残留的生词本数据到服务端
+        migrateLocalWordbook();
+        // 从服务端获取生词本列表
+        const wordbookWords = await getWordbookWords();
         const result = await api.listPhotos();
         const cloudPhotos: PhotoItem[] = (result.photos || []).map((p: any) => ({
           id: p.id,
@@ -375,7 +379,7 @@ export default function HomePage() {
 
         setGroupedPhotos(grouped);
         setTotalCount(totalCount);
-        setWordCount(countWordbookWords(cloudPhotos));
+        setWordCount(countWordbookWords(cloudPhotos, wordbookWords));
         dispatch({ type: 'setSavedPhotos', photos: cloudPhotos });
 
         const today = new Date().toISOString().split('T')[0];

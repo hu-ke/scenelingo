@@ -1,7 +1,9 @@
 import { api } from './api';
 
 const STORAGE_KEY = 'scene_lingo_mastered_words';
-const WORDBOOK_KEY = 'scene_lingo_wordbook_words';
+const WORDBOOK_LOCAL_KEY = 'scene_lingo_wordbook_words'; // 旧本地生词本 key
+
+// ─── 已掌握：仅本地存储（不同步到服务端） ───
 
 export function getMasteredWords(): string[] {
   try {
@@ -35,29 +37,50 @@ export function toggleMastered(word: string): boolean {
   }
 }
 
-// ─── 生词本：本地存储 + 服务端同步 ───
+// ─── 生词本：纯服务端读写 ───
 
-function isLoggedIn(): boolean {
-  return !!localStorage.getItem('scene_lingo_token');
-}
-
-function _saveLocal(words: string[]): void {
-  localStorage.setItem(WORDBOOK_KEY, JSON.stringify(words));
-}
-
-async function _syncToServer(): Promise<void> {
-  if (!isLoggedIn()) return;
+/** 从服务端获取生词本列表 */
+export async function getWordbookWords(): Promise<string[]> {
   try {
-    const words = getWordbookWords();
-    await api.syncWordbook(words);
+    const res = await api.listWordbook();
+    return (res.words || []).map((w: string) => w.toLowerCase());
   } catch {
-    // 静默失败
+    return [];
   }
 }
 
-export function getWordbookWords(): string[] {
+/** 检查单词是否在生词本中（需要传入已加载的列表） */
+export function isInWordbookList(word: string, wordbookWords: string[]): boolean {
+  return wordbookWords.includes(word.toLowerCase());
+}
+
+/** 添加单词到生词本（服务端） */
+export async function addToWordbook(word: string): Promise<void> {
+  await api.addWordbookWord(word);
+}
+
+/** 从生词本移除单词（服务端） */
+export async function removeFromWordbook(word: string): Promise<void> {
+  await api.removeWordbookWord(word);
+}
+
+/** 切换单词在生词本中的状态（服务端），返回切换后是否在生词本中 */
+export async function toggleWordbook(word: string, currentInWordbook: boolean): Promise<boolean> {
+  if (currentInWordbook) {
+    await removeFromWordbook(word);
+    return false;
+  } else {
+    await addToWordbook(word);
+    return true;
+  }
+}
+
+// ─── 迁移：将本地残留的生词本数据同步到服务端，成功后清除本地 ───
+
+/** 读取本地残留的生词本列表 */
+function getLocalWordbookWords(): string[] {
   try {
-    const raw = localStorage.getItem(WORDBOOK_KEY);
+    const raw = localStorage.getItem(WORDBOOK_LOCAL_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -67,59 +90,18 @@ export function getWordbookWords(): string[] {
   }
 }
 
-export function isInWordbook(word: string): boolean {
-  const words = getWordbookWords();
-  return words.includes(word.toLowerCase());
-}
+/** 登录后调用：将本地生词本数据迁移到服务端，成功后清除本地 */
+export async function migrateLocalWordbook(): Promise<void> {
+  const localWords = getLocalWordbookWords();
+  if (localWords.length === 0) return;
 
-export function addToWordbook(word: string): void {
-  const words = getWordbookWords();
-  const key = word.toLowerCase();
-  if (!words.includes(key)) {
-    words.push(key);
-    _saveLocal(words);
-    _syncToServer();
-  }
-}
-
-export function removeFromWordbook(word: string): void {
-  const words = getWordbookWords();
-  const key = word.toLowerCase();
-  const index = words.indexOf(key);
-  if (index !== -1) {
-    words.splice(index, 1);
-    _saveLocal(words);
-    _syncToServer();
-  }
-}
-
-export function toggleWordbook(word: string): boolean {
-  if (isInWordbook(word)) {
-    removeFromWordbook(word);
-    return false;
-  } else {
-    addToWordbook(word);
-    return true;
-  }
-}
-
-/** 登录后调用：从服务端拉取生词本，与本地合并，然后同步到服务端 */
-export async function syncWordbookFromServer(): Promise<void> {
-  if (!isLoggedIn()) return;
   try {
-    const res = await api.listWordbook();
-    const serverWords = (res.words || []).map((w: string) => w.toLowerCase());
-    const localWords = getWordbookWords();
-
-    const merged = new Set([...localWords, ...serverWords]);
-    const mergedList = Array.from(merged);
-
-    _saveLocal(mergedList);
-
-    if (mergedList.length !== serverWords.length) {
-      await api.syncWordbook(mergedList);
+    for (const word of localWords) {
+      await api.addWordbookWord(word);
     }
-  } catch {
-    // 静默失败
+    localStorage.removeItem(WORDBOOK_LOCAL_KEY);
+    console.log(`[migrateLocalWordbook] 已迁移 ${localWords.length} 个生词到服务端`);
+  } catch (err) {
+    console.error('[migrateLocalWordbook] 迁移失败，保留本地数据:', err);
   }
 }
