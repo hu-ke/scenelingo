@@ -19,6 +19,9 @@ const config = {
   },
   framework: 'react',
   compiler: 'webpack5',
+  cache: {
+    enable: false,
+  },
   mini: {
     postcss: {
       pxtransform: {
