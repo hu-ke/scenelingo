@@ -99,8 +99,13 @@ export const api = {
     });
   },
 
-  listPhotos() {
-    return request<{ photos: any[] }>('/api/photos/list');
+  listPhotos(startDate?: string, endDate?: string) {
+    let path = '/api/photos/list';
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    if (params.toString()) path += '?' + params.toString();
+    return request<{ photos: any[] }>(path);
   },
 
   deletePhoto(id: string) {

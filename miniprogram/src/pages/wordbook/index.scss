@@ -225,3 +225,37 @@
   text-align: center;
   line-height: 1.6;
 }
+
+.wordbook-loadmore {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40rpx 0;
+  margin-top: 16rpx;
+}
+
+.wordbook-loadmore-btn {
+  width: 280rpx;
+  height: 72rpx;
+  background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
+  color: #FFFFFF;
+  font-size: 28rpx;
+  font-weight: 600;
+  border-radius: 36rpx;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &[disabled] {
+    opacity: 0.6;
+    background: #E0EAF3;
+    color: #A0AFBF;
+  }
+}
+
+.wordbook-loadmore-text {
+  font-size: 24rpx;
+  color: #A0AFBF;
+  margin-top: 16rpx;
+}

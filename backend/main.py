@@ -431,10 +431,10 @@ async def image_proxy(url: str = Query(...)):
 
 
 @app.get("/scenelingo-service/api/photos/list")
-async def list_photos(request: Request):
+async def list_photos(request: Request, start_date: str = None, end_date: str = None):
     email = require_auth(request)
-    logger.info(f"[list_photos] 用户 {email} 请求照片列表")
-    photos = await list_user_photos_mongo(email)
+    logger.info(f"[list_photos] 用户 {email} 请求照片列表, start_date={start_date}, end_date={end_date}")
+    photos = await list_user_photos_mongo(email, start_date, end_date)
     if photos is None:
         logger.warning(f"[list_photos] MongoDB 不可用, 降级到 OSS 查询")
         photos = list_user_photos(email)

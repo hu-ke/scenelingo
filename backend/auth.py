@@ -366,13 +366,23 @@ async def reset_photo_to_pending(photo_id: str) -> bool:
         logger.warning(f"[reset_photo_to_pending] 未找到照片 photo_id={photo_id}")
     return result.matched_count > 0
 
-async def list_user_photos_mongo(user_email: str) -> list[dict]:
+async def list_user_photos_mongo(user_email: str, start_date: str = None, end_date: str = None) -> list[dict]:
     from db import db
     if db is None:
         logger.warning("[list_user_photos_mongo] db 为 None, 无法查询 MongoDB")
         return None
-    logger.info(f"[list_user_photos_mongo] 查询 user_email={user_email}")
-    cursor = db.photos.find({"user_email": user_email}).sort("collection_date", -1)
+    logger.info(f"[list_user_photos_mongo] 查询 user_email={user_email}, start_date={start_date}, end_date={end_date}")
+    
+    query = {"user_email": user_email}
+    if start_date or end_date:
+        date_filter = {}
+        if start_date:
+            date_filter["$gte"] = start_date
+        if end_date:
+            date_filter["$lte"] = end_date
+        query["collection_date"] = date_filter
+    
+    cursor = db.photos.find(query).sort("collection_date", -1)
     photos = []
     async for doc in cursor:
         photos.append({

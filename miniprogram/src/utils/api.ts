@@ -173,8 +173,13 @@ export const api = {
     });
   },
 
-  listPhotos() {
-    return request<{ photos: Record<string, unknown>[] }>('/api/photos/list');
+  listPhotos(startDate?: string, endDate?: string) {
+    let path = '/api/photos/list';
+    const params: string[] = [];
+    if (startDate) params.push(`start_date=${startDate}`);
+    if (endDate) params.push(`end_date=${endDate}`);
+    if (params.length > 0) path += '?' + params.join('&');
+    return request<{ photos: Record<string, unknown>[] }>(path);
   },
 
   deletePhoto(id: string) {

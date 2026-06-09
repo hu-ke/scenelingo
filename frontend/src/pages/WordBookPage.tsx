@@ -13,78 +13,116 @@ interface WordEntry {
   photoIds: string[];
 }
 
+// 获取日期字符串 YYYY-MM-DD
+function getDateString(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
+// 获取前N天的日期
+function getDateBefore(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return getDateString(date);
+}
+
 export default function WordBookPage() {
   const { dispatch } = useReview();
   const [words, setWords] = useState<WordEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [activeTab, setActiveTab] = useState<'new' | 'mastered'>('new');
   // @ts-ignore
   const [refresh, setRefresh] = useState(0);
+  const [loadedDays, setLoadedDays] = useState(0); // 已加载的天数（0表示今天和昨天）
+  const [hasMore, setHasMore] = useState(true); // 是否还有更多数据可加载
+
+  // 加载指定日期范围的照片
+  const loadPhotosByDateRange = async (startDate: string, endDate: string): Promise<PhotoItem[]> => {
+    if (isLoggedIn()) {
+      try {
+        const result = await api.listPhotos(startDate, endDate);
+        return result.photos.map((p: any) => ({
+          id: p.id,
+          dataUrl: p.originalUrl,
+          annotatedDataUrl: p.annotatedUrl,
+          objects: p.objects,
+        }));
+      } catch (err) {
+        console.error('[WordBook] 云端加载失败:', err);
+        return [];
+      }
+    }
+    return [];
+  };
+
+  // 从照片中提取单词
+  const extractWordsFromPhotos = (photos: PhotoItem[], existingWords: Map<string, WordEntry>): Map<string, WordEntry> => {
+    const wordMap = new Map(existingWords);
+
+    for (const photo of photos) {
+      if (!photo.objects || !Array.isArray(photo.objects)) continue;
+
+      for (const obj of photo.objects) {
+        if (!obj || !obj.name || typeof obj.name !== 'string') {
+          console.warn('[WordBook] 跳过无效 object:', obj);
+          continue;
+        }
+        const key = obj.name.toLowerCase();
+
+        const existing = wordMap.get(key);
+        if (existing) {
+          if (!existing.photoIds.includes(photo.id)) {
+            existing.photoIds.push(photo.id);
+            existing.photoCount = existing.photoIds.length;
+          }
+          if (existing.examples.length === 0 && obj.examples && obj.examples.length > 0) {
+            existing.examples = obj.examples;
+          }
+          if (existing.phonetic === '' && typeof obj.phonetic === 'string' && obj.phonetic !== '') {
+            existing.phonetic = obj.phonetic;
+          }
+        } else {
+          wordMap.set(key, {
+            word: obj.name,
+            phonetic: typeof obj.phonetic === 'string' ? obj.phonetic : '',
+            examples: Array.isArray(obj.examples) ? obj.examples : [],
+            photoCount: 1,
+            photoIds: [photo.id],
+          });
+        }
+      }
+    }
+
+    return wordMap;
+  };
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadWords() {
+    async function loadInitialWords() {
       try {
-        let allPhotos: PhotoItem[] = [];
-
+        setLoading(true);
+        
+        // 先加载今天和昨天的数据
+        const today = getDateString(new Date());
+        const yesterday = getDateBefore(1);
+        
+        console.log('[WordBook] 加载今天和昨天的数据:', yesterday, today);
+        
+        let photos: PhotoItem[] = [];
+        
         if (isLoggedIn()) {
-          try {
-            const result = await api.listPhotos();
-            allPhotos = result.photos.map((p: any) => ({
-              id: p.id,
-              dataUrl: p.originalUrl,
-              annotatedDataUrl: p.annotatedUrl,
-              objects: p.objects,
-            }));
-          } catch (err) {
-            console.error('[WordBook] 云端加载失败，尝试本地:', err);
-            allPhotos = await getAllPhotos();
-          }
+          photos = await loadPhotosByDateRange(yesterday, today);
         } else {
-          allPhotos = await getAllPhotos();
+          // 未登录时，从本地加载所有数据
+          photos = await getAllPhotos();
         }
+
         if (cancelled) return;
 
-        console.log('[WordBook] getAllPhotos 返回照片数:', allPhotos.length);
-        console.log('[WordBook] 第一张照片:', JSON.stringify(allPhotos[0]?.objects?.slice(0, 1)));
+        console.log('[WordBook] 初始加载照片数:', photos.length);
 
-        const wordMap = new Map<string, WordEntry>();
-
-        for (const photo of allPhotos) {
-          if (!photo.objects || !Array.isArray(photo.objects)) continue;
-
-          for (const obj of photo.objects) {
-            if (!obj || !obj.name || typeof obj.name !== 'string') {
-              console.warn('[WordBook] 跳过无效 object:', obj);
-              continue;
-            }
-            const key = obj.name.toLowerCase();
-
-            const existing = wordMap.get(key);
-            if (existing) {
-              if (!existing.photoIds.includes(photo.id)) {
-                existing.photoIds.push(photo.id);
-                existing.photoCount = existing.photoIds.length;
-              }
-              if (existing.examples.length === 0 && obj.examples && obj.examples.length > 0) {
-                existing.examples = obj.examples;
-              }
-              if (existing.phonetic === '' && typeof obj.phonetic === 'string' && obj.phonetic !== '') {
-                existing.phonetic = obj.phonetic;
-              }
-            } else {
-              wordMap.set(key, {
-                word: obj.name,
-                phonetic: typeof obj.phonetic === 'string' ? obj.phonetic : '',
-                examples: Array.isArray(obj.examples) ? obj.examples : [],
-                photoCount: 1,
-                photoIds: [photo.id],
-              });
-            }
-          }
-        }
-
+        const wordMap = extractWordsFromPhotos(photos, new Map());
         console.log('[WordBook] 提取到不重复单词数:', wordMap.size);
 
         const sorted = Array.from(wordMap.values()).sort((a, b) =>
@@ -93,6 +131,8 @@ export default function WordBookPage() {
 
         if (!cancelled) {
           setWords(sorted);
+          setLoadedDays(2); // 已加载今天和昨天（2天）
+          setHasMore(isLoggedIn()); // 只有登录用户才支持按需加载更多
         }
       } catch (err) {
         console.error('[WordBook] 加载单词失败:', err);
@@ -106,12 +146,55 @@ export default function WordBookPage() {
       }
     }
 
-    loadWords();
+    loadInitialWords();
 
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // 加载更多（更早的数据）
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore) return;
+
+    try {
+      setLoadingMore(true);
+      
+      // 计算下一个要加载的日期范围
+      // 例如：已加载今天和昨天（0-1），接下来加载前天（2）
+      const nextDay = loadedDays;
+      const startDate = getDateBefore(nextDay);
+      const endDate = startDate;
+      
+      console.log('[WordBook] 加载更多数据:', startDate);
+      
+      const photos = await loadPhotosByDateRange(startDate, endDate);
+      
+      console.log('[WordBook] 加载更多照片数:', photos.length);
+      
+      if (photos.length === 0) {
+        // 如果没有数据，说明已经加载完了
+        setHasMore(false);
+      } else {
+        // 提取单词并合并到现有数据
+        const currentWordMap = new Map<string, WordEntry>();
+        words.forEach(w => currentWordMap.set(w.word.toLowerCase(), w));
+        
+        const newWordMap = extractWordsFromPhotos(photos, currentWordMap);
+        
+        const sorted = Array.from(newWordMap.values()).sort((a, b) =>
+          a.word.toLowerCase().localeCompare(b.word.toLowerCase())
+        );
+        
+        setWords(sorted);
+        setLoadedDays(prev => prev + 1);
+      }
+    } catch (err) {
+      console.error('[WordBook] 加载更多失败:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const newWords = words.filter((w) => !isMastered(w.word));
   const masteredWords = words.filter((w) => isMastered(w.word));
@@ -236,109 +319,150 @@ export default function WordBookPage() {
           </p>
         </div>
       ) : (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--space-sm)',
-          }}
-        >
-          {displayWords.map((entry, index) => (
-            <div
-              key={entry.word}
-              className="card"
-              onClick={() => handleWordClick(entry.word)}
-              style={{
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                animation: `fadeIn 0.3s ease ${index * 0.05}s both`,
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLDivElement).style.transform =
-                  'translateY(-2px)';
-                (e.currentTarget as HTMLDivElement).style.boxShadow =
-                  '0 4px 20px rgba(255, 107, 107, 0.12)';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLDivElement).style.transform = '';
-                (e.currentTarget as HTMLDivElement).style.boxShadow = '';
-              }}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: '1.2rem',
-                    fontWeight: 700,
-                    background:
-                      'linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end))',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
-                    marginBottom: '0.15rem',
-                  }}
-                >
-                  {entry.word}
-                </div>
-                {entry.phonetic && (
-                  <div
-                    style={{
-                      fontSize: '0.8rem',
-                      color: 'var(--color-text-muted)',
-                      fontStyle: 'italic',
-                    }}
-                  >
-                    {entry.phonetic}
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={(e) => handleToggle(e, entry.word)}
+        <>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--space-sm)',
+            }}
+          >
+            {displayWords.map((entry, index) => (
+              <div
+                key={entry.word}
+                className="card"
+                onClick={() => handleWordClick(entry.word)}
                 style={{
-                  flexShrink: 0,
-                  width: 70,
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  padding: '0.35em 0.5em',
-                  borderRadius: 'var(--radius-full)',
-                  border: 'none',
                   cursor: 'pointer',
-                  marginRight: '0.5rem',
-                  background:
-                    activeTab === 'new'
-                      ? 'linear-gradient(135deg, #4CAF50, #66BB6A)'
-                      : 'linear-gradient(135deg, #FF9800, #FFB74D)',
-                  color: '#FFFFFF',
-                  transition: 'opacity 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  animation: `fadeIn 0.3s ease ${index * 0.05}s both`,
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.opacity = '0.85';
+                  (e.currentTarget as HTMLDivElement).style.transform =
+                    'translateY(-2px)';
+                  (e.currentTarget as HTMLDivElement).style.boxShadow =
+                    '0 4px 20px rgba(255, 107, 107, 0.12)';
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.opacity = '1';
+                  (e.currentTarget as HTMLDivElement).style.transform = '';
+                  (e.currentTarget as HTMLDivElement).style.boxShadow = '';
                 }}
               >
-                {activeTab === 'new' ? '✓ 已掌握' : '↩ 移回生词表'}
-              </button>
-              <span
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: '1.2rem',
+                      fontWeight: 700,
+                      background:
+                        'linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end))',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                      marginBottom: '0.15rem',
+                    }}
+                  >
+                    {entry.word}
+                  </div>
+                  {entry.phonetic && (
+                    <div
+                      style={{
+                        fontSize: '0.8rem',
+                        color: 'var(--color-text-muted)',
+                        fontStyle: 'italic',
+                      }}
+                    >
+                      {entry.phonetic}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={(e) => handleToggle(e, entry.word)}
+                  style={{
+                    flexShrink: 0,
+                    width: 70,
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    padding: '0.35em 0.5em',
+                    borderRadius: 'var(--radius-full)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    marginRight: '0.5rem',
+                    background:
+                      activeTab === 'new'
+                        ? 'linear-gradient(135deg, #4CAF50, #66BB6A)'
+                        : 'linear-gradient(135deg, #FF9800, #FFB74D)',
+                    color: '#FFFFFF',
+                    transition: 'opacity 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.opacity = '0.85';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.opacity = '1';
+                  }}
+                >
+                  {activeTab === 'new' ? '✓ 已掌握' : '↩ 移回生词表'}
+                </button>
+                <span
+                  style={{
+                    flexShrink: 0,
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    padding: '0.25em 0.7em',
+                    borderRadius: 'var(--radius-full)',
+                    background:
+                      'linear-gradient(135deg, var(--color-primary-start), var(--color-primary-mid))',
+                    color: '#FFFFFF',
+                  }}
+                >
+                  {entry.photoCount} 张
+                </span>
+              </div>
+            ))}
+          </div>
+          
+          {/* 加载更多按钮 */}
+          {hasMore && isLoggedIn() && (
+            <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+              <button
+                onClick={handleLoadMore}
+                disabled={loadingMore}
                 style={{
-                  flexShrink: 0,
-                  fontSize: '0.75rem',
+                  padding: '0.75rem 2rem',
+                  fontSize: '0.95rem',
                   fontWeight: 600,
-                  padding: '0.25em 0.7em',
                   borderRadius: 'var(--radius-full)',
-                  background:
-                    'linear-gradient(135deg, var(--color-primary-start), var(--color-primary-mid))',
+                  border: 'none',
+                  background: loadingMore
+                    ? 'var(--color-border)'
+                    : 'linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end))',
                   color: '#FFFFFF',
+                  cursor: loadingMore ? 'not-allowed' : 'pointer',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                  opacity: loadingMore ? 0.6 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!loadingMore) {
+                    (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 12px rgba(255, 107, 107, 0.3)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.transform = '';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = '';
                 }}
               >
-                {entry.photoCount} 张
-              </span>
+                {loadingMore ? '加载中...' : '加载更多'}
+              </button>
+              <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                已加载 {loadedDays} 天的数据
+              </p>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );
