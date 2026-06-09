@@ -40,6 +40,11 @@ LANG_NAMES = {
     "zh": "Chinese", "en": "English", "ja": "Japanese", "ko": "Korean",
     "fr": "French", "de": "German", "es": "Spanish", "pt": "Portuguese",
     "ru": "Russian", "ar": "Arabic",
+    "th": "Thai", "fa": "Persian", "vi": "Vietnamese", "my": "Burmese",
+    "it": "Italian", "nl": "Dutch", "pl": "Polish", "tr": "Turkish",
+    "hi": "Hindi", "id": "Indonesian", "ms": "Malay", "sv": "Swedish",
+    "uk": "Ukrainian", "he": "Hebrew", "cs": "Czech", "el": "Greek",
+    "ro": "Romanian", "hu": "Hungarian", "da": "Danish", "fi": "Finnish",
 }
 
 PHONETIC_DESCS = {
@@ -53,6 +58,26 @@ PHONETIC_DESCS = {
     "pt": "the IPA phonetic transcription of the word",
     "ru": "the Cyrillic pronunciation with stress mark",
     "ar": "the Romanized transliteration of the word",
+    "th": "the Romanized transcription (Paiboon system) of the word",
+    "fa": "the Romanized transliteration of the word",
+    "vi": "the IPA phonetic transcription with tone marks of the word",
+    "my": "the Romanized transliteration of the word",
+    "it": "the IPA phonetic transcription of the word",
+    "nl": "the IPA phonetic transcription of the word",
+    "pl": "the IPA phonetic transcription of the word",
+    "tr": "the IPA phonetic transcription of the word",
+    "hi": "the Romanized transliteration (IAST) of the word",
+    "id": "the IPA phonetic transcription of the word",
+    "ms": "the IPA phonetic transcription of the word",
+    "sv": "the IPA phonetic transcription of the word",
+    "uk": "the IPA phonetic transcription of the word",
+    "he": "the Romanized transliteration of the word",
+    "cs": "the IPA phonetic transcription of the word",
+    "el": "the IPA phonetic transcription of the word",
+    "ro": "the IPA phonetic transcription of the word",
+    "hu": "the IPA phonetic transcription of the word",
+    "da": "the IPA phonetic transcription of the word",
+    "fi": "the IPA phonetic transcription of the word",
 }
 
 
