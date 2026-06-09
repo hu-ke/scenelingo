@@ -236,6 +236,33 @@ async def sync_user_wordbook(user_email: str, words: list[str]) -> bool:
     logger.info(f"[sync_user_wordbook] 用户 {user_email} 生词本已同步, {len(normalized)} 个单词")
     return True
 
+async def add_wordbook_word(user_email: str, word: str) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[add_wordbook_word] db 为 None")
+        return False
+    normalized = word.lower()
+    await db.wordbooks.update_one(
+        {"user_email": user_email},
+        {"$addToSet": {"words": normalized}, "$set": {"updated_at": datetime.utcnow()}},
+        upsert=True,
+    )
+    logger.info(f"[add_wordbook_word] 用户 {user_email} 添加生词: {normalized}")
+    return True
+
+async def remove_wordbook_word(user_email: str, word: str) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[remove_wordbook_word] db 为 None")
+        return False
+    normalized = word.lower()
+    await db.wordbooks.update_one(
+        {"user_email": user_email},
+        {"$pull": {"words": normalized}, "$set": {"updated_at": datetime.utcnow()}},
+    )
+    logger.info(f"[remove_wordbook_word] 用户 {user_email} 移除生词: {normalized}")
+    return True
+
 # ---- JWT Token ----
 def generate_token(email: str) -> str:
     payload = {

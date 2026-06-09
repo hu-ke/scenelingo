@@ -32,7 +32,7 @@ from auth import save_photo_record, list_user_photos_mongo, delete_photo_record,
 from auth import update_user_language
 from auth import update_user_theme
 from auth import set_annotated_url
-from auth import get_user_wordbook, sync_user_wordbook
+from auth import get_user_wordbook, sync_user_wordbook, add_wordbook_word, remove_wordbook_word
 from db import get_db, init_db, _client
 from oss_client import upload_photo, upload_metadata, list_user_photos, delete_photo
 
@@ -73,6 +73,9 @@ class ThemeUpdateRequest(BaseModel):
 
 class WordbookSyncRequest(BaseModel):
     words: list[str]
+
+class WordbookWordRequest(BaseModel):
+    word: str
 
 
 def require_auth(request: Request) -> str:
@@ -495,6 +498,22 @@ async def sync_wordbook(request: Request, req: WordbookSyncRequest):
     success = await sync_user_wordbook(email, req.words)
     if not success:
         raise HTTPException(status_code=500, detail="同步生词本失败")
+    return {"success": True}
+
+@app.post("/scenelingo-service/api/wordbook/add")
+async def add_to_wordbook(request: Request, req: WordbookWordRequest):
+    email = require_auth(request)
+    success = await add_wordbook_word(email, req.word)
+    if not success:
+        raise HTTPException(status_code=500, detail="添加生词失败")
+    return {"success": True}
+
+@app.post("/scenelingo-service/api/wordbook/remove")
+async def remove_from_wordbook(request: Request, req: WordbookWordRequest):
+    email = require_auth(request)
+    success = await remove_wordbook_word(email, req.word)
+    if not success:
+        raise HTTPException(status_code=500, detail="移除生词失败")
     return {"success": True}
 
 @app.on_event("startup")
