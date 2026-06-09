@@ -78,6 +78,16 @@ export const api = {
     });
   },
 
+  recognizeWithHint(formData: FormData, hint: string) {
+    if (hint) {
+      formData.append('hint', hint);
+    }
+    return request<{ objects: any[]; actions?: any[] }>('/api/recognize', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
   uploadPhoto(formData: FormData) {
     return request<{ success: boolean; photoId: string }>('/api/photos/upload', {
       method: 'POST',

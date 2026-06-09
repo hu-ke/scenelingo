@@ -72,14 +72,18 @@ export const api = {
     });
   },
 
-  recognize(nativeLang: string, targetLang: string, imagePath: string) {
+  recognize(nativeLang: string, targetLang: string, imagePath: string, hint?: string) {
     return new Promise<{ objects: Record<string, unknown>[] }>((resolve, reject) => {
       const token = getToken();
+      const formData: Record<string, string> = { nativeLang, targetLang };
+      if (hint && hint.trim()) {
+        formData.hint = hint.trim();
+      }
       Taro.uploadFile({
         url: `${BASE_URL}/api/recognize`,
         filePath: imagePath,
         name: 'image',
-        formData: { nativeLang, targetLang },
+        formData,
         header: token ? { 'Authorization': `Bearer ${token}` } : {},
         timeout: 60000,
         success(res) {

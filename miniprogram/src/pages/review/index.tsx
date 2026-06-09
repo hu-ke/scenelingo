@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { View, Text, Button } from '@tarojs/components'
+import { View, Text, Button, Input, Textarea } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useReview } from '../../context/AppContext'
 import { useAuth } from '../../context/AuthContext'
@@ -43,18 +43,20 @@ export default function ReviewPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showLoginPrompt, setShowLoginPrompt] = useState(false)
+  const [showReRecognizeDialog, setShowReRecognizeDialog] = useState(false)
+  const [reRecognizeHint, setReRecognizeHint] = useState('')
   const lastRecognizedRef = useRef(-1)
 
   const currentPhoto = photos[currentIndex]
 
-  const recognizeImage = useCallback(async () => {
+  const recognizeImage = useCallback(async (hint?: string) => {
     if (!currentPhoto) return
 
     setLoading(true)
     setError(null)
 
     try {
-      const data = await api.recognize(nativeLang, targetLang, currentPhoto.dataUrl)
+      const data = await api.recognize(nativeLang, targetLang, currentPhoto.dataUrl, hint)
       const objects = mapObjects(data.objects)
       dispatch({ type: 'setCurrentObjects', objects })
       if (data.actions && data.actions.length > 0) {
@@ -67,6 +69,22 @@ export default function ReviewPage() {
       setLoading(false)
     }
   }, [currentPhoto, dispatch, nativeLang, targetLang])
+
+  const handleReRecognize = useCallback(() => {
+    setShowReRecognizeDialog(true)
+  }, [])
+
+  const handleReRecognizeConfirm = useCallback(() => {
+    setShowReRecognizeDialog(false)
+    recognizeImage(reRecognizeHint.trim() || undefined)
+    setReRecognizeHint('')
+  }, [recognizeImage, reRecognizeHint])
+
+  const handleReRecognizeSkip = useCallback(() => {
+    setShowReRecognizeDialog(false)
+    recognizeImage()
+    setReRecognizeHint('')
+  }, [recognizeImage])
 
   useEffect(() => {
     if (photos.length > 0 && currentIndex < photos.length && lastRecognizedRef.current !== currentIndex) {
@@ -245,7 +263,7 @@ export default function ReviewPage() {
       )}
 
       <View className="review-actions">
-        <Button onClick={recognizeImage} disabled={loading}>
+        <Button onClick={handleReRecognize} disabled={loading}>
           {loading ? '识别中...' : '重新识别'}
         </Button>
         <Button onClick={handleDownload} disabled={loading || !currentObjects}>
@@ -263,6 +281,32 @@ export default function ReviewPage() {
               去登录
             </Button>
             <Button onClick={() => setShowLoginPrompt(false)}>暂不登录</Button>
+          </View>
+        </View>
+      )}
+
+      {/* 重新识别弹框 */}
+      {showReRecognizeDialog && (
+        <View className="review-rerecognize-mask" onClick={() => { setShowReRecognizeDialog(false); setReRecognizeHint(''); }}>
+          <View className="review-rerecognize-card" onClick={(e: unknown) => (e as { stopPropagation?: () => void })?.stopPropagation?.()}>
+            <Text className="review-rerecognize-title">重新识别</Text>
+            <Text className="review-rerecognize-desc">描述你希望调整的内容，AI会根据你的提示重新识别</Text>
+            <Textarea
+              className="review-rerecognize-input"
+              value={reRecognizeHint}
+              onInput={(e) => setReRecognizeHint(e.detail.value)}
+              placeholder="例如：请识别右下角的物体 / 漏掉了桌子上的杯子"
+              maxlength={200}
+              autoFocus
+            />
+            <View className="review-rerecognize-actions">
+              <Button className="review-rerecognize-btn-skip" onClick={handleReRecognizeSkip}>
+                直接重新识别
+              </Button>
+              <Button className="review-rerecognize-btn-confirm" onClick={handleReRecognizeConfirm}>
+                带提示重新识别
+              </Button>
+            </View>
           </View>
         </View>
       )}

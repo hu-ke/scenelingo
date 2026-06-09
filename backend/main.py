@@ -246,10 +246,15 @@ async def recognize(image: UploadFile = None, request: Request = None):
         form_data = await request.form()
         nativeLang = form_data.get("nativeLang", "zh")
         targetLang = form_data.get("targetLang", "en")
+        hint = form_data.get("hint", "")
 
-        logger.info(f"识别请求: nativeLang={nativeLang}, targetLang={targetLang}")
+        logger.info(f"识别请求: nativeLang={nativeLang}, targetLang={targetLang}, hint={hint}")
 
         prompt = build_prompt(nativeLang, targetLang)
+        
+        # 如果用户提供了调整提示，追加到 prompt 中
+        if hint and isinstance(hint, str) and hint.strip():
+            prompt += f"\n\nAdditional user instructions: {hint.strip()}"
 
         photo_url = form_data.get("photo_url", None)
         if photo_url:

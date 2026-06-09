@@ -210,10 +210,12 @@ export default function ReviewPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [showReRecognizeDialog, setShowReRecognizeDialog] = useState(false);
+  const [reRecognizeHint, setReRecognizeHint] = useState('');
 
   const { photos, currentIndex, currentObjects, currentActions, isReviewing, nativeLang, targetLang } = state;
 
-  const recognizeImage = useCallback(async () => {
+  const recognizeImage = useCallback(async (hint?: string) => {
     const photo = photos[currentIndex];
     if (!photo) return;
 
@@ -232,7 +234,9 @@ export default function ReviewPage() {
         formData.append('photo_url', photo.dataUrl);
       }
 
-      const data = await api.recognize(formData);
+      const data = hint
+        ? await api.recognizeWithHint(formData, hint)
+        : await api.recognize(formData);
       dispatch({ type: 'setCurrentObjects', objects: data.objects as RecognizedObject[] });
       if (data.actions && data.actions.length > 0) {
         dispatch({ type: 'setCurrentActions', actions: data.actions as RecognizedAction[] });
@@ -243,6 +247,22 @@ export default function ReviewPage() {
       setLoading(false);
     }
   }, [currentIndex, photos, dispatch, nativeLang, targetLang]);
+
+  const handleReRecognize = useCallback(() => {
+    setShowReRecognizeDialog(true);
+  }, []);
+
+  const handleReRecognizeConfirm = useCallback(() => {
+    setShowReRecognizeDialog(false);
+    recognizeImage(reRecognizeHint.trim() || undefined);
+    setReRecognizeHint('');
+  }, [recognizeImage, reRecognizeHint]);
+
+  const handleReRecognizeSkip = useCallback(() => {
+    setShowReRecognizeDialog(false);
+    recognizeImage();
+    setReRecognizeHint('');
+  }, [recognizeImage]);
 
   const lastRecognizedRef = useRef(-1);
 
@@ -456,7 +476,7 @@ export default function ReviewPage() {
 
       {/* 操作按钮组 */}
       <div className="review-actions">
-        <button onClick={recognizeImage} disabled={loading}>
+        <button onClick={handleReRecognize} disabled={loading}>
           {loading ? '识别中...' : '重新识别'}
         </button>
         {!isLoggedIn() && (
@@ -503,6 +523,65 @@ export default function ReviewPage() {
             <button className="secondary" onClick={() => setShowLoginPrompt(false)} style={{ width: '100%' }}>
               暂不登录
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 重新识别弹框 */}
+      {showReRecognizeDialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 200,
+        }} onClick={() => { setShowReRecognizeDialog(false); setReRecognizeHint(''); }}>
+          <div style={{
+            background: 'var(--color-surface)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1.5rem',
+            maxWidth: '360px', width: '90%',
+            boxShadow: 'var(--shadow-lg)',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--color-text)' }}>
+              重新识别
+            </div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '0.75rem' }}>
+              描述你希望调整的内容，AI会根据你的提示重新识别
+            </div>
+            <textarea
+              value={reRecognizeHint}
+              onChange={(e) => setReRecognizeHint(e.target.value)}
+              placeholder="例如：请识别右下角的物体 / 漏掉了桌子上的杯子 / 动作应该是"cooking"而不是"standing""
+              style={{
+                width: '100%',
+                minHeight: '80px',
+                padding: '0.75rem',
+                borderRadius: 'var(--radius-md)',
+                border: '2px solid var(--color-border)',
+                fontSize: '0.9rem',
+                resize: 'vertical',
+                boxSizing: 'border-box',
+                outline: 'none',
+                fontFamily: 'inherit',
+              }}
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+              <button
+                className="secondary"
+                onClick={handleReRecognizeSkip}
+                style={{ flex: 1 }}
+              >
+                直接重新识别
+              </button>
+              <button
+                onClick={handleReRecognizeConfirm}
+                style={{ flex: 1 }}
+              >
+                带提示重新识别
+              </button>
+            </div>
           </div>
         </div>
       )}

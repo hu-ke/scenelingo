@@ -258,3 +258,79 @@
   line-height: 88rpx;
   padding: 0;
 }
+
+/* 重新识别弹框 */
+.review-rerecognize-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.review-rerecognize-card {
+  width: 600rpx;
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 40rpx 36rpx;
+}
+
+.review-rerecognize-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 12rpx;
+  display: block;
+}
+
+.review-rerecognize-desc {
+  font-size: 26rpx;
+  color: #888;
+  margin-bottom: 24rpx;
+  display: block;
+  line-height: 1.5;
+}
+
+.review-rerecognize-input {
+  width: 100%;
+  min-height: 160rpx;
+  padding: 20rpx;
+  border: 2rpx solid #e0e0e0;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  box-sizing: border-box;
+  margin-bottom: 28rpx;
+}
+
+.review-rerecognize-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.review-rerecognize-btn-skip {
+  flex: 1;
+  height: 72rpx;
+  background: #f5f5f5;
+  color: #666;
+  font-size: 26rpx;
+  font-weight: 500;
+  border-radius: 12rpx;
+  border: none;
+  line-height: 72rpx;
+  padding: 0;
+}
+
+.review-rerecognize-btn-confirm {
+  flex: 1;
+  height: 72rpx;
+  background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: 600;
+  border-radius: 12rpx;
+  border: none;
+  line-height: 72rpx;
+  padding: 0;
+}
