@@ -30,8 +30,8 @@ async function request<T>(path: string, options: Record<string, unknown> = {}): 
 
   if (res.statusCode === 401) {
     Taro.removeStorageSync('scene_lingo_token');
-    Taro.removeStorageSync('scene_lingo_email');
-    Taro.reLaunch({ url: '/pages/login/index' });
+    Taro.removeStorageSync('scene_lingo_user_id');
+    Taro.reLaunch({ url: '/pages/home/index' });
     throw new Error('未登录或token已过期');
   }
 
@@ -48,6 +48,13 @@ export const api = {
     return request<{ success: boolean; message: string }>('/api/auth/send-code', {
       method: 'POST',
       body: JSON.stringify({ email }),
+    });
+  },
+
+  wechatLogin(code: string, email?: string) {
+    return request<{ token: string; user_id: string; email: string; nativeLang: string; targetLang: string; theme: string }>('/api/auth/wechat-login', {
+      method: 'POST',
+      body: JSON.stringify({ code, email: email || '' }),
     });
   },
 

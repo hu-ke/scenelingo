@@ -22,6 +22,8 @@ logger.add(
 from openai import OpenAI
 from PIL import Image
 
+from bson import ObjectId
+
 from auth import claim_pending_photo, complete_photo, reset_photo_to_pending, get_user_language
 from db import get_db
 
@@ -177,12 +179,12 @@ async def main():
                 continue
 
             photo_id = doc["photo_id"]
-            user_email = doc["user_email"]
+            user_id = doc["user_id"]
             original_url = doc["original_url"]
-            logger.info(f"开始处理照片 user_email={user_email} photo_id={photo_id}")
+            logger.info(f"开始处理照片 user_id={user_id} photo_id={photo_id}")
 
             # 获取用户的语言偏好
-            user_lang = await get_user_language(user_email)
+            user_lang = await get_user_language(user_id)
             native_lang = user_lang["nativeLang"]
             target_lang = user_lang["targetLang"]
             logger.info(f"用户语言偏好: native_lang={native_lang}, target_lang={target_lang}")

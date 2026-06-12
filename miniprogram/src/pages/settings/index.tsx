@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import Taro from '@tarojs/taro';
 import { View, Text, Button, Picker } from '@tarojs/components';
 import { useReview } from '../../context/AppContext';
-import { useAuth } from '../../context/AuthContext';
 import { LANGUAGES, setLanguagePrefs } from '../../utils/languagePrefs';
 import { THEMES, setTheme } from '../../utils/theme';
 import { api } from '../../utils/api';
@@ -20,7 +19,6 @@ const GRADIENTS: Record<string, string> = {
 export default function SettingsPage() {
   const themeStyle = useTheme();
   const { state, dispatch } = useReview();
-  const { state: authState } = useAuth();
   const [selectedLang, setSelectedLang] = useState(state.targetLang);
   const [selectedTheme, setSelectedTheme] = useState(state.theme);
 
@@ -37,21 +35,17 @@ export default function SettingsPage() {
       setSelectedLang(lang.code);
       setLanguagePrefs({ nativeLang: 'zh', targetLang: lang.code });
       dispatch({ type: 'setLanguage', nativeLang: 'zh', targetLang: lang.code });
-      if (authState.isLoggedIn) {
-        api.updateLanguage('zh', lang.code).catch(() => {});
-      }
+      api.updateLanguage('zh', lang.code).catch(() => {});
     },
-    [targetLanguages, dispatch, authState.isLoggedIn],
+    [targetLanguages, dispatch],
   );
 
   const handleThemeChange = useCallback((themeId: string) => {
     setSelectedTheme(themeId);
     setTheme(themeId);
     dispatch({ type: 'setTheme', theme: themeId });
-    if (authState.isLoggedIn) {
-      api.updateTheme(themeId).catch(() => {});
-    }
-  }, [dispatch, authState.isLoggedIn]);
+    api.updateTheme(themeId).catch(() => {});
+  }, [dispatch]);
 
   const currentLangIndex = targetLanguages.findIndex((l) => l.code === selectedLang);
 

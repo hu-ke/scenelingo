@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import Taro from '@tarojs/taro';
 import { View, Text, Button, Image, ScrollView } from '@tarojs/components';
 import { useReview } from '../../context/AppContext';
-import { useAuth } from '../../context/AuthContext';
 import { api, getApiBaseUrl } from '../../utils/api';
 import { getJSONStorage } from '../../utils/storage';
 import { isMastered, toggleMastered } from '../../utils/wordMastery';
@@ -14,7 +13,6 @@ import './index.scss';
 export default function WordDetailPage() {
   const themeStyle = useTheme();
   const { state, dispatch } = useReview();
-  const { state: authState } = useAuth();
   const word = state.wordDetailWord;
   const [loading, setLoading] = useState(true);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -22,7 +20,7 @@ export default function WordDetailPage() {
 
   useEffect(() => {
     loadPhotos();
-  }, [authState.isLoggedIn]);
+  }, []);
 
   useEffect(() => {
     if (word) {
@@ -33,26 +31,21 @@ export default function WordDetailPage() {
   const loadPhotos = useCallback(async () => {
     setLoading(true);
     try {
-      if (authState.isLoggedIn) {
-        const res = await api.listPhotos();
-        const cloudPhotos: PhotoItem[] = (res.photos || []).map((p: Record<string, unknown>) => ({
-          id: (p.id || p._id || '') as string,
-          dataUrl: (p.originalUrl || '') as string,
-          annotatedDataUrl: p.annotatedUrl as string | undefined,
-          objects: (p.objects || []) as PhotoItem['objects'],
-        }));
-        setPhotos(cloudPhotos);
-      } else {
-        const localPhotos = getJSONStorage<PhotoItem[]>('saved_photos', []);
-        setPhotos(localPhotos);
-      }
+      const res = await api.listPhotos();
+      const cloudPhotos: PhotoItem[] = (res.photos || []).map((p: Record<string, unknown>) => ({
+        id: (p.id || p._id || '') as string,
+        dataUrl: (p.originalUrl || '') as string,
+        annotatedDataUrl: p.annotatedUrl as string | undefined,
+        objects: (p.objects || []) as PhotoItem['objects'],
+      }));
+      setPhotos(cloudPhotos);
     } catch {
       const localPhotos = getJSONStorage<PhotoItem[]>('saved_photos', []);
       setPhotos(localPhotos);
     } finally {
       setLoading(false);
     }
-  }, [authState.isLoggedIn]);
+  }, []);
 
   const wordData = useMemo(() => {
     if (!word) return null;

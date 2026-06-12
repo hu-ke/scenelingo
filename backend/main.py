@@ -33,6 +33,7 @@ from auth import update_user_language
 from auth import update_user_theme
 from auth import set_annotated_url
 from auth import get_user_wordbook, sync_user_wordbook, add_wordbook_word, remove_wordbook_word
+from auth import wechat_login
 from db import get_db, init_db, _client
 from oss_client import upload_photo, upload_metadata, list_user_photos, delete_photo
 
@@ -83,10 +84,10 @@ def require_auth(request: Request) -> str:
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="未登录")
     token = auth_header[7:]
-    email = verify_token(token)
-    if not email:
+    user_id = verify_token(token)
+    if not user_id:
         raise HTTPException(status_code=401, detail="token已过期，请重新登录")
-    return email
+    return user_id
 
 
 @app.post("/scenelingo-service/api/auth/send-code")
@@ -110,14 +111,26 @@ async def verify(req: VerifyRequest):
     if not await verify_code(email, req.code):
         raise HTTPException(status_code=400, detail="验证码错误或已过期")
     user_info = await get_or_create_user(email)
-    token = generate_token(email)
+    token = generate_token(user_info["user_id"])
     return {"token": token, "email": email, "nativeLang": user_info["nativeLang"], "targetLang": user_info["targetLang"], "theme": user_info.get("theme", "warm-orange")}
+
+
+class WechatLoginRequest(BaseModel):
+    code: str
+    email: str = ""
+
+@app.post("/scenelingo-service/api/auth/wechat-login")
+async def wechat_login_endpoint(req: WechatLoginRequest):
+    result = await wechat_login(req.code, req.email)
+    if result is None:
+        raise HTTPException(status_code=400, detail="微信登录失败")
+    return result
 
 
 @app.post("/scenelingo-service/api/user/language")
 async def update_language(request: Request, req: LanguageUpdateRequest):
-    email = require_auth(request)
-    success = await update_user_language(email, req.nativeLang, req.targetLang)
+    user_id = require_auth(request)
+    success = await update_user_language(user_id, req.nativeLang, req.targetLang)
     if not success:
         raise HTTPException(status_code=500, detail="更新语言偏好失败")
     return {"success": True}
@@ -125,8 +138,8 @@ async def update_language(request: Request, req: LanguageUpdateRequest):
 
 @app.post("/scenelingo-service/api/user/theme")
 async def update_theme(request: Request, req: ThemeUpdateRequest):
-    email = require_auth(request)
-    success = await update_user_theme(email, req.theme)
+    user_id = require_auth(request)
+    success = await update_user_theme(user_id, req.theme)
     if not success:
         raise HTTPException(status_code=500, detail="更新主题失败")
     return {"success": True}
@@ -353,7 +366,7 @@ async def recognize(image: UploadFile = None, request: Request = None):
 
 @app.post("/scenelingo-service/api/photos/upload")
 async def upload_photos(request: Request):
-    email = require_auth(request)
+    user_id = require_auth(request)
     form = await request.form()
     original_file = form.get("original")
     original_url = form.get("original_url")
@@ -372,13 +385,13 @@ async def upload_photos(request: Request):
 
     if original_file is not None:
         original_data = await original_file.read()
-        if not upload_photo(email, photo_id, original_data, "original.jpg"):
+        if not upload_photo(user_id, photo_id, original_data, "original.jpg"):
             raise HTTPException(status_code=500, detail="原图上传失败")
     elif original_url:
         logger.info(f"原图URL为: {original_url}，跳过重复上传")
 
     annotated_data = await annotated_file.read()
-    if not upload_photo(email, photo_id, annotated_data, "annotated.jpg"):
+    if not upload_photo(user_id, photo_id, annotated_data, "annotated.jpg"):
         raise HTTPException(status_code=500, detail="标注图上传失败")
 
     meta = {
@@ -387,16 +400,16 @@ async def upload_photos(request: Request):
         "createdAt": metadata.get("createdAt", 0),
     }
 
-    mongo_saved = await save_photo_record(email, photo_id, meta)
+    mongo_saved = await save_photo_record(user_id, photo_id, meta)
     if not mongo_saved:
-        upload_metadata(email, photo_id, meta)
+        upload_metadata(user_id, photo_id, meta)
 
     return {"success": True, "photoId": photo_id}
 
 
 @app.post("/scenelingo-service/api/photos/upload-pending")
 async def upload_pending(request: Request):
-    email = require_auth(request)
+    user_id = require_auth(request)
     form = await request.form()
     original_file = form.get("original")
 
@@ -406,10 +419,10 @@ async def upload_pending(request: Request):
     photo_id = uuid.uuid4().hex[:16]
 
     original_data = await original_file.read()
-    if not upload_photo(email, photo_id, original_data, "original.jpg"):
+    if not upload_photo(user_id, photo_id, original_data, "original.jpg"):
         raise HTTPException(status_code=500, detail="原图上传失败")
 
-    saved = await save_pending_photo_record(email, photo_id)
+    saved = await save_pending_photo_record(user_id, photo_id)
     if not saved:
         raise HTTPException(status_code=500, detail="保存记录失败")
 
@@ -418,7 +431,7 @@ async def upload_pending(request: Request):
 
 @app.post("/scenelingo-service/api/photos/upload-annotated")
 async def upload_annotated(request: Request):
-    email = require_auth(request)
+    user_id = require_auth(request)
     form = await request.form()
     annotated_file = form.get("annotated")
     photo_id = str(form.get("photo_id", ""))
@@ -427,12 +440,12 @@ async def upload_annotated(request: Request):
         raise HTTPException(status_code=400, detail="缺少标注图或照片ID")
 
     annotated_data = await annotated_file.read()
-    if not upload_photo(email, photo_id, annotated_data, "annotated.jpg"):
+    if not upload_photo(user_id, photo_id, annotated_data, "annotated.jpg"):
         raise HTTPException(status_code=500, detail="标注图上传失败")
 
     bucket = os.environ.get("OSS_BUCKET_NAME", "scenelingo")
     endpoint = os.environ.get("OSS_ENDPOINT", "oss-cn-hangzhou.aliyuncs.com")
-    annotated_url = f"https://{bucket}.{endpoint}/photos/{email}/{photo_id}/annotated.jpg"
+    annotated_url = f"https://{bucket}.{endpoint}/photos/{user_id}/{photo_id}/annotated.jpg"
     await set_annotated_url(photo_id, annotated_url)
 
     return {"success": True, "photoId": photo_id}
@@ -465,53 +478,53 @@ async def image_proxy(url: str = Query(...)):
 
 @app.get("/scenelingo-service/api/photos/list")
 async def list_photos(request: Request, start_date: str = None, end_date: str = None):
-    email = require_auth(request)
-    logger.info(f"[list_photos] 用户 {email} 请求照片列表, start_date={start_date}, end_date={end_date}")
-    photos = await list_user_photos_mongo(email, start_date, end_date)
+    user_id = require_auth(request)
+    logger.info(f"[list_photos] 用户 {user_id} 请求照片列表, start_date={start_date}, end_date={end_date}")
+    photos = await list_user_photos_mongo(user_id, start_date, end_date)
     if photos is None:
         logger.warning(f"[list_photos] MongoDB 不可用, 降级到 OSS 查询")
-        photos = list_user_photos(email)
-    logger.info(f"[list_photos] 返回 {len(photos)} 张照片给 {email}")
+        photos = list_user_photos(user_id)
+    logger.info(f"[list_photos] 返回 {len(photos)} 张照片给 {user_id}")
     return {"photos": photos}
 
 
 @app.delete("/scenelingo-service/api/photos/delete")
 async def delete_photos(request: Request):
-    email = require_auth(request)
+    user_id = require_auth(request)
     photo_id = request.query_params.get("id", "")
     if not photo_id:
         raise HTTPException(status_code=400, detail="缺少照片ID")
-    await delete_photo_record(email, photo_id)
-    delete_photo(email, photo_id)
+    await delete_photo_record(user_id, photo_id)
+    delete_photo(user_id, photo_id)
     return {"success": True}
 
 
 @app.get("/scenelingo-service/api/wordbook/list")
 async def list_wordbook(request: Request):
-    email = require_auth(request)
-    words = await get_user_wordbook(email)
+    user_id = require_auth(request)
+    words = await get_user_wordbook(user_id)
     return {"words": words}
 
 @app.post("/scenelingo-service/api/wordbook/sync")
 async def sync_wordbook(request: Request, req: WordbookSyncRequest):
-    email = require_auth(request)
-    success = await sync_user_wordbook(email, req.words)
+    user_id = require_auth(request)
+    success = await sync_user_wordbook(user_id, req.words)
     if not success:
         raise HTTPException(status_code=500, detail="同步生词本失败")
     return {"success": True}
 
 @app.post("/scenelingo-service/api/wordbook/add")
 async def add_to_wordbook(request: Request, req: WordbookWordRequest):
-    email = require_auth(request)
-    success = await add_wordbook_word(email, req.word)
+    user_id = require_auth(request)
+    success = await add_wordbook_word(user_id, req.word)
     if not success:
         raise HTTPException(status_code=500, detail="添加生词失败")
     return {"success": True}
 
 @app.post("/scenelingo-service/api/wordbook/remove")
 async def remove_from_wordbook(request: Request, req: WordbookWordRequest):
-    email = require_auth(request)
-    success = await remove_wordbook_word(email, req.word)
+    user_id = require_auth(request)
+    success = await remove_wordbook_word(user_id, req.word)
     if not success:
         raise HTTPException(status_code=500, detail="移除生词失败")
     return {"success": True}

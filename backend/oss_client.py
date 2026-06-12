@@ -15,11 +15,11 @@ def _get_bucket():
     auth = oss2.Auth(OSS_ACCESS_KEY, OSS_ACCESS_SECRET)
     return oss2.Bucket(auth, OSS_ENDPOINT, OSS_BUCKET)
 
-def upload_photo(email: str, photo_id: str, file_data: bytes, filename: str) -> bool:
+def upload_photo(user_id: str, photo_id: str, file_data: bytes, filename: str) -> bool:
     bucket = _get_bucket()
     if not bucket:
         return False
-    key = f"photos/{email}/{photo_id}/{filename}"
+    key = f"photos/{user_id}/{photo_id}/{filename}"
     try:
         bucket.put_object(key, file_data)
         return True
@@ -27,11 +27,11 @@ def upload_photo(email: str, photo_id: str, file_data: bytes, filename: str) -> 
         logger.error(f"[OSS] 上传失败: {e}")
         return False
 
-def upload_metadata(email: str, photo_id: str, meta: dict) -> bool:
+def upload_metadata(user_id: str, photo_id: str, meta: dict) -> bool:
     bucket = _get_bucket()
     if not bucket:
         return False
-    key = f"photos/{email}/{photo_id}/meta.json"
+    key = f"photos/{user_id}/{photo_id}/meta.json"
     try:
         bucket.put_object(key, json.dumps(meta, ensure_ascii=False).encode("utf-8"))
         return True
@@ -39,11 +39,11 @@ def upload_metadata(email: str, photo_id: str, meta: dict) -> bool:
         logger.error(f"[OSS] 元数据上传失败: {e}")
         return False
 
-def list_user_photos(email: str) -> list[dict]:
+def list_user_photos(user_id: str) -> list[dict]:
     bucket = _get_bucket()
     if not bucket:
         return []
-    prefix = f"photos/{email}/"
+    prefix = f"photos/{user_id}/"
     result = []
     try:
         for obj in oss2.ObjectIterator(bucket, prefix=prefix, delimiter="/"):
@@ -55,8 +55,8 @@ def list_user_photos(email: str) -> list[dict]:
                     meta = json.loads(content.decode("utf-8"))
                     result.append({
                         "id": photo_id,
-                        "originalUrl": f"https://{OSS_BUCKET}.{OSS_ENDPOINT}/photos/{email}/{photo_id}/original.jpg",
-                        "annotatedUrl": f"https://{OSS_BUCKET}.{OSS_ENDPOINT}/photos/{email}/{photo_id}/annotated.jpg",
+                        "originalUrl": f"https://{OSS_BUCKET}.{OSS_ENDPOINT}/photos/{user_id}/{photo_id}/original.jpg",
+                        "annotatedUrl": f"https://{OSS_BUCKET}.{OSS_ENDPOINT}/photos/{user_id}/{photo_id}/annotated.jpg",
                         "objects": meta.get("objects", []),
                         "collectionDate": meta.get("collectionDate", ""),
                         "createdAt": meta.get("createdAt", 0),
@@ -67,11 +67,11 @@ def list_user_photos(email: str) -> list[dict]:
         logger.error(f"[OSS] 列出文件失败: {e}")
     return result
 
-def delete_photo(email: str, photo_id: str) -> bool:
+def delete_photo(user_id: str, photo_id: str) -> bool:
     bucket = _get_bucket()
     if not bucket:
         return False
-    prefix = f"photos/{email}/{photo_id}/"
+    prefix = f"photos/{user_id}/{photo_id}/"
     try:
         keys = [obj.key for obj in oss2.ObjectIterator(bucket, prefix=prefix)]
         if keys:

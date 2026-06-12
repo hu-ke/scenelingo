@@ -2,17 +2,13 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { View, Text, Button, Input, Textarea } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useReview } from '../../context/AppContext'
-import { useAuth } from '../../context/AuthContext'
 import { api } from '../../utils/api'
-import { getJSONStorage, setJSONStorage } from '../../utils/storage'
 import AnnotatedImage from '../../components/AnnotatedImage'
 import WordCard from '../../components/WordCard'
 import { getWordbookWords } from '../../utils/wordMastery'
 import { useTheme } from '../../hooks/useTheme'
-import type { RecognizedObject, RecognizedAction, PhotoItem } from '../../context/AppContext'
+import type { RecognizedObject, RecognizedAction } from '../../context/AppContext'
 import './index.scss'
-
-const MAX_LOCAL_PHOTOS = 10
 
 function mapObjects(raw: Record<string, unknown>[]): RecognizedObject[] {
   return (raw || []).map((obj: Record<string, unknown>) => ({
@@ -38,12 +34,10 @@ function mapActions(raw: Record<string, unknown>[]): RecognizedAction[] {
 export default function ReviewPage() {
   const themeStyle = useTheme()
   const { state, dispatch } = useReview()
-  const { state: authState } = useAuth()
   const { photos, currentIndex, currentObjects, currentActions, isReviewing, nativeLang, targetLang } = state
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showLoginPrompt, setShowLoginPrompt] = useState(false)
   const [showReRecognizeDialog, setShowReRecognizeDialog] = useState(false)
   const [reRecognizeHint, setReRecognizeHint] = useState('')
   const [wordbookWords, setWordbookWords] = useState<string[]>([])
@@ -53,10 +47,8 @@ export default function ReviewPage() {
 
   // 加载生词本列表
   useEffect(() => {
-    if (authState.isLoggedIn) {
-      getWordbookWords().then(setWordbookWords)
-    }
-  }, [authState.isLoggedIn])
+    getWordbookWords().then(setWordbookWords)
+  }, [])
 
   const recognizeImage = useCallback(async (hint?: string) => {
     if (!currentPhoto) return
@@ -146,40 +138,24 @@ export default function ReviewPage() {
       }
     }
 
-    if (!authState.isLoggedIn) {
-      const localPhotos = getJSONStorage<PhotoItem[]>('saved_photos', [])
-      if (localPhotos.length >= MAX_LOCAL_PHOTOS) {
-        setShowLoginPrompt(true)
-        dispatch({ type: 'nextPhoto' })
-        return
-      }
-      const savedPhoto: PhotoItem = {
-        ...currentPhoto,
-        annotatedDataUrl: currentPhoto.annotatedDataUrl,
-        objects: currentObjects ?? undefined,
-      }
-      localPhotos.push(savedPhoto)
-      setJSONStorage('saved_photos', localPhotos)
-    } else {
-      try {
-        await api.uploadPending(currentPhoto.dataUrl)
-        await api.uploadPhoto(annotatedPath, {
-          objects: currentObjects,
-          nativeLang,
-          targetLang,
-          id: currentPhoto.id,
-          collectionDate: new Date().toISOString().split('T')[0],
-          createdAt: Date.now(),
-        })
-      } catch {
-        if (saveToAlbumSuccess) {
-          Taro.showToast({ title: '已保存到相册', icon: 'success' })
-        }
+    try {
+      await api.uploadPending(currentPhoto.dataUrl)
+      await api.uploadPhoto(annotatedPath, {
+        objects: currentObjects,
+        nativeLang,
+        targetLang,
+        id: currentPhoto.id,
+        collectionDate: new Date().toISOString().split('T')[0],
+        createdAt: Date.now(),
+      })
+    } catch {
+      if (saveToAlbumSuccess) {
+        Taro.showToast({ title: '已保存到相册', icon: 'success' })
       }
     }
 
     dispatch({ type: 'nextPhoto' })
-  }, [currentPhoto, currentObjects, authState.isLoggedIn, dispatch, nativeLang, targetLang])
+  }, [currentPhoto, currentObjects, dispatch, nativeLang, targetLang])
 
   const handleBack = useCallback(() => {
     dispatch({ type: 'resetReview' })
@@ -283,20 +259,6 @@ export default function ReviewPage() {
           下载
         </Button>
       </View>
-
-      {showLoginPrompt && (
-        <View className="review-login-prompt-mask" onClick={() => setShowLoginPrompt(false)}>
-          <View className="review-login-prompt-card" onClick={(e: unknown) => (e as { stopPropagation?: () => void })?.stopPropagation?.()}>
-            <Text className="review-login-prompt-icon">🔒</Text>
-            <Text className="review-login-prompt-title">本地最多保存10张照片</Text>
-            <Text className="review-login-prompt-desc">登录后可无限存储，还能跨设备同步哦~</Text>
-            <Button onClick={() => { Taro.navigateTo({ url: '/pages/login/index' }); setShowLoginPrompt(false); }}>
-              去登录
-            </Button>
-            <Button onClick={() => setShowLoginPrompt(false)}>暂不登录</Button>
-          </View>
-        </View>
-      )}
 
       {/* 重新识别弹框 */}
       {showReRecognizeDialog && (

@@ -6,12 +6,15 @@ import jwt
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
+from bson import ObjectId
 from loguru import logger
 
 CODE_EXPIRE_SECONDS = 300
 CODE_RESEND_SECONDS = 60
 JWT_SECRET = os.environ.get("JWT_SECRET", "scene-lingo-dev-secret-key-2025!")
 JWT_EXPIRE_DAYS = 30
+WECHAT_APPID = os.environ.get("WECHAT_APPID", "")
+WECHAT_SECRET = os.environ.get("WECHAT_SECRET", "")
 
 SMTP_HOST = os.environ.get("SMTP_HOST", "")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
@@ -132,7 +135,7 @@ def send_email(to_email: str, code: str) -> bool:
 async def get_or_create_user(email: str) -> dict:
     from db import db
     if db is None:
-        return {"email": email, "nativeLang": "zh", "targetLang": "en"}
+        return {"user_id": "", "email": email, "nativeLang": "zh", "targetLang": "en"}
 
     user = await db.users.find_one({"email": email})
     now = datetime.utcnow()
@@ -148,7 +151,7 @@ async def get_or_create_user(email: str) -> dict:
         native_lang = "zh"
         target_lang = "en"
         theme = "warm-orange"
-        await db.users.insert_one({
+        result = await db.users.insert_one({
             "email": email,
             "native_lang": native_lang,
             "target_lang": target_lang,
@@ -157,43 +160,139 @@ async def get_or_create_user(email: str) -> dict:
             "updated_at": now,
             "last_login_at": now,
         })
+        user = {"_id": result.inserted_id}
         logger.info(f"[get_or_create_user] 新建用户 {email}, native_lang={native_lang}, target_lang={target_lang}, theme={theme}")
 
-    return {"email": email, "nativeLang": native_lang, "targetLang": target_lang, "theme": theme}
+    return {"user_id": str(user["_id"]), "email": email, "nativeLang": native_lang, "targetLang": target_lang, "theme": theme}
 
-async def update_user_language(email: str, nativeLang: str, targetLang: str) -> bool:
+async def get_or_create_user_by_openid(openid: str) -> dict:
+    from db import db
+    if db is None:
+        logger.warning("[get_or_create_user_by_openid] db 为 None")
+        return {"user_id": "", "email": "", "nativeLang": "zh", "targetLang": "en"}
+
+    user = await db.users.find_one({"openid": openid})
+    now = datetime.utcnow()
+    if user:
+        await db.users.update_one(
+            {"_id": user["_id"]},
+            {"$set": {"last_login_at": now, "updated_at": now}}
+        )
+        user_id = str(user["_id"])
+        native_lang = user.get("native_lang", "zh")
+        target_lang = user.get("target_lang", "en")
+        theme = user.get("theme", "warm-orange")
+        logger.info(f"[get_or_create_user_by_openid] 已有用户 openid={openid} user_id={user_id}")
+    else:
+        native_lang = "zh"
+        target_lang = "en"
+        theme = "warm-orange"
+        result = await db.users.insert_one({
+            "email": "",
+            "openid": openid,
+            "native_lang": native_lang,
+            "target_lang": target_lang,
+            "theme": theme,
+            "created_at": now,
+            "updated_at": now,
+            "last_login_at": now,
+        })
+        user_id = str(result.inserted_id)
+        logger.info(f"[get_or_create_user_by_openid] 新建用户 openid={openid} user_id={user_id}")
+
+    return {"user_id": user_id, "email": "", "nativeLang": native_lang, "targetLang": target_lang, "theme": theme}
+
+async def wechat_login(code: str, email: str = "") -> dict | None:
+    import urllib.request
+    import json as json_mod
+    
+    if not WECHAT_APPID or not WECHAT_SECRET:
+        logger.error("[wechat_login] WECHAT_APPID 或 WECHAT_SECRET 未配置")
+        return None
+    
+    url = f"https://api.weixin.qq.com/sns/jscode2session?appid={WECHAT_APPID}&secret={WECHAT_SECRET}&js_code={code}&grant_type=authorization_code"
+    
+    try:
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json_mod.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        logger.error(f"[wechat_login] 微信 code2Session 请求失败: {e}")
+        return None
+    
+    openid = data.get("openid")
+    if not openid:
+        logger.error(f"[wechat_login] 微信返回错误: {data}")
+        return None
+    
+    logger.info(f"[wechat_login] 获取到 openid={openid}")
+    
+    # 如果客户端传了旧邮箱，尝试绑定到已有账号
+    from db import db
+    if email and db is not None:
+        existing_user = await db.users.find_one({"email": email})
+        if existing_user:
+            # 已有邮箱用户，将 openid 绑定到该用户
+            user_id = str(existing_user["_id"])
+            await db.users.update_one(
+                {"_id": existing_user["_id"]},
+                {"$set": {"openid": openid, "updated_at": datetime.utcnow(), "last_login_at": datetime.utcnow()}}
+            )
+            native_lang = existing_user.get("native_lang", "zh")
+            target_lang = existing_user.get("target_lang", "en")
+            theme = existing_user.get("theme", "warm-orange")
+            logger.info(f"[wechat_login] 已将 openid={openid} 绑定到已有邮箱用户 {email} user_id={user_id}")
+            token = generate_token(user_id)
+            return {
+                "token": token,
+                "user_id": user_id,
+                "email": email,
+                "nativeLang": native_lang,
+                "targetLang": target_lang,
+                "theme": theme,
+            }
+    
+    user_info = await get_or_create_user_by_openid(openid)
+    token = generate_token(user_info["user_id"])
+    
+    return {
+        "token": token,
+        **user_info,
+    }
+
+async def update_user_language(user_id: str, nativeLang: str, targetLang: str) -> bool:
     from db import db
     if db is None:
         logger.warning("[update_user_language] db 为 None, 无法更新语言偏好")
         return False
 
     result = await db.users.update_one(
-        {"email": email},
+        {"_id": ObjectId(user_id)},
         {"$set": {"native_lang": nativeLang, "target_lang": targetLang, "updated_at": datetime.utcnow()}}
     )
     if result.matched_count > 0:
-        logger.info(f"[update_user_language] 用户 {email} 语言偏好已更新: native_lang={nativeLang}, target_lang={targetLang}")
+        logger.info(f"[update_user_language] 用户 {user_id} 语言偏好已更新: native_lang={nativeLang}, target_lang={targetLang}")
     else:
-        logger.warning(f"[update_user_language] 未找到用户 {email}")
+        logger.warning(f"[update_user_language] 未找到用户 {user_id}")
     return result.matched_count > 0
 
-async def update_user_theme(email: str, themeId: str) -> bool:
+async def update_user_theme(user_id: str, themeId: str) -> bool:
     from db import db
     if db is None:
         logger.warning("[update_user_theme] db 为 None, 无法更新主题")
         return False
 
     result = await db.users.update_one(
-        {"email": email},
+        {"_id": ObjectId(user_id)},
         {"$set": {"theme": themeId, "updated_at": datetime.utcnow()}}
     )
     if result.matched_count > 0:
-        logger.info(f"[update_user_theme] 用户 {email} 主题已更新: theme={themeId}")
+        logger.info(f"[update_user_theme] 用户 {user_id} 主题已更新: theme={themeId}")
     else:
-        logger.warning(f"[update_user_theme] 未找到用户 {email}")
+        logger.warning(f"[update_user_theme] 未找到用户 {user_id}")
     return result.matched_count > 0
 
-async def get_user_language(email: str) -> dict:
+async def get_user_language(user_id: str) -> dict:
     """获取用户的语言偏好设置。如果用户不存在或未设置，返回默认值。"""
     from db import db
     default_prefs = {"nativeLang": "zh", "targetLang": "en"}
@@ -202,71 +301,84 @@ async def get_user_language(email: str) -> dict:
         logger.warning("[get_user_language] db 为 None, 返回默认语言偏好")
         return default_prefs
 
-    user = await db.users.find_one({"email": email})
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
     if user:
         native_lang = user.get("native_lang", "zh")
         target_lang = user.get("target_lang", "en")
-        logger.info(f"[get_user_language] 用户 {email} 语言偏好: native_lang={native_lang}, target_lang={target_lang}")
+        logger.info(f"[get_user_language] 用户 {user_id} 语言偏好: native_lang={native_lang}, target_lang={target_lang}")
         return {"nativeLang": native_lang, "targetLang": target_lang}
     else:
-        logger.warning(f"[get_user_language] 未找到用户 {email}, 返回默认语言偏好")
+        logger.warning(f"[get_user_language] 未找到用户 {user_id}, 返回默认语言偏好")
         return default_prefs
 
+async def get_user_id_by_email(email: str) -> str | None:
+    """通过 email 查找用户的 _id"""
+    from db import db
+    if db is None:
+        logger.warning("[get_user_id_by_email] db 为 None")
+        return None
+    
+    user = await db.users.find_one({"email": email})
+    if user:
+        return str(user["_id"])
+    logger.warning(f"[get_user_id_by_email] 未找到用户 {email}")
+    return None
+
 # ---- Wordbook operations (MongoDB) ----
-async def get_user_wordbook(user_email: str) -> list[str]:
+async def get_user_wordbook(user_id: str) -> list[str]:
     from db import db
     if db is None:
         return []
-    doc = await db.wordbooks.find_one({"user_email": user_email})
+    doc = await db.wordbooks.find_one({"user_id": user_id})
     if doc:
         return doc.get("words", [])
     return []
 
-async def sync_user_wordbook(user_email: str, words: list[str]) -> bool:
+async def sync_user_wordbook(user_id: str, words: list[str]) -> bool:
     from db import db
     if db is None:
         logger.warning("[sync_user_wordbook] db 为 None")
         return False
     normalized = [w.lower() for w in words]
     await db.wordbooks.update_one(
-        {"user_email": user_email},
+        {"user_id": user_id},
         {"$set": {"words": normalized, "updated_at": datetime.utcnow()}},
         upsert=True,
     )
-    logger.info(f"[sync_user_wordbook] 用户 {user_email} 生词本已同步, {len(normalized)} 个单词")
+    logger.info(f"[sync_user_wordbook] 用户 {user_id} 生词本已同步, {len(normalized)} 个单词")
     return True
 
-async def add_wordbook_word(user_email: str, word: str) -> bool:
+async def add_wordbook_word(user_id: str, word: str) -> bool:
     from db import db
     if db is None:
         logger.warning("[add_wordbook_word] db 为 None")
         return False
     normalized = word.lower()
     await db.wordbooks.update_one(
-        {"user_email": user_email},
+        {"user_id": user_id},
         {"$addToSet": {"words": normalized}, "$set": {"updated_at": datetime.utcnow()}},
         upsert=True,
     )
-    logger.info(f"[add_wordbook_word] 用户 {user_email} 添加生词: {normalized}")
+    logger.info(f"[add_wordbook_word] 用户 {user_id} 添加生词: {normalized}")
     return True
 
-async def remove_wordbook_word(user_email: str, word: str) -> bool:
+async def remove_wordbook_word(user_id: str, word: str) -> bool:
     from db import db
     if db is None:
         logger.warning("[remove_wordbook_word] db 为 None")
         return False
     normalized = word.lower()
     await db.wordbooks.update_one(
-        {"user_email": user_email},
+        {"user_id": user_id},
         {"$pull": {"words": normalized}, "$set": {"updated_at": datetime.utcnow()}},
     )
-    logger.info(f"[remove_wordbook_word] 用户 {user_email} 移除生词: {normalized}")
+    logger.info(f"[remove_wordbook_word] 用户 {user_id} 移除生词: {normalized}")
     return True
 
 # ---- JWT Token ----
-def generate_token(email: str) -> str:
+def generate_token(user_id: str) -> str:
     payload = {
-        "email": email,
+        "user_id": user_id,
         "exp": datetime.utcnow() + timedelta(days=JWT_EXPIRE_DAYS),
         "iat": datetime.utcnow(),
     }
@@ -275,14 +387,14 @@ def generate_token(email: str) -> str:
 def verify_token(token: str) -> str | None:
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-        return payload.get("email")
+        return payload.get("user_id")
     except jwt.ExpiredSignatureError:
         return None
     except jwt.InvalidTokenError:
         return None
 
 # ---- Photo operations (MongoDB) ----
-async def save_photo_record(user_email: str, photo_id: str, metadata: dict) -> bool:
+async def save_photo_record(user_id: str, photo_id: str, metadata: dict) -> bool:
     from db import db
     if db is None:
         logger.warning("[save_photo_record] db 为 None, 无法保存")
@@ -293,18 +405,18 @@ async def save_photo_record(user_email: str, photo_id: str, metadata: dict) -> b
     
     await db.photos.insert_one({
         "photo_id": photo_id,
-        "user_email": user_email,
+        "user_id": user_id,
         "collection_date": metadata.get("collectionDate", ""),
-        "original_url": f"{base_url}/photos/{user_email}/{photo_id}/original.jpg",
-        "annotated_url": f"{base_url}/photos/{user_email}/{photo_id}/annotated.jpg",
+        "original_url": f"{base_url}/photos/{user_id}/{photo_id}/original.jpg",
+        "annotated_url": f"{base_url}/photos/{user_id}/{photo_id}/annotated.jpg",
         "objects": metadata.get("objects", []),
         "actions": metadata.get("actions", []),
         "created_at": datetime.utcnow(),
     })
-    logger.info(f"[save_photo_record] 照片已保存 user_email={user_email} photo_id={photo_id}")
+    logger.info(f"[save_photo_record] 照片已保存 user_id={user_id} photo_id={photo_id}")
     return True
 
-async def save_pending_photo_record(user_email: str, photo_id: str) -> bool:
+async def save_pending_photo_record(user_id: str, photo_id: str) -> bool:
     from db import db
     if db is None:
         logger.warning("[save_pending_photo_record] db 为 None, 无法保存")
@@ -315,15 +427,15 @@ async def save_pending_photo_record(user_email: str, photo_id: str) -> bool:
 
     await db.photos.insert_one({
         "photo_id": photo_id,
-        "user_email": user_email,
+        "user_id": user_id,
         "collection_date": datetime.utcnow().strftime('%Y-%m-%d'),
-        "original_url": f"{base_url}/photos/{user_email}/{photo_id}/original.jpg",
+        "original_url": f"{base_url}/photos/{user_id}/{photo_id}/original.jpg",
         "annotated_url": "",
         "objects": [],
         "status": "pending",
         "created_at": datetime.utcnow(),
     })
-    logger.info(f"[save_pending_photo_record] 待处理照片已保存 user_email={user_email} photo_id={photo_id}")
+    logger.info(f"[save_pending_photo_record] 待处理照片已保存 user_id={user_id} photo_id={photo_id}")
     return True
 
 async def claim_pending_photo() -> dict | None:
@@ -338,7 +450,7 @@ async def claim_pending_photo() -> dict | None:
         sort=[("created_at", 1)],
     )
     if doc:
-        logger.info(f"[claim_pending_photo] 认领照片 photo_id={doc.get('photo_id')} user_email={doc.get('user_email')}")
+        logger.info(f"[claim_pending_photo] 认领照片 photo_id={doc.get('photo_id')} user_id={doc.get('user_id')}")
         return doc
     # logger.info("[claim_pending_photo] 无待处理照片")
     return None
@@ -393,14 +505,14 @@ async def reset_photo_to_pending(photo_id: str) -> bool:
         logger.warning(f"[reset_photo_to_pending] 未找到照片 photo_id={photo_id}")
     return result.matched_count > 0
 
-async def list_user_photos_mongo(user_email: str, start_date: str = None, end_date: str = None) -> list[dict]:
+async def list_user_photos_mongo(user_id: str, start_date: str = None, end_date: str = None) -> list[dict]:
     from db import db
     if db is None:
         logger.warning("[list_user_photos_mongo] db 为 None, 无法查询 MongoDB")
         return None
-    logger.info(f"[list_user_photos_mongo] 查询 user_email={user_email}, start_date={start_date}, end_date={end_date}")
+    logger.info(f"[list_user_photos_mongo] 查询 user_id={user_id}, start_date={start_date}, end_date={end_date}")
     
-    query = {"user_email": user_email}
+    query = {"user_id": user_id}
     if start_date or end_date:
         date_filter = {}
         if start_date:
@@ -422,20 +534,20 @@ async def list_user_photos_mongo(user_email: str, start_date: str = None, end_da
             "createdAt": doc["created_at"].timestamp() if doc.get("created_at") else 0,
             "status": doc.get("status", "completed"),
         })
-    logger.info(f"[list_user_photos_mongo] 找到 {len(photos)} 张照片 user_email={user_email}")
+    logger.info(f"[list_user_photos_mongo] 找到 {len(photos)} 张照片 user_id={user_id}")
 
     if len(photos) == 0:
         total = await db.photos.count_documents({})
         logger.warning(f"[list_user_photos_mongo] 查询为空! photos 集合总数={total}")
         if total > 0:
             sample = await db.photos.find_one()
-            logger.warning(f"[list_user_photos_mongo] 样例文档 user_email={sample.get('user_email')} photo_id={sample.get('photo_id')}")
+            logger.warning(f"[list_user_photos_mongo] 样例文档 user_id={sample.get('user_id')} photo_id={sample.get('photo_id')}")
 
     return photos
 
-async def delete_photo_record(user_email: str, photo_id: str) -> bool:
+async def delete_photo_record(user_id: str, photo_id: str) -> bool:
     from db import db
     if db is None:
         return False
-    await db.photos.delete_one({"user_email": user_email, "photo_id": photo_id})
+    await db.photos.delete_one({"user_id": user_id, "photo_id": photo_id})
     return True

@@ -1,0 +1,25 @@
+- [x] `auth.py`: `generate_token` 使用 `user_id` 参数
+- [x] `auth.py`: `verify_token` 返回 `user_id`
+- [x] `auth.py`: 新增 `WECHAT_APPID` 和 `WECHAT_SECRET` 环境变量读取
+- [x] `auth.py`: 新增 `get_or_create_user_by_openid(openid)` 函数
+- [x] `auth.py`: 新增 `wechat_login(code)` 函数（完整 code2Session + 用户创建 + JWT 生成）
+- [x] `auth.py`: `update_user_language` 参数 email → user_id，查询 `_id`
+- [x] `auth.py`: `update_user_theme` 参数 email → user_id，查询 `_id`
+- [x] `auth.py`: `get_user_language` 参数 email → user_id，查询 `_id`
+- [x] `auth.py`: `get_or_create_user(email)` 保持不变（web 前端邮箱登录用）
+- [x] `db.py`: users 集合新增 `openid` 稀疏唯一索引
+- [x] `main.py`: `require_auth()` 从 JWT 提取 `user_id` 并返回
+- [x] `main.py`: 移除各端点中 `get_user_id_by_email()` 调用
+- [x] `main.py`: 新增 `POST /api/auth/wechat-login` 端点
+- [x] `main.py`: `update_language`、`update_theme` 端点传 `user_id`
+- [x] `main.py`: 邮箱登录端点（send-code, verify）保持不变
+- [x] `worker.py`: 移除 email 查找逻辑，直接调用 `get_user_language(user_id)`
+- [x] 小程序 `AuthContext.tsx`: 新增自动微信登录逻辑（`loginWechat`）
+- [x] 小程序 `AuthContext.tsx`: 存储键从 `scene_lingo_email` 改为 `scene_lingo_user_id`
+- [x] 小程序 `api.ts`: 新增 `wechatLogin(code)` 函数
+- [x] 小程序 `api.ts`: 401 处理改为重定向到首页
+- [x] 小程序登录页面已删除
+- [x] 小程序 `app.config.ts` 中已移除 login 路由
+- [x] 小程序首页已移除邮箱显示、登录/退出按钮
+- [x] 小程序首页已移除所有 `isLoggedIn` 条件判断
+- [x] 小程序 review/merge/wordbook/worddetail/settings 页面已移除 `isLoggedIn` 条件

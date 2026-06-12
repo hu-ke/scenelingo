@@ -1,0 +1,21 @@
+- [x] `db.py` 中 photos 集合的 3 个 `user_email` 索引已改为 `user_id`
+- [x] `db.py` 中 wordbooks 集合的 `user_email` 索引已改为 `user_id`
+- [x] `oss_client.py` 中所有函数参数从 `email` 改为 `user_id`，OSS 路径使用 `photos/{user_id}/`
+- [x] `auth.py` 中新增 `get_user_id_by_email(email)` 辅助函数
+- [x] `auth.py` 中 `get_user_wordbook()` 参数和查询条件改为 `user_id`
+- [x] `auth.py` 中 `sync_user_wordbook()` 参数和 upsert 条件改为 `user_id`
+- [x] `auth.py` 中 `add_wordbook_word()` 参数和查询条件改为 `user_id`
+- [x] `auth.py` 中 `remove_wordbook_word()` 参数和查询条件改为 `user_id`
+- [x] `auth.py` 中 `save_photo_record()` 参数改为 `user_id`，存储字段和 OSS URL 使用 `user_id`
+- [x] `auth.py` 中 `save_pending_photo_record()` 参数改为 `user_id`，存储字段和 OSS URL 使用 `user_id`
+- [x] `auth.py` 中 `list_user_photos_mongo()` 参数和查询条件改为 `user_id`
+- [x] `auth.py` 中 `delete_photo_record()` 参数和删除条件改为 `user_id`
+- [x] `auth.py` 中 `claim_pending_photo()` 日志输出改为 `user_id`
+- [x] `main.py` 中 `upload_photos` 端点通过 email 解析 user_id 后传入函数
+- [x] `main.py` 中 `upload_pending` 端点通过 email 解析 user_id 后传入函数
+- [x] `main.py` 中 `upload_annotated` 端点通过 email 解析 user_id 后传入函数，OSS URL 使用 user_id
+- [x] `main.py` 中 `list_photos` 端点通过 email 解析 user_id 后传入函数
+- [x] `main.py` 中 `delete_photos` 端点通过 email 解析 user_id 后传入函数
+- [x] `main.py` 中 wordbook 相关端点通过 email 解析 user_id 后传入函数
+- [x] `worker.py` 从文档读取 `user_id`，通过 users 表查找 email 后调用 `get_user_language()`
+- [x] `main.py` 中新增 `get_user_id_by_email` 的导入

@@ -71,7 +71,7 @@ async function compressImage(filePath: string, maxSize = 1500): Promise<string> 
 export default function HomePage() {
   const themeStyle = useTheme();
   const { state, dispatch } = useReview();
-  const { state: authState, logout: doLogout } = useAuth();
+  const { state: authState } = useAuth();
 
   const [groupedPhotos, setGroupedPhotos] = useState<Record<string, PhotoItem[]>>({});
   const [totalCount, setTotalCount] = useState(0);
@@ -79,7 +79,6 @@ export default function HomePage() {
   const [dayCount, setDayCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set());
-  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const initialLoadDone = useRef(false);
@@ -93,97 +92,90 @@ export default function HomePage() {
     let dateMap: Record<string, string> = {};
     let wordbookWords: string[] = [];
 
-    if (authState.isLoggedIn) {
-      // 迁移本地残留的生词本数据到服务端
-      migrateLocalWordbook();
-      // 从服务端获取生词本列表
-      wordbookWords = await getWordbookWords();
-      try {
-        const res = await api.listPhotos();
-        const rawPhotos = res.photos || [];
-        photos = rawPhotos.map((p: Record<string, unknown>) => {
-          const id = (p.id as string) || '';
-          const dateKey = (p.collectionDate as string) || getTodayStr();
-          dateMap[id] = dateKey;
-          return {
-            id,
-            dataUrl: (p.originalUrl as string) || '',
-            annotatedDataUrl: p.annotatedUrl as string | undefined,
-            objects: p.objects as RecognizedObject[] | undefined,
-            status: (p.status as PhotoItem['status']) || 'completed',
-          } as PhotoItem;
-        });
+    // 迁移本地残留的生词本数据到服务端
+    migrateLocalWordbook();
+    // 从服务端获取生词本列表
+    wordbookWords = await getWordbookWords();
+    try {
+      const res = await api.listPhotos();
+      const rawPhotos = res.photos || [];
+      photos = rawPhotos.map((p: Record<string, unknown>) => {
+        const id = (p.id as string) || '';
+        const dateKey = (p.collectionDate as string) || getTodayStr();
+        dateMap[id] = dateKey;
+        return {
+          id,
+          dataUrl: (p.originalUrl as string) || '',
+          annotatedDataUrl: p.annotatedUrl as string | undefined,
+          objects: p.objects as RecognizedObject[] | undefined,
+          status: (p.status as PhotoItem['status']) || 'completed',
+        } as PhotoItem;
+      });
 
-        const photosNeedAnnotated = photos.filter(
-          (photo) =>
-            photo.status === 'completed' &&
-            !photo.annotatedDataUrl &&
-            photo.objects &&
-            photo.objects.length > 0
-        );
+      const photosNeedAnnotated = photos.filter(
+        (photo) =>
+          photo.status === 'completed' &&
+          !photo.annotatedDataUrl &&
+          photo.objects &&
+          photo.objects.length > 0
+      );
 
-        if (photosNeedAnnotated.length > 0) {
-          (async () => {
-            for (const photo of photosNeedAnnotated) {
-              try {
-                const tempFilePath = await renderAnnotatedImageToTempFile(
-                  photo.dataUrl,
-                  photo.objects!,
-                  'annotate-render-canvas',
-                );
-                await api.uploadAnnotated(tempFilePath, photo.id);
-              } catch (err) {
-                console.error('标注上传失败:', err);
-              }
-            }
+      if (photosNeedAnnotated.length > 0) {
+        (async () => {
+          for (const photo of photosNeedAnnotated) {
             try {
-              const reloadRes = await api.listPhotos();
-              const reloadRaw = reloadRes.photos || [];
-              const newPhotos = reloadRaw.map((p: Record<string, unknown>) => ({
-                id: (p.id as string) || '',
-                dataUrl: (p.originalUrl as string) || '',
-                annotatedDataUrl: p.annotatedUrl as string | undefined,
-                objects: p.objects as RecognizedObject[] | undefined,
-                status: (p.status as PhotoItem['status']) || 'completed',
-              } as PhotoItem));
-
-              const newDateMap: Record<string, string> = {};
-              for (const p of reloadRaw) {
-                const id = (p.id as string) || '';
-                newDateMap[id] = (p.collectionDate as string) || getTodayStr();
-              }
-
-              const grouped: Record<string, PhotoItem[]> = {};
-              const sorted = [...newPhotos].sort((a, b) => {
-                const da = newDateMap[a.id] || '';
-                const db = newDateMap[b.id] || '';
-                return db.localeCompare(da);
-              });
-              for (const p of sorted) {
-                const date = newDateMap[p.id] || getTodayStr();
-                if (!grouped[date]) grouped[date] = [];
-                grouped[date].push(p);
-              }
-
-              setGroupedPhotos(grouped);
-              setTotalCount(newPhotos.length);
-              setWordCount(countWordbookWords(newPhotos, wordbookWords));
-              setDayCount(Object.keys(grouped).length);
-
-              dispatch({ type: 'setSavedPhotos', photos: newPhotos });
-              dispatch({ type: 'cleanSelection', ids: newPhotos.map(p => p.id) });
-            } catch {
-              // reload fails, keep existing
+              const tempFilePath = await renderAnnotatedImageToTempFile(
+                photo.dataUrl,
+                photo.objects!,
+                'annotate-render-canvas',
+              );
+              await api.uploadAnnotated(tempFilePath, photo.id);
+            } catch (err) {
+              console.error('标注上传失败:', err);
             }
-          })();
-        }
-      } catch {
-        photos = getJSONStorage<PhotoItem[]>('saved_photos', []);
-        for (const p of photos) {
-          dateMap[p.id] = getTodayStr();
-        }
+          }
+          try {
+            const reloadRes = await api.listPhotos();
+            const reloadRaw = reloadRes.photos || [];
+            const newPhotos = reloadRaw.map((p: Record<string, unknown>) => ({
+              id: (p.id as string) || '',
+              dataUrl: (p.originalUrl as string) || '',
+              annotatedDataUrl: p.annotatedUrl as string | undefined,
+              objects: p.objects as RecognizedObject[] | undefined,
+              status: (p.status as PhotoItem['status']) || 'completed',
+            } as PhotoItem));
+
+            const newDateMap: Record<string, string> = {};
+            for (const p of reloadRaw) {
+              const id = (p.id as string) || '';
+              newDateMap[id] = (p.collectionDate as string) || getTodayStr();
+            }
+
+            const grouped: Record<string, PhotoItem[]> = {};
+            const sorted = [...newPhotos].sort((a, b) => {
+              const da = newDateMap[a.id] || '';
+              const db = newDateMap[b.id] || '';
+              return db.localeCompare(da);
+            });
+            for (const p of sorted) {
+              const date = newDateMap[p.id] || getTodayStr();
+              if (!grouped[date]) grouped[date] = [];
+              grouped[date].push(p);
+            }
+
+            setGroupedPhotos(grouped);
+            setTotalCount(newPhotos.length);
+            setWordCount(countWordbookWords(newPhotos, wordbookWords));
+            setDayCount(Object.keys(grouped).length);
+
+            dispatch({ type: 'setSavedPhotos', photos: newPhotos });
+            dispatch({ type: 'cleanSelection', ids: newPhotos.map(p => p.id) });
+          } catch {
+            // reload fails, keep existing
+          }
+        })();
       }
-    } else {
+    } catch {
       photos = getJSONStorage<PhotoItem[]>('saved_photos', []);
       for (const p of photos) {
         dateMap[p.id] = getTodayStr();
@@ -222,7 +214,7 @@ export default function HomePage() {
 
     setLoading(false);
     loadingRef.current = false;
-  }, [authState.isLoggedIn, dispatch]);
+  }, [dispatch]);
 
   useEffect(() => {
     if (!initialLoadDone.current) {
@@ -238,7 +230,6 @@ export default function HomePage() {
   });
 
   useEffect(() => {
-    if (!authState.isLoggedIn) return;
     const hasNonCompleted = Object.values(groupedPhotos).some(photos =>
       photos.some(p => p.status && p.status !== 'completed')
     );
@@ -263,7 +254,7 @@ export default function HomePage() {
         pollingRef.current = null;
       }
     };
-  }, [groupedPhotos, authState.isLoggedIn, loadPhotos]);
+  }, [groupedPhotos, loadPhotos]);
 
   const handleToggleCollection = useCallback((date: string) => {
     setExpandedCollections((prev) => {
@@ -296,9 +287,7 @@ export default function HomePage() {
       if (!confirmRes.confirm) return;
 
       try {
-        if (authState.isLoggedIn) {
-          await api.deletePhoto(photo.id);
-        }
+        await api.deletePhoto(photo.id);
 
         const currentPhotos = getJSONStorage<PhotoItem[]>('saved_photos', []);
         const updatedPhotos = currentPhotos.filter((p) => p.id !== photo.id);
@@ -314,7 +303,7 @@ export default function HomePage() {
         });
       }
     },
-    [authState.isLoggedIn, loadPhotos],
+    [loadPhotos],
   );
 
   const handleToggleSelect = useCallback(
@@ -333,53 +322,37 @@ export default function HomePage() {
         sourceType: ['album', 'camera'],
       });
 
-      if (authState.isLoggedIn) {
-        setUploading(true);
-        setUploadProgress({ current: 0, total: res.tempFiles.length });
+      setUploading(true);
+      setUploadProgress({ current: 0, total: res.tempFiles.length });
 
-        for (let i = 0; i < res.tempFiles.length; i++) {
-          const file = res.tempFiles[i];
-          try {
-            const compressedPath = await compressImage(file.tempFilePath);
-            if (!compressedPath) {
-              throw new Error('图片压缩后路径为空');
-            }
-            await api.uploadPending(compressedPath);
-          } catch (err) {
-            const errMsg = err instanceof Error ? err.message : String(err);
-            console.error('上传失败:', errMsg);
-            if (errMsg.includes('压缩')) {
-              Taro.showToast({ title: `第${i + 1}张图片处理失败，请重试`, icon: 'none' });
-            } else {
-              Taro.showToast({ title: `第${i + 1}张上传失败，请重试`, icon: 'none' });
-            }
+      for (let i = 0; i < res.tempFiles.length; i++) {
+        const file = res.tempFiles[i];
+        try {
+          const compressedPath = await compressImage(file.tempFilePath);
+          if (!compressedPath) {
+            throw new Error('图片压缩后路径为空');
           }
-          setUploadProgress({ current: i + 1, total: res.tempFiles.length });
+          await api.uploadPending(compressedPath);
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          console.error('上传失败:', errMsg);
+          if (errMsg.includes('压缩')) {
+            Taro.showToast({ title: `第${i + 1}张图片处理失败，请重试`, icon: 'none' });
+          } else {
+            Taro.showToast({ title: `第${i + 1}张上传失败，请重试`, icon: 'none' });
+          }
         }
-
-        setUploading(false);
-        await loadPhotos();
-      } else {
-        const currentPhotos = getJSONStorage<PhotoItem[]>('saved_photos', []);
-        if (currentPhotos.length + res.tempFiles.length > 10) {
-          setShowLoginPrompt(true);
-          return;
-        }
-
-        const newPhotos: PhotoItem[] = res.tempFiles.map((file) => ({
-          id: generateUUID(),
-          dataUrl: file.tempFilePath,
-        }));
-
-        dispatch({ type: 'setPhotos', photos: newPhotos });
-        Taro.navigateTo({ url: '/pages/review/index' });
+        setUploadProgress({ current: i + 1, total: res.tempFiles.length });
       }
+
+      setUploading(false);
+      await loadPhotos();
     } catch (err: unknown) {
       const msg = (err as { errMsg?: string })?.errMsg || '';
       if (msg.includes('cancel')) return;
       Taro.showToast({ title: '选择图片失败', icon: 'error' });
     }
-  }, [authState.isLoggedIn, dispatch, loadPhotos]);
+  }, [dispatch, loadPhotos]);
 
   const handleBatchDelete = useCallback(async () => {
     const ids = [...state.selectedPhotoIds];
@@ -393,9 +366,7 @@ export default function HomePage() {
 
     for (const id of ids) {
       try {
-        if (authState.isLoggedIn) {
-          await api.deletePhoto(id);
-        }
+        await api.deletePhoto(id);
         const currentPhotos = getJSONStorage<PhotoItem[]>('saved_photos', []);
         const updatedPhotos = currentPhotos.filter((p) => p.id !== id);
         setJSONStorage('saved_photos', updatedPhotos);
@@ -406,31 +377,14 @@ export default function HomePage() {
 
     dispatch({ type: 'clearSelection' });
     await loadPhotos();
-  }, [state.selectedPhotoIds, authState.isLoggedIn, dispatch, loadPhotos]);
-
-  const handleLoginClick = useCallback(() => {
-    Taro.navigateTo({ url: '/pages/login/index' });
-  }, []);
+  }, [state.selectedPhotoIds, dispatch, loadPhotos]);
 
   const handleSettingsClick = useCallback(() => {
     Taro.navigateTo({ url: '/pages/settings/index' });
   }, []);
 
-  const handleLogout = useCallback(() => {
-    doLogout();
-  }, [doLogout]);
-
   const handleWordbookClick = useCallback(() => {
     Taro.navigateTo({ url: '/pages/wordbook/index' });
-  }, []);
-
-  const handleLoginPromptGo = useCallback(() => {
-    setShowLoginPrompt(false);
-    Taro.navigateTo({ url: '/pages/login/index' });
-  }, []);
-
-  const handleLoginPromptCancel = useCallback(() => {
-    setShowLoginPrompt(false);
   }, []);
 
   const hasPhotos = totalCount > 0;
@@ -441,21 +395,9 @@ export default function HomePage() {
     <View className="home-header">
       <Text className="home-header-subtitle">用照片探索身边的事物，轻松学习英语单词</Text>
       <View className="home-header-auth">
-        {authState.isLoggedIn ? (
-          <>
-            <Text className="home-header-email">{authState.email}</Text>
-            <Button className="home-header-settings-btn" onClick={handleSettingsClick}>
-              ⚙️
-            </Button>
-            <Button className="home-header-logout-btn" onClick={handleLogout}>
-              退出
-            </Button>
-          </>
-        ) : (
-          <Button className="home-header-login-btn" onClick={handleLoginClick}>
-            登录
-          </Button>
-        )}
+        <Button className="home-header-settings-btn" onClick={handleSettingsClick}>
+          ⚙️
+        </Button>
       </View>
     </View>
   );
@@ -464,10 +406,7 @@ export default function HomePage() {
     <View className="home-hint-bar">
       <Text className="home-hint-icon">⏳</Text>
       <Text className="home-hint-text">
-        每张图片识别大约需要5-10秒。
-        {authState.isLoggedIn
-          ? '上传后自动后台处理，您可继续浏览。'
-          : '登录后可后台处理，无需等待。'}
+        每张图片识别大约需要5-10秒。上传后自动后台处理，您可继续浏览。
       </Text>
     </View>
   ) : null;
@@ -590,31 +529,6 @@ export default function HomePage() {
     </View>
   ) : null;
 
-  const loginPromptNode = showLoginPrompt ? (
-    <View className="home-login-prompt-mask" onClick={handleLoginPromptCancel}>
-      <View
-        className="home-login-prompt-card"
-        onClick={(e: unknown) =>
-          (e as { stopPropagation?: () => void })?.stopPropagation?.()
-        }
-      >
-        <Text className="home-login-prompt-icon">🔐</Text>
-        <Text className="home-login-prompt-title">登录解锁更多</Text>
-        <Text className="home-login-prompt-desc">
-          未登录用户最多保存10张照片，登录后可无限制保存并同步到云端
-        </Text>
-        <View className="home-login-prompt-btns">
-          <Button className="home-login-prompt-cancel" onClick={handleLoginPromptCancel}>
-            暂不登录
-          </Button>
-          <Button className="home-login-prompt-go" onClick={handleLoginPromptGo}>
-            去登录
-          </Button>
-        </View>
-      </View>
-    </View>
-  ) : null;
-
   return (
     <View className="home-page" style={themeStyle}>
       {headerNode}
@@ -637,7 +551,6 @@ export default function HomePage() {
       <View className="home-footer">
         <Text className="home-footer-text">联系作者：📧 403392669@qq.com</Text>
       </View>
-      {loginPromptNode}
       {uploadDialogNode}
       <Canvas
         canvasId="annotate-render-canvas"

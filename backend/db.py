@@ -19,7 +19,18 @@ async def get_db() -> AsyncIOMotorDatabase | None:
         logger.warning("[DB] MONGODB_URL 未配置，跳过数据库连接")
         return None
     try:
-        _client = AsyncIOMotorClient(MONGODB_URL)
+        _client = AsyncIOMotorClient(
+            MONGODB_URL,
+            maxPoolSize=10,
+            minPoolSize=1,
+            maxIdleTimeMS=30000,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+            socketTimeoutMS=30000,
+            heartbeatFrequencyMS=10000,
+            retryReads=True,
+            retryWrites=True,
+        )
         db = _client[MONGODB_DB_NAME]
         await _client.admin.command("ping")
         logger.info("[DB] MongoDB 连接成功")
@@ -32,16 +43,17 @@ async def get_db() -> AsyncIOMotorDatabase | None:
 
 
 async def init_db(database: AsyncIOMotorDatabase) -> None:
-    await database.users.create_index("email", unique=True)
+    # await database.users.create_index("email", unique=True)
+    # await database.users.create_index("openid", unique=True, sparse=True)
 
-    await database.verification_codes.create_index("email")
-    await database.verification_codes.create_index("expires_at", expireAfterSeconds=300)
+    # await database.verification_codes.create_index("email")
+    # await database.verification_codes.create_index("expires_at", expireAfterSeconds=300)
 
-    await database.photos.create_index("user_email")
-    await database.photos.create_index([("user_email", 1), ("collection_date", 1)])
-    await database.photos.create_index([("user_email", 1), ("status", 1)])
-    await database.photos.create_index("status")
+    # await database.photos.create_index("user_id")
+    # await database.photos.create_index([("user_id", 1), ("collection_date", 1)])
+    # await database.photos.create_index([("user_id", 1), ("status", 1)])
+    # await database.photos.create_index("status")
 
-    await database.wordbooks.create_index("user_email", unique=True)
+    # await database.wordbooks.create_index("user_id", unique=True)
 
     logger.info("[DB] 索引初始化完成")

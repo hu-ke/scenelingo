@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { View, Text, Button, ScrollView } from '@tarojs/components';
 import { useReview } from '../../context/AppContext';
-import { useAuth } from '../../context/AuthContext';
 import { api } from '../../utils/api';
 import { getJSONStorage } from '../../utils/storage';
 import { isMastered, toggleMastered, getWordbookWords, removeFromWordbook } from '../../utils/wordMastery';
@@ -34,7 +33,6 @@ function getDateBefore(days: number): string {
 export default function WordBookPage() {
   const themeStyle = useTheme();
   const { dispatch } = useReview();
-  const { state: authState } = useAuth();
   const [activeTab, setActiveTab] = useState<'new' | 'mastered'>('new');
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -46,27 +44,24 @@ export default function WordBookPage() {
 
   // 加载指定日期范围的照片
   const loadPhotosByDateRange = useCallback(async (startDate: string, endDate: string): Promise<PhotoItem[]> => {
-    if (authState.isLoggedIn) {
-      try {
-        const res = await api.listPhotos(startDate, endDate);
-        return (res.photos || []).map((p: Record<string, unknown>) => ({
-          id: (p.id || p._id || '') as string,
-          dataUrl: (p.originalUrl || '') as string,
-          annotatedDataUrl: p.annotatedUrl as string | undefined,
-          objects: (p.objects || []) as PhotoItem['objects'],
-        }));
-      } catch (err) {
-        console.error('[WordBook] 云端加载失败:', err);
-        return [];
-      }
+    try {
+      const res = await api.listPhotos(startDate, endDate);
+      return (res.photos || []).map((p: Record<string, unknown>) => ({
+        id: (p.id || p._id || '') as string,
+        dataUrl: (p.originalUrl || '') as string,
+        annotatedDataUrl: p.annotatedUrl as string | undefined,
+        objects: (p.objects || []) as PhotoItem['objects'],
+      }));
+    } catch (err) {
+      console.error('[WordBook] 云端加载失败:', err);
+      return [];
     }
-    return [];
-  }, [authState.isLoggedIn]);
+  }, []);
 
   // 初始加载
   useEffect(() => {
     loadInitialPhotos();
-  }, [authState.isLoggedIn]);
+  }, []);
 
   useDidShow(() => {
     loadInitialPhotos();
@@ -76,25 +71,19 @@ export default function WordBookPage() {
   const loadInitialPhotos = useCallback(async () => {
     setLoading(true);
     try {
-      if (authState.isLoggedIn) {
-        // 从服务端获取生词本列表
-        const words = await getWordbookWords();
-        setWordbookWordList(words);
-        // 先加载今天和昨天的数据
-        const today = getDateString(new Date());
-        const yesterday = getDateBefore(1);
+      // 从服务端获取生词本列表
+      const words = await getWordbookWords();
+      setWordbookWordList(words);
+      // 先加载今天和昨天的数据
+      const today = getDateString(new Date());
+      const yesterday = getDateBefore(1);
 
-        console.log('[WordBook] 加载今天和昨天的数据:', yesterday, today);
+      console.log('[WordBook] 加载今天和昨天的数据:', yesterday, today);
 
-        const cloudPhotos = await loadPhotosByDateRange(yesterday, today);
-        setPhotos(cloudPhotos);
-        setLoadedDays(2);
-        setHasMore(true);
-      } else {
-        const localPhotos = getJSONStorage<PhotoItem[]>('saved_photos', []);
-        setPhotos(localPhotos);
-        setHasMore(false);
-      }
+      const cloudPhotos = await loadPhotosByDateRange(yesterday, today);
+      setPhotos(cloudPhotos);
+      setLoadedDays(2);
+      setHasMore(true);
     } catch {
       const localPhotos = getJSONStorage<PhotoItem[]>('saved_photos', []);
       setPhotos(localPhotos);
@@ -102,11 +91,11 @@ export default function WordBookPage() {
     } finally {
       setLoading(false);
     }
-  }, [authState.isLoggedIn, loadPhotosByDateRange]);
+  }, [loadPhotosByDateRange]);
 
   // 加载更多（更早的数据）
   const handleLoadMore = useCallback(async () => {
-    if (loadingMore || !hasMore || !authState.isLoggedIn) return;
+    if (loadingMore || !hasMore) return;
 
     try {
       setLoadingMore(true);
@@ -133,7 +122,7 @@ export default function WordBookPage() {
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, authState.isLoggedIn, loadedDays, loadPhotosByDateRange]);
+  }, [loadingMore, hasMore, loadedDays, loadPhotosByDateRange]);
 
   const wordEntries = useMemo(() => {
     const wordbookWordsSet = new Set(wordbookWordList);
@@ -314,7 +303,7 @@ export default function WordBookPage() {
           ))}
 
           {/* 加载更多按钮 */}
-          {hasMore && authState.isLoggedIn && (
+          {hasMore && (
             <View className="wordbook-loadmore">
               <Button
                 className="wordbook-loadmore-btn"
