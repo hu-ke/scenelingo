@@ -85,8 +85,11 @@ export default function HomePage() {
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const loadingRef = useRef(false);
 
+  console.log('home page mounted');
   const loadPhotos = useCallback(async () => {
     if (loadingRef.current) return;
+    // auth 未就绪时跳过，等 auth 完成后 useEffect 会重新触发
+    if (authState.loading) return;
     loadingRef.current = true;
     let photos: PhotoItem[] = [];
     let dateMap: Record<string, string> = {};
@@ -214,14 +217,14 @@ export default function HomePage() {
 
     setLoading(false);
     loadingRef.current = false;
-  }, [dispatch]);
+  }, [dispatch, authState.loading]);
 
   useEffect(() => {
-    if (!initialLoadDone.current) {
+    if (!initialLoadDone.current && !authState.loading) {
       initialLoadDone.current = true;
       loadPhotos();
     }
-  }, [loadPhotos]);
+  }, [loadPhotos, authState.loading]);
 
   useDidShow(() => {
     if (initialLoadDone.current) {
