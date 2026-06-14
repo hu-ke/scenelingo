@@ -546,7 +546,7 @@ async def list_user_photos_mongo(user_id: str, start_date: str = None, end_date:
             sample = await db.photos.find_one()
             logger.warning(f"[list_user_photos_mongo] 样例文档 user_id={sample.get('user_id')} photo_id={sample.get('photo_id')}")
 
-    # 查询该用户最早的照片日期
+    # 查询该用户最早的照片日期（用于前端判断是否还有更多）
     oldest_doc = await db.photos.find_one(
         {"user_id": user_id},
         sort=[("collection_date", 1)],
@@ -555,6 +555,34 @@ async def list_user_photos_mongo(user_id: str, start_date: str = None, end_date:
     oldest_date = oldest_doc.get("collection_date") if oldest_doc else None
 
     return {"photos": photos, "oldest_date": oldest_date}
+
+
+async def get_user_stats(user_id: str) -> dict:
+    """获取用户照片总统计（不受日期过滤影响）"""
+    from db import db
+    if db is None:
+        return {"total_count": 0, "total_days": 0, "oldest_date": None, "all_words": []}
+
+    user_query = {"user_id": user_id}
+    total_count = await db.photos.count_documents(user_query)
+    distinct_dates = await db.photos.distinct("collection_date", user_query)
+    total_days = len(distinct_dates)
+
+    oldest_doc = await db.photos.find_one(
+        user_query,
+        sort=[("collection_date", 1)],
+        projection={"collection_date": 1}
+    )
+    oldest_date = oldest_doc.get("collection_date") if oldest_doc else None
+
+    all_words = await db.photos.distinct("objects.name", user_query)
+
+    return {
+        "total_count": total_count,
+        "total_days": total_days,
+        "oldest_date": oldest_date,
+        "all_words": all_words,
+    }
 
 async def delete_photo_record(user_id: str, photo_id: str) -> bool:
     from db import db

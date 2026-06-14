@@ -34,17 +34,6 @@ function getDateBefore(days: number): string {
   return date.toISOString().split('T')[0];
 }
 
-function countWordbookWords(photos: PhotoItem[], wordbookWords: string[]): number {
-  const photoWordSet = new Set<string>();
-  for (const photo of photos) {
-    if (photo.objects) {
-      for (const obj of photo.objects) {
-        if (obj?.name) photoWordSet.add(obj.name.toLowerCase());
-      }
-    }
-  }
-  return wordbookWords.filter(w => photoWordSet.has(w)).length;
-}
 
 async function compressImage(filePath: string, maxSize = 1500): Promise<string> {
   try {
@@ -107,10 +96,6 @@ export default function HomePage() {
     wordbookWords = await getWordbookWords();
     try {
       const res = await api.listPhotos(startDate, endDate);
-      // 记录用户最早照片日期
-      if (res.oldest_date) {
-        setOldestDate(res.oldest_date as string);
-      }
       const rawPhotos = res.photos || [];
       photos = rawPhotos.map((p: Record<string, unknown>) => {
         const id = (p.id as string) || '';
@@ -149,9 +134,6 @@ export default function HomePage() {
           }
           try {
             const reloadRes = await api.listPhotos(startDate, endDate);
-            if (reloadRes.oldest_date) {
-              setOldestDate(reloadRes.oldest_date as string);
-            }
             const reloadRaw = reloadRes.photos || [];
             const newPhotos = reloadRaw.map((p: Record<string, unknown>) => ({
               id: (p.id as string) || '',
@@ -181,7 +163,14 @@ export default function HomePage() {
 
             setGroupedPhotos(grouped);
             setTotalCount(newPhotos.length);
-            setWordCount(countWordbookWords(newPhotos, wordbookWords));
+            setWordCount(wordbookWords.filter(w => {
+              for (const p of newPhotos) {
+                for (const o of (p.objects || [])) {
+                  if ((o.name || '').toLowerCase() === w) return true;
+                }
+              }
+              return false;
+            }).length);
             setDayCount(Object.keys(grouped).length);
 
             dispatch({ type: 'setSavedPhotos', photos: newPhotos });
@@ -212,7 +201,14 @@ export default function HomePage() {
 
     setGroupedPhotos(grouped);
     setTotalCount(photos.length);
-    setWordCount(countWordbookWords(photos, wordbookWords));
+    setWordCount(wordbookWords.filter(w => {
+      for (const p of photos) {
+        for (const o of (p.objects || [])) {
+          if ((o.name || '').toLowerCase() === w) return true;
+        }
+      }
+      return false;
+    }).length);
     setDayCount(Object.keys(grouped).length);
 
     dispatch({ type: 'setSavedPhotos', photos });
@@ -241,9 +237,6 @@ export default function HomePage() {
 
     try {
       const res = await api.listPhotos(startDate, endDate);
-      if (res.oldest_date) {
-        setOldestDate(res.oldest_date as string);
-      }
       const rawPhotos = res.photos || [];
       const newPhotos: PhotoItem[] = rawPhotos.map((p: Record<string, unknown>) => ({
         id: (p.id as string) || '',
@@ -264,11 +257,9 @@ export default function HomePage() {
         }
       }
 
-      const wordbookWords = await getWordbookWords();
       const allPhotos = Object.values(merged).flat();
       setGroupedPhotos(merged);
       setTotalCount(allPhotos.length);
-      setWordCount(countWordbookWords(allPhotos, wordbookWords));
       setDayCount(Object.keys(merged).length);
       dispatch({ type: 'setSavedPhotos', photos: allPhotos });
       dispatch({ type: 'cleanSelection', ids: allPhotos.map(p => p.id) });
@@ -287,13 +278,28 @@ export default function HomePage() {
     ? getDateBefore((loadedChunks + 1) * 14 - 1) > oldestDate
     : true;
 
+  const fetchStats = useCallback(async () => {
+    try {
+      const stats = await api.getUserStats();
+      setTotalCount(stats.total_count);
+      setDayCount(stats.total_days);
+      if (stats.oldest_date) setOldestDate(stats.oldest_date);
+      const allWordsSet = new Set((stats.all_words || []).map((w: string) => w.toLowerCase()));
+      const wordbookWords = await getWordbookWords();
+      setWordCount(wordbookWords.filter(w => allWordsSet.has(w)).length);
+    } catch (err) {
+      console.error('[HomePage] 获取统计数据失败:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (!initialLoadDone.current && !authState.loading) {
       initialLoadDone.current = true;
       loadPhotos(getDateBefore(13), getTodayStr());
       setLoadedChunks(1);
+      fetchStats();
     }
-  }, [loadPhotos, authState.loading]);
+  }, [loadPhotos, authState.loading, fetchStats]);
 
   useDidShow(() => {
     if (initialLoadDone.current) {

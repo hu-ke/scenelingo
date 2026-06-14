@@ -34,6 +34,7 @@ from auth import update_user_theme
 from auth import set_annotated_url
 from auth import get_user_wordbook, sync_user_wordbook, add_wordbook_word, remove_wordbook_word
 from auth import wechat_login
+from auth import get_user_stats
 from db import get_db, init_db, _client
 from oss_client import upload_photo, upload_metadata, list_user_photos, delete_photo
 
@@ -503,6 +504,15 @@ async def list_photos_post(request: Request, req: PhotoListRequest):
         photos = {"photos": list_user_photos(user_id), "oldest_date": None}
     logger.info(f"[list_photos_post] 返回 {len(photos['photos'])} 张照片给 {user_id}")
     return photos
+
+
+@app.get("/scenelingo-service/api/user/stats")
+async def get_stats(request: Request):
+    user_id = require_auth(request)
+    logger.info(f"[get_stats] 用户 {user_id} 请求统计数据")
+    stats = await get_user_stats(user_id)
+    logger.info(f"[get_stats] 返回 total_count={stats['total_count']} total_days={stats['total_days']}")
+    return stats
 
 
 @app.delete("/scenelingo-service/api/photos/delete")

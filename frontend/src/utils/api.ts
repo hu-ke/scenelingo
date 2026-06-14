@@ -156,4 +156,9 @@ export const api = {
       body: JSON.stringify({ words }),
     });
   },
+
+  // 用户统计
+  getUserStats() {
+    return request<{ total_count: number; total_days: number; oldest_date: string | null; all_words: string[] }>('/api/user/stats');
+  },
 };

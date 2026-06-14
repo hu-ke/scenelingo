@@ -291,6 +291,7 @@ export default function HomePage() {
   const [groupedPhotos, setGroupedPhotos] = useState<Record<string, PhotoItem[]>>({});
   const [totalCount, setTotalCount] = useState(0);
   const [wordCount, setWordCount] = useState(0);
+  const [totalDays, setTotalDays] = useState(0);
   const [loading, setLoading] = useState(true);
   const [expandedCollections, setExpandedCollections] = useState<Set<string>>(
     new Set()
@@ -301,18 +302,6 @@ export default function HomePage() {
   const [loadedChunks, setLoadedChunks] = useState(0); // 已加载的2周块数
   const [oldestDate, setOldestDate] = useState<string>(''); // 用户最早照片日期
   const initialLoadDone = useRef(false);
-
-  const countWordbookWords = (photos: PhotoItem[], wordbookWords: string[]): number => {
-    const photoWordSet = new Set<string>();
-    for (const photo of photos) {
-      if (photo.objects) {
-        for (const obj of photo.objects) {
-          if (obj?.name) photoWordSet.add(obj.name.toLowerCase());
-        }
-      }
-    }
-    return wordbookWords.filter(w => photoWordSet.has(w)).length;
-  };
 
   const loadLocalData = async () => {
     const photos = await getAllPhotos();
@@ -348,11 +337,6 @@ export default function HomePage() {
         const wordbookWords = await getWordbookWords();
 
         const result: any = await api.listPhotos(startDate, endDate);
-
-        // 记录用户最早照片日期
-        if (result.oldest_date) {
-          setOldestDate(result.oldest_date);
-        }
 
         const cloudPhotos: PhotoItem[] = (result.photos || []).map((p: any) => ({
           id: p.id,
@@ -395,12 +379,15 @@ export default function HomePage() {
           grouped[date].push(photo);
         }
 
-        const totalCount = cloudPhotos.length;
-
         setGroupedPhotos(grouped);
-        setTotalCount(totalCount);
-        setWordCount(countWordbookWords(cloudPhotos, wordbookWords));
-        dispatch({ type: 'setSavedPhotos', photos: cloudPhotos });
+          setTotalCount(cloudPhotos.length);
+          setTotalDays(Object.keys(grouped).length);
+
+          const allWordsLower = cloudPhotos.flatMap(p => (p.objects || []).map(o => (o as any).name?.toLowerCase()).filter(Boolean));
+          const photoWordSet = new Set(allWordsLower);
+          setWordCount(wordbookWords.filter(w => photoWordSet.has(w)).length);
+
+          dispatch({ type: 'setSavedPhotos', photos: cloudPhotos });
 
         const today = new Date().toISOString().split('T')[0];
         if (grouped[today]) {
@@ -431,9 +418,6 @@ export default function HomePage() {
       const startDate = getDateBefore(nextChunk * 14 - 1);
 
       const result: any = await api.listPhotos(startDate, endDate);
-      if (result.oldest_date) {
-        setOldestDate(result.oldest_date);
-      }
 
       const newPhotos: PhotoItem[] = (result.photos || []).map((p: any) => ({
         id: p.id,
@@ -455,12 +439,10 @@ export default function HomePage() {
         }
       }
 
-      // 重新计算总数和生词
-      const wordbookWords = await getWordbookWords();
       const allPhotos = Object.values(merged).flat();
       setGroupedPhotos(merged);
       setTotalCount(allPhotos.length);
-      setWordCount(countWordbookWords(allPhotos, wordbookWords));
+      setTotalDays(Object.keys(merged).length);
       dispatch({ type: 'setSavedPhotos', photos: allPhotos });
 
       setLoadedChunks(nextChunk);
@@ -476,6 +458,21 @@ export default function HomePage() {
     ? getDateBefore((loadedChunks + 1) * 14 - 1) > oldestDate
     : true;
 
+  const fetchStats = useCallback(async () => {
+    if (!isLoggedIn()) return;
+    try {
+      const stats = await api.getUserStats();
+      setTotalCount(stats.total_count);
+      setTotalDays(stats.total_days);
+      if (stats.oldest_date) setOldestDate(stats.oldest_date);
+      const allWordsSet = new Set((stats.all_words || []).map((w: string) => w.toLowerCase()));
+      const wordbookWords = await getWordbookWords();
+      setWordCount(wordbookWords.filter(w => allWordsSet.has(w)).length);
+    } catch (err) {
+      console.error('[HomePage] 获取统计数据失败:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (!initialLoadDone.current) {
       initialLoadDone.current = true;
@@ -483,8 +480,9 @@ export default function HomePage() {
       const twoWeeksAgo = getDateBefore(13);
       loadData(twoWeeksAgo, today);
       setLoadedChunks(1);
+      fetchStats();
     }
-  }, [loadData]);
+  }, [loadData, fetchStats]);
 
   useEffect(() => {
     if (!initialLoadDone.current) return;
@@ -509,7 +507,7 @@ export default function HomePage() {
     dispatch({ type: 'cleanSelection', ids: allIds });
   }, [groupedPhotos, dispatch]);
 
-  const learningDays = Object.keys(groupedPhotos).length;
+  const learningDays = totalDays || Object.keys(groupedPhotos).length;
 
   const toggleCollection = (dateKey: string) => {
     setExpandedCollections((prev) => {
