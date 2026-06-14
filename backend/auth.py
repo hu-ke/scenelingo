@@ -16,6 +16,9 @@ JWT_EXPIRE_DAYS = 30
 WECHAT_APPID = os.environ.get("WECHAT_APPID", "")
 WECHAT_SECRET = os.environ.get("WECHAT_SECRET", "")
 
+DEFAULT_RECOGNITION_QUOTA = 10
+SHARE_REWARD_QUOTA = 10
+
 SMTP_HOST = os.environ.get("SMTP_HOST", "")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 SMTP_USER = os.environ.get("SMTP_USER", "")
@@ -156,6 +159,7 @@ async def get_or_create_user(email: str) -> dict:
             "native_lang": native_lang,
             "target_lang": target_lang,
             "theme": theme,
+            "recognition_quota": DEFAULT_RECOGNITION_QUOTA,
             "created_at": now,
             "updated_at": now,
             "last_login_at": now,
@@ -193,6 +197,7 @@ async def get_or_create_user_by_openid(openid: str) -> dict:
             "native_lang": native_lang,
             "target_lang": target_lang,
             "theme": theme,
+            "recognition_quota": DEFAULT_RECOGNITION_QUOTA,
             "created_at": now,
             "updated_at": now,
             "last_login_at": now,
@@ -590,3 +595,66 @@ async def delete_photo_record(user_id: str, photo_id: str) -> bool:
         return False
     await db.photos.delete_one({"user_id": user_id, "photo_id": photo_id})
     return True
+
+
+async def get_user_quota(user_id: str) -> int:
+    """查询用户剩余识图配额，默认返回 10"""
+    from db import db
+    if db is None:
+        return 10
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if user:
+        return user.get("recognition_quota", 10)
+    return 10
+
+
+async def decrement_user_quota(user_id: str) -> bool:
+    """原子扣减配额，仅当 quota > 0 时扣减。返回是否成功扣减。"""
+    from db import db
+    if db is None:
+        return True
+    result = await db.users.update_one(
+        {"_id": ObjectId(user_id), "recognition_quota": {"$gt": 0}},
+        {"$inc": {"recognition_quota": -1}}
+    )
+    return result.modified_count > 0
+
+
+async def add_user_quota(user_id: str, amount: int) -> bool:
+    """增加用户配额"""
+    from db import db
+    if db is None:
+        return True
+    result = await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$inc": {"recognition_quota": amount}}
+    )
+    return result.matched_count > 0
+
+
+async def record_share_invite(inviter_id: str, new_user_id: str) -> bool:
+    """记录邀请关系，返回 True 表示新记录，False 表示已存在"""
+    from db import db
+    if db is None:
+        return True
+    existing = await db.share_invites.find_one({
+        "inviter_id": inviter_id,
+        "new_user_id": new_user_id,
+    })
+    if existing:
+        return False
+    await db.share_invites.insert_one({
+        "inviter_id": inviter_id,
+        "new_user_id": new_user_id,
+        "created_at": datetime.utcnow(),
+    })
+    return True
+
+
+async def is_new_user(user_id: str) -> bool:
+    """判断用户是否为新用户（没有任何照片记录）"""
+    from db import db
+    if db is None:
+        return True
+    count = await db.photos.count_documents({"user_id": user_id})
+    return count == 0

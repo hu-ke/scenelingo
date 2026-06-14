@@ -51,6 +51,7 @@ export type ReviewAction =
   | { type: 'setPhotos'; photos: PhotoItem[] }
   | { type: 'setCurrentObjects'; objects: RecognizedObject[] }
   | { type: 'setCurrentActions'; actions: RecognizedAction[] }
+  | { type: 'updatePhotoObjects'; index: number; objects: RecognizedObject[]; actions?: RecognizedAction[] }
   | { type: 'nextPhoto' }
   | { type: 'saveCurrent'; annotatedDataUrl: string }
   | { type: 'skipCurrent' }
@@ -104,6 +105,21 @@ function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
         ...state,
         currentActions: action.actions,
       };
+
+    case 'updatePhotoObjects': {
+      const updatedPhotos = [...state.photos];
+      if (updatedPhotos[action.index]) {
+        updatedPhotos[action.index] = {
+          ...updatedPhotos[action.index],
+          objects: action.objects,
+          actions: action.actions || updatedPhotos[action.index].actions,
+        };
+      }
+      return {
+        ...state,
+        photos: updatedPhotos,
+      };
+    }
 
     case 'nextPhoto': {
       const nextIndex = state.currentIndex + 1;

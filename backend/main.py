@@ -35,6 +35,9 @@ from auth import set_annotated_url
 from auth import get_user_wordbook, sync_user_wordbook, add_wordbook_word, remove_wordbook_word
 from auth import wechat_login
 from auth import get_user_stats
+from auth import get_user_quota, decrement_user_quota, add_user_quota, record_share_invite, is_new_user
+from auth import complete_photo
+from auth import SHARE_REWARD_QUOTA
 from db import get_db, init_db, _client
 from oss_client import upload_photo, upload_metadata, list_user_photos, delete_photo
 
@@ -83,6 +86,14 @@ class PhotoListRequest(BaseModel):
     start_date: str | None = None
     end_date: str | None = None
     words: list[str] | None = None
+
+class PhotoReRecognizeRequest(BaseModel):
+    photo_id: str
+    objects: list
+    actions: list | None = None
+
+class ShareRewardRequest(BaseModel):
+    inviter_user_id: str
 
 
 def require_auth(request: Request) -> str:
@@ -149,6 +160,13 @@ async def update_theme(request: Request, req: ThemeUpdateRequest):
     if not success:
         raise HTTPException(status_code=500, detail="更新主题失败")
     return {"success": True}
+
+
+@app.get("/scenelingo-service/api/user/quota")
+async def user_quota(request: Request):
+    user_id = require_auth(request)
+    quota = await get_user_quota(user_id)
+    return {"quota": quota}
 
 
 LANG_NAMES = {
@@ -294,20 +312,47 @@ async def recognize(image: UploadFile = None, request: Request = None):
         nativeLang = form_data.get("nativeLang", "zh")
         targetLang = form_data.get("targetLang", "en")
         hint = form_data.get("hint", "")
+        previous_objects_str = form_data.get("previous_objects", "")
+        previous_actions_str = form_data.get("previous_actions", "")
 
         logger.info(f"识别请求: nativeLang={nativeLang}, targetLang={targetLang}, hint={hint}")
 
         prompt = build_prompt(nativeLang, targetLang)
         
-        # 如果用户提供了调整提示，作为反馈指导 AI 重新检查图片
+        # 如果用户提供了调整提示，把已有识别结果作为上下文，让 AI 在此基础上调整
         if hint and isinstance(hint, str) and hint.strip():
+            prompt += "\n\n"
+            # 如果有已有识别结果，先告诉 AI 这是当前状态
+            previous_objects = None
+            if previous_objects_str and isinstance(previous_objects_str, str) and previous_objects_str.strip():
+                try:
+                    previous_objects = json.loads(previous_objects_str)
+                except json.JSONDecodeError:
+                    pass
+            previous_actions = None
+            if previous_actions_str and isinstance(previous_actions_str, str) and previous_actions_str.strip():
+                try:
+                    previous_actions = json.loads(previous_actions_str)
+                except json.JSONDecodeError:
+                    pass
+
+            if previous_objects:
+                prompt += (
+                    f"Here is your previous recognition result for this image:\n"
+                    f"Objects: {json.dumps(previous_objects, ensure_ascii=False)}\n"
+                )
+                if previous_actions:
+                    prompt += f"Actions: {json.dumps(previous_actions, ensure_ascii=False)}\n"
+                prompt += "\n"
+
             prompt += (
-                f"\n\n"
                 f"The user reviewed your previous recognition and gave this feedback:\n"
                 f'"{hint.strip()}"\n\n'
                 f"Please re-examine the image carefully and update your response based on this feedback. "
-                f"For example, if the user mentions you missed an object, look for it and add it. "
-                f"If the user says an identification was wrong, correct it."
+                f"Keep all the previously correct objects and add/modify only what the user mentioned. "
+                f"For example, if the user mentions you missed an object, look for it and add it to the existing list. "
+                f"If the user says an identification was wrong, correct it. "
+                f"Return the COMPLETE list including all previously correct objects plus any additions/corrections."
             )
 
         photo_url = form_data.get("photo_url", None)
@@ -423,6 +468,12 @@ async def upload_photos(request: Request):
 @app.post("/scenelingo-service/api/photos/upload-pending")
 async def upload_pending(request: Request):
     user_id = require_auth(request)
+    
+    # 检查配额
+    quota = await get_user_quota(user_id)
+    if quota <= 0:
+        raise HTTPException(status_code=403, detail="识别次数已用完，请分享给好友获取更多次数")
+    
     form = await request.form()
     original_file = form.get("original")
 
@@ -438,6 +489,8 @@ async def upload_pending(request: Request):
     saved = await save_pending_photo_record(user_id, photo_id)
     if not saved:
         raise HTTPException(status_code=500, detail="保存记录失败")
+
+    await decrement_user_quota(user_id)
 
     return {"photo_id": photo_id, "status": "pending"}
 
@@ -462,6 +515,35 @@ async def upload_annotated(request: Request):
     await set_annotated_url(photo_id, annotated_url)
 
     return {"success": True, "photoId": photo_id}
+
+
+@app.post("/scenelingo-service/api/share/reward")
+async def share_reward(request: Request, req: ShareRewardRequest):
+    new_user_id = require_auth(request)
+    inviter_id = req.inviter_user_id
+    
+    if not inviter_id or inviter_id == new_user_id:
+        raise HTTPException(status_code=400, detail="无效的邀请者ID")
+    
+    # 检查当前用户是否为新用户
+    if not await is_new_user(new_user_id):
+        return {"success": False, "reason": "not_new_user"}
+    
+    # 检查是否已记录该邀请关系
+    recorded = await record_share_invite(inviter_id, new_user_id)
+    if not recorded:
+        return {"success": False, "reason": "already_rewarded"}
+    
+    # 奖励邀请者
+    await add_user_quota(inviter_id, SHARE_REWARD_QUOTA)
+    
+    logger.info(f"[share_reward] 邀请者 {inviter_id} 获得 {SHARE_REWARD_QUOTA} 次配额，新用户 {new_user_id}")
+    return {"success": True, "quota_added": SHARE_REWARD_QUOTA}
+
+
+@app.get("/scenelingo-service/api/share/reward-info")
+async def share_reward_info():
+    return {"reward_quota": SHARE_REWARD_QUOTA}
 
 
 @app.get("/scenelingo-service/api/tts")
@@ -520,6 +602,18 @@ async def get_stats(request: Request):
     stats = await get_user_stats(user_id)
     logger.info(f"[get_stats] 返回 total_count={stats['total_count']} total_days={stats['total_days']}")
     return stats
+
+
+@app.post("/scenelingo-service/api/photos/re-recognize")
+async def re_recognize(request: Request, req: PhotoReRecognizeRequest):
+    user_id = require_auth(request)
+    logger.info(f"[re_recognize] 用户 {user_id} 更新照片 {req.photo_id} 的识别结果, objects={len(req.objects)}个, actions={len(req.actions or [])}个")
+    
+    success = await complete_photo(req.photo_id, req.objects, req.actions)
+    if not success:
+        raise HTTPException(status_code=404, detail="照片不存在或更新失败")
+    
+    return {"success": True, "photo_id": req.photo_id}
 
 
 @app.delete("/scenelingo-service/api/photos/delete")

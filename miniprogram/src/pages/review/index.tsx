@@ -42,6 +42,14 @@ export default function ReviewPage() {
   const [reRecognizeHint, setReRecognizeHint] = useState('')
   const [wordbookWords, setWordbookWords] = useState<string[]>([])
   const lastRecognizedRef = useRef(-1)
+  const currentObjectsRef = useRef(currentObjects)
+  const currentActionsRef = useRef(currentActions)
+
+  // 同步 ref，避免 recognizeImage 的依赖变化导致 useEffect 重复触发
+  useEffect(() => {
+    currentObjectsRef.current = currentObjects
+    currentActionsRef.current = currentActions
+  }, [currentObjects, currentActions])
 
   const currentPhoto = photos[currentIndex]
 
@@ -57,19 +65,38 @@ export default function ReviewPage() {
     setError(null)
 
     try {
-      const data = await api.recognize(nativeLang, targetLang, currentPhoto.dataUrl, hint)
+      // 如果有 hint 且已有识别结果，把当前结果作为上下文传给 AI
+      const prevObjects = hint ? (currentObjectsRef.current || undefined) : undefined
+      const prevActions = hint ? (currentActionsRef.current || undefined) : undefined
+      const data = await api.recognize(nativeLang, targetLang, currentPhoto.dataUrl, hint, prevObjects, prevActions)
       const objects = mapObjects(data.objects)
+      const actions = data.actions && data.actions.length > 0 ? mapActions(data.actions) : undefined
+
       dispatch({ type: 'setCurrentObjects', objects })
-      if (data.actions && data.actions.length > 0) {
-        const actions = mapActions(data.actions)
+      if (actions) {
         dispatch({ type: 'setCurrentActions', actions })
+      }
+
+      // 持久化到数据库，同时更新本地 photos 数组
+      if (currentPhoto.id) {
+        const rawObjects = data.objects as Record<string, unknown>[]
+        const rawActions = data.actions as Record<string, unknown>[] | undefined
+        api.reRecognize(currentPhoto.id, rawObjects, rawActions).catch((err) => {
+          console.error('reRecognize 持久化失败:', err)
+        })
+        dispatch({
+          type: 'updatePhotoObjects',
+          index: currentIndex,
+          objects,
+          actions,
+        })
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '识别失败')
     } finally {
       setLoading(false)
     }
-  }, [currentPhoto, dispatch, nativeLang, targetLang])
+  }, [currentPhoto, currentIndex, dispatch, nativeLang, targetLang])
 
   const handleReRecognize = useCallback(() => {
     setShowReRecognizeDialog(true)

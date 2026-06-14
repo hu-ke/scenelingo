@@ -79,11 +79,17 @@ export const api = {
     });
   },
 
-  async recognize(nativeLang: string, targetLang: string, imagePath: string, hint?: string) {
+  async recognize(nativeLang: string, targetLang: string, imagePath: string, hint?: string, previousObjects?: Record<string, unknown>[], previousActions?: Record<string, unknown>[]) {
     const token = getToken();
     const formData: Record<string, string> = { nativeLang, targetLang };
     if (hint && hint.trim()) {
       formData.hint = hint.trim();
+    }
+    if (previousObjects && previousObjects.length > 0) {
+      formData.previous_objects = JSON.stringify(previousObjects);
+    }
+    if (previousActions && previousActions.length > 0) {
+      formData.previous_actions = JSON.stringify(previousActions);
     }
 
     // Taro.uploadFile 只接受本地文件路径，如果传入的是远程 URL，需要先下载到本地
@@ -217,6 +223,13 @@ export const api = {
     });
   },
 
+  reRecognize(photoId: string, objects: Record<string, unknown>[], actions?: Record<string, unknown>[]) {
+    return request<{ success: boolean; photo_id: string }>('/api/photos/re-recognize', {
+      method: 'POST',
+      body: JSON.stringify({ photo_id: photoId, objects, actions: actions || [] }),
+    });
+  },
+
   imageProxy(url: string): string {
     return `${BASE_URL}/api/image/proxy?url=${encodeURIComponent(url)}`;
   },
@@ -250,6 +263,22 @@ export const api = {
   // 用户统计
   getUserStats() {
     return request<{ total_count: number; total_days: number; oldest_date: string | null; all_words: string[] }>('/api/user/stats');
+  },
+
+  // 配额相关
+  getUserQuota() {
+    return request<{ quota: number }>('/api/user/quota');
+  },
+
+  shareReward(inviterUserId: string) {
+    return request<{ success: boolean; reason?: string; quota_added?: number }>('/api/share/reward', {
+      method: 'POST',
+      body: JSON.stringify({ inviter_user_id: inviterUserId }),
+    });
+  },
+
+  getShareRewardInfo() {
+    return request<{ reward_quota: number }>('/api/share/reward-info');
   },
 };
 

@@ -226,6 +226,15 @@ export default function ReviewPage() {
 
   const { photos, currentIndex, currentObjects, currentActions, isReviewing, nativeLang, targetLang } = state;
 
+  const currentObjectsRef = useRef(currentObjects);
+  const currentActionsRef = useRef(currentActions);
+
+  // 同步 ref，避免 recognizeImage 的依赖变化导致 useEffect 重复触发
+  useEffect(() => {
+    currentObjectsRef.current = currentObjects;
+    currentActionsRef.current = currentActions;
+  }, [currentObjects, currentActions]);
+
   // 加载生词本列表
   useEffect(() => {
     if (isLoggedIn()) {
@@ -252,12 +261,33 @@ export default function ReviewPage() {
         formData.append('photo_url', photo.dataUrl);
       }
 
+      // 如果有 hint 且已有识别结果，把当前结果作为上下文传给 AI
+      if (hint && currentObjectsRef.current && currentObjectsRef.current.length > 0) {
+        formData.append('previous_objects', JSON.stringify(currentObjectsRef.current));
+        if (currentActionsRef.current && currentActionsRef.current.length > 0) {
+          formData.append('previous_actions', JSON.stringify(currentActionsRef.current));
+        }
+      }
+
       const data = hint
         ? await api.recognizeWithHint(formData, hint)
         : await api.recognize(formData);
       dispatch({ type: 'setCurrentObjects', objects: data.objects as RecognizedObject[] });
       if (data.actions && data.actions.length > 0) {
         dispatch({ type: 'setCurrentActions', actions: data.actions as RecognizedAction[] });
+      }
+
+      // 持久化到数据库，同时更新本地 photos 数组
+      if (photo.id) {
+        api.reRecognize(photo.id, data.objects, data.actions).catch((err) => {
+          console.error('reRecognize 持久化失败:', err)
+        })
+        dispatch({
+          type: 'updatePhotoObjects',
+          index: currentIndex,
+          objects: data.objects as RecognizedObject[],
+          actions: data.actions as RecognizedAction[] | undefined,
+        })
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '网络错误');

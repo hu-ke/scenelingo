@@ -80,6 +80,9 @@ export default function HomePage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadedChunks, setLoadedChunks] = useState(0); // 已加载的2周块数
   const [oldestDate, setOldestDate] = useState(''); // 用户最早照片日期
+  const [quota, setQuota] = useState(10);
+  const [showQuotaModal, setShowQuotaModal] = useState(false);
+  const [rewardQuota, setRewardQuota] = useState(10);
   const initialLoadDone = useRef(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const loadingRef = useRef(false);
@@ -94,6 +97,10 @@ export default function HomePage() {
       .catch((err) => {
         console.warn('分享卡片生成失败，分享时将使用默认图片:', err);
       });
+    
+    api.getShareRewardInfo().then((res) => {
+      setRewardQuota(res.reward_quota);
+    }).catch(() => {});
   }, []);
 
   console.log('home page mounted');
@@ -241,6 +248,29 @@ export default function HomePage() {
     loadingRef.current = false;
   }, [dispatch, authState.loading]);
 
+  const fetchQuota = useCallback(async () => {
+    try {
+      const res = await api.getUserQuota();
+      setQuota(res.quota);
+    } catch {
+      // 获取配额失败，保持默认值
+    }
+  }, []);
+
+  // 检测 inviter 参数并领取分享奖励
+  useEffect(() => {
+    const launchOptions = Taro.getLaunchOptionsSync();
+    const inviter = launchOptions.query?.inviter;
+    if (inviter && authState.userId && inviter !== authState.userId) {
+      api.shareReward(inviter).then((res) => {
+        if (res.success) {
+          fetchQuota();
+          Taro.showToast({ title: `获得 ${res.quota_added || rewardQuota} 次识别机会！`, icon: 'success' });
+        }
+      }).catch(() => {});
+    }
+  }, [authState.userId]);
+
   // 加载下一个2周块，与已有数据合并
   const loadMorePhotos = useCallback(async () => {
     setLoadingMore(true);
@@ -319,6 +349,7 @@ export default function HomePage() {
       const startDate = getDateBefore(loadedChunks * 14 - 1);
       loadPhotos(startDate, getTodayStr());
     }
+    fetchQuota();
   });
 
   useEffect(() => {
@@ -408,6 +439,10 @@ export default function HomePage() {
   );
 
   const handleFabClick = useCallback(async () => {
+    if (quota <= 0) {
+      setShowQuotaModal(true);
+      return;
+    }
     try {
       const res = await Taro.chooseMedia({
         count: 9,
@@ -429,7 +464,11 @@ export default function HomePage() {
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
           console.error('上传失败:', errMsg);
-          if (errMsg.includes('压缩')) {
+          if (errMsg.includes('次数已用完') || errMsg.includes('403')) {
+            Taro.showToast({ title: '识别次数已用完，请分享给好友获取更多次数', icon: 'none', duration: 2000 });
+            fetchQuota();
+            break;
+          } else if (errMsg.includes('压缩')) {
             Taro.showToast({ title: `第${i + 1}张图片处理失败，请重试`, icon: 'none' });
           } else {
             Taro.showToast({ title: `第${i + 1}张上传失败，请重试`, icon: 'none' });
@@ -445,7 +484,7 @@ export default function HomePage() {
       if (msg.includes('cancel')) return;
       Taro.showToast({ title: '选择图片失败', icon: 'error' });
     }
-  }, [dispatch, loadPhotos]);
+  }, [quota, dispatch, loadPhotos, fetchQuota]);
 
   const handleBatchDelete = useCallback(async () => {
     const ids = [...state.selectedPhotoIds];
@@ -629,14 +668,14 @@ export default function HomePage() {
   // 分享给朋友
   useShareAppMessage(() => ({
     title: '我发现一个超实用的拍照学外语小程序！拍张照就能学单词，快来试试~',
-    path: '/pages/home/index',
+    path: `/pages/home/index?inviter=${authState.userId || ''}`,
     imageUrl: shareImageRef.current || undefined,
   }));
 
   // 分享到朋友圈
   useShareTimeline(() => ({
     title: '场景外语 - 拍照学外语，所见即所学',
-    path: '/pages/home/index',
+    path: `/pages/home/index?inviter=${authState.userId || ''}`,
     imageUrl: shareImageRef.current || undefined,
   }));
 
@@ -660,6 +699,25 @@ export default function HomePage() {
       </View>
       {deleteBarNode}
       {uploadDialogNode}
+      {showQuotaModal && (
+        <View className="home-upload-mask" onClick={() => setShowQuotaModal(false)}>
+          <View className="home-upload-card" onClick={(e) => e.stopPropagation()}>
+            <Text className="home-upload-title" style={{ marginBottom: '16px' }}>识别次数已用完</Text>
+            <Text style={{ fontSize: '14px', color: '#666', textAlign: 'center', marginBottom: '20px', display: 'block' }}>
+              分享给好友，即可获得 {rewardQuota} 次识别机会！
+            </Text>
+            <View style={{ display: 'flex', gap: '12px' }}>
+              <Button
+                openType="share"
+                style={{ flex: 1, backgroundColor: '#4A90D9', color: '#fff', borderRadius: '8px', fontSize: '14px' }}
+                onClick={() => setShowQuotaModal(false)}
+              >
+                分享给好友
+              </Button>
+            </View>
+          </View>
+        </View>
+      )}
       <Canvas
         canvasId="annotate-render-canvas"
         style={{

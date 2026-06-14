@@ -131,6 +131,13 @@ export const api = {
     });
   },
 
+  reRecognize(photoId: string, objects: any[], actions?: any[]) {
+    return request<{ success: boolean; photo_id: string }>('/api/photos/re-recognize', {
+      method: 'POST',
+      body: JSON.stringify({ photo_id: photoId, objects, actions: actions || [] }),
+    });
+  },
+
   // 生词本
   listWordbook() {
     return request<{ words: string[] }>('/api/wordbook/list');
