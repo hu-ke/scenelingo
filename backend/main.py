@@ -299,9 +299,16 @@ async def recognize(image: UploadFile = None, request: Request = None):
 
         prompt = build_prompt(nativeLang, targetLang)
         
-        # 如果用户提供了调整提示，追加到 prompt 中
+        # 如果用户提供了调整提示，作为反馈指导 AI 重新检查图片
         if hint and isinstance(hint, str) and hint.strip():
-            prompt += f"\n\nAdditional user instructions: {hint.strip()}"
+            prompt += (
+                f"\n\n"
+                f"The user reviewed your previous recognition and gave this feedback:\n"
+                f'"{hint.strip()}"\n\n'
+                f"Please re-examine the image carefully and update your response based on this feedback. "
+                f"For example, if the user mentions you missed an object, look for it and add it. "
+                f"If the user says an identification was wrong, correct it."
+            )
 
         photo_url = form_data.get("photo_url", None)
         if photo_url:

@@ -79,16 +79,27 @@ export const api = {
     });
   },
 
-  recognize(nativeLang: string, targetLang: string, imagePath: string, hint?: string) {
-    return new Promise<{ objects: Record<string, unknown>[] }>((resolve, reject) => {
-      const token = getToken();
-      const formData: Record<string, string> = { nativeLang, targetLang };
-      if (hint && hint.trim()) {
-        formData.hint = hint.trim();
+  async recognize(nativeLang: string, targetLang: string, imagePath: string, hint?: string) {
+    const token = getToken();
+    const formData: Record<string, string> = { nativeLang, targetLang };
+    if (hint && hint.trim()) {
+      formData.hint = hint.trim();
+    }
+
+    // Taro.uploadFile 只接受本地文件路径，如果传入的是远程 URL，需要先下载到本地
+    let filePath = imagePath;
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      const downloadRes = await Taro.downloadFile({ url: imagePath });
+      if (downloadRes.statusCode !== 200) {
+        throw new Error(`下载图片失败 (${downloadRes.statusCode})`);
       }
+      filePath = downloadRes.tempFilePath;
+    }
+
+    return new Promise<{ objects: Record<string, unknown>[] }>((resolve, reject) => {
       Taro.uploadFile({
         url: `${BASE_URL}/api/recognize`,
-        filePath: imagePath,
+        filePath,
         name: 'image',
         formData,
         header: token ? { 'Authorization': `Bearer ${token}` } : {},
