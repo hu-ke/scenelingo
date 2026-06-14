@@ -169,10 +169,6 @@ export default function WordBookPage() {
     Taro.navigateTo({ url: '/pages/worddetail/index' });
   }, [dispatch]);
 
-  const handleBack = useCallback(() => {
-    Taro.navigateBack();
-  }, []);
-
   const renderEmptyState = () => {
     if (wordEntries.length === 0) {
       return (
@@ -205,9 +201,6 @@ export default function WordBookPage() {
     <View className="wordbook-page" style={themeStyle}>
       <View className="wordbook-header">
         <View className="wordbook-header-top">
-          <View className="wordbook-back-btn" onClick={handleBack}>
-            <Text className="wordbook-back-arrow">←</Text>
-          </View>
           <Text className="wordbook-header-title">我的单词本</Text>
           {!loading && wordEntries.length > 0 ? (
             <View className="wordbook-export-btn" onClick={handleExport}>

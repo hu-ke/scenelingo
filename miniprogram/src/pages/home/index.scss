@@ -1,7 +1,7 @@
 .home-page {
   min-height: 100vh;
   background: var(--color-bg);
-  padding-bottom: 160rpx;
+  padding-bottom: 200rpx;
 }
 
 .home-header {
@@ -338,7 +338,7 @@
 .home-fab {
   position: fixed;
   right: 40rpx;
-  bottom: 120rpx;
+  bottom: 180rpx;
   width: 100rpx;
   height: 100rpx;
   border-radius: 50%;
@@ -373,7 +373,7 @@
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  z-index: 60;
+  z-index: 1000;
   animation: homeSlideUp 0.25s ease;
 }
 

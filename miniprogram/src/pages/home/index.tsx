@@ -459,12 +459,8 @@ export default function HomePage() {
     await loadPhotos();
   }, [state.selectedPhotoIds, dispatch, loadPhotos]);
 
-  const handleSettingsClick = useCallback(() => {
-    Taro.navigateTo({ url: '/pages/settings/index' });
-  }, []);
-
   const handleWordbookClick = useCallback(() => {
-    Taro.navigateTo({ url: '/pages/wordbook/index' });
+    Taro.switchTab({ url: '/pages/wordbook/index' });
   }, []);
 
   const hasPhotos = totalCount > 0;
@@ -474,11 +470,6 @@ export default function HomePage() {
   const headerNode = (
     <View className="home-header">
       <Text className="home-header-subtitle">用照片探索身边的事物，轻松学习英语单词</Text>
-      <View className="home-header-auth">
-        <Button className="home-header-settings-btn" onClick={handleSettingsClick}>
-          ⚙️
-        </Button>
-      </View>
     </View>
   );
 
@@ -641,9 +632,6 @@ export default function HomePage() {
         <Text className="home-fab-icon">📷</Text>
       </View>
       {deleteBarNode}
-      <View className="home-footer">
-        <Text className="home-footer-text">联系作者：📧 403392669@qq.com</Text>
-      </View>
       {uploadDialogNode}
       <Canvas
         canvasId="annotate-render-canvas"

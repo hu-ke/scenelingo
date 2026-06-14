@@ -6,6 +6,7 @@ export default {
     'pages/wordbook/index',
     'pages/worddetail/index',
     'pages/settings/index',
+    'pages/profile/index',
     'pages/user-agreement/index',
     'pages/privacy-policy/index',
   ],
@@ -14,6 +15,27 @@ export default {
     navigationBarBackgroundColor: '#4A90D9',
     navigationBarTitleText: '场景外语',
     navigationBarTextStyle: 'white',
+  },
+  tabBar: {
+    custom: true,
+    color: '#A0AFBF',
+    selectedColor: '#4A90D9',
+    backgroundColor: '#FFFFFF',
+    borderStyle: 'black',
+    list: [
+      {
+        pagePath: 'pages/home/index',
+        text: '首页',
+      },
+      {
+        pagePath: 'pages/wordbook/index',
+        text: '生词本',
+      },
+      {
+        pagePath: 'pages/profile/index',
+        text: '我的',
+      },
+    ],
   },
   permission: {
     'scope.camera': {
