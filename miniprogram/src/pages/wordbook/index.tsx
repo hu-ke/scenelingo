@@ -13,21 +13,10 @@ interface WordEntry {
   word: string;
   phonetic: string;
   romaji: string;
+  chinese: string;
   examples: string[];
   photoCount: number;
   photoIds: string[];
-}
-
-// 获取日期字符串 YYYY-MM-DD
-function getDateString(date: Date): string {
-  return date.toISOString().split('T')[0];
-}
-
-// 获取前N天的日期
-function getDateBefore(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return getDateString(date);
 }
 
 export default function WordBookPage() {
@@ -35,100 +24,54 @@ export default function WordBookPage() {
   const { dispatch } = useReview();
   const [activeTab, setActiveTab] = useState<'new' | 'mastered'>('new');
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [wordbookWordList, setWordbookWordList] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [loadedDays, setLoadedDays] = useState(0); // 已加载的天数
-  const [hasMore, setHasMore] = useState(true); // 是否还有更多数据可加载
 
-  // 加载指定日期范围的照片
-  const loadPhotosByDateRange = useCallback(async (startDate: string, endDate: string): Promise<PhotoItem[]> => {
-    try {
-      const res = await api.listPhotos(startDate, endDate);
-      return (res.photos || []).map((p: Record<string, unknown>) => ({
-        id: (p.id || p._id || '') as string,
-        dataUrl: (p.originalUrl || '') as string,
-        annotatedDataUrl: p.annotatedUrl as string | undefined,
-        objects: (p.objects || []) as PhotoItem['objects'],
-      }));
-    } catch (err) {
-      console.error('[WordBook] 云端加载失败:', err);
-      return [];
-    }
-  }, []);
-
-  // 初始加载
-  useEffect(() => {
-    loadInitialPhotos();
-  }, []);
-
-  useDidShow(() => {
-    loadInitialPhotos();
-    setRefreshKey((k) => k + 1);
-  });
-
-  const loadInitialPhotos = useCallback(async () => {
+  const loadAllPhotos = useCallback(async () => {
     setLoading(true);
     try {
       // 从服务端获取生词本列表
       const words = await getWordbookWords();
       setWordbookWordList(words);
-      // 先加载今天和昨天的数据
-      const today = getDateString(new Date());
-      const yesterday = getDateBefore(1);
 
-      console.log('[WordBook] 加载今天和昨天的数据:', yesterday, today);
-
-      const cloudPhotos = await loadPhotosByDateRange(yesterday, today);
-      setPhotos(cloudPhotos);
-      setLoadedDays(2);
-      setHasMore(true);
+      // 只请求与生词本单词有关的照片
+      if (words.length > 0) {
+        const res = await api.listPhotos(undefined, undefined, words);
+        const cloudPhotos = (res.photos || []).map((p: Record<string, unknown>) => ({
+          id: (p.id || p._id || '') as string,
+          dataUrl: (p.originalUrl || '') as string,
+          annotatedDataUrl: p.annotatedUrl as string | undefined,
+          objects: (p.objects || []) as PhotoItem['objects'],
+        }));
+        setPhotos(cloudPhotos);
+        console.log('[WordBook] 加载关联照片数:', cloudPhotos.length);
+      } else {
+        setPhotos([]);
+      }
     } catch {
       const localPhotos = getJSONStorage<PhotoItem[]>('saved_photos', []);
       setPhotos(localPhotos);
-      setHasMore(false);
     } finally {
       setLoading(false);
     }
-  }, [loadPhotosByDateRange]);
+  }, []);
 
-  // 加载更多（更早的数据）
-  const handleLoadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
+  useEffect(() => {
+    loadAllPhotos();
+  }, []);
 
-    try {
-      setLoadingMore(true);
-
-      // 计算下一个要加载的日期范围
-      const nextDay = loadedDays;
-      const startDate = getDateBefore(nextDay);
-      const endDate = startDate;
-
-      console.log('[WordBook] 加载更多数据:', startDate);
-
-      const newPhotos = await loadPhotosByDateRange(startDate, endDate);
-
-      console.log('[WordBook] 加载更多照片数:', newPhotos.length);
-
-      if (newPhotos.length === 0) {
-        setHasMore(false);
-      } else {
-        setPhotos(prev => [...prev, ...newPhotos]);
-        setLoadedDays(prev => prev + 1);
-      }
-    } catch (err) {
-      console.error('[WordBook] 加载更多失败:', err);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [loadingMore, hasMore, loadedDays, loadPhotosByDateRange]);
+  useDidShow(() => {
+    loadAllPhotos();
+    setRefreshKey((k) => k + 1);
+  });
 
   const wordEntries = useMemo(() => {
     const wordbookWordsSet = new Set(wordbookWordList);
     const wordMap = new Map<string, {
       phonetic: string;
       romaji: string;
+      chinese: string;
       examples: string[];
       photoIds: Set<string>;
     }>();
@@ -147,6 +90,7 @@ export default function WordBookPage() {
           wordMap.set(name, {
             phonetic: obj.phonetic || '',
             romaji: obj.romaji || '',
+            chinese: obj.chinese || '',
             examples: obj.examples || [],
             photoIds: new Set([photo.id]),
           });
@@ -160,6 +104,7 @@ export default function WordBookPage() {
         word,
         phonetic: value.phonetic,
         romaji: value.romaji,
+        chinese: value.chinese,
         examples: value.examples,
         photoCount: value.photoIds.size,
         photoIds: Array.from(value.photoIds),
@@ -194,6 +139,30 @@ export default function WordBookPage() {
       Taro.showToast({ title: '移除失败', icon: 'none' });
     }
   }, []);
+
+  const handleExport = useCallback(async () => {
+    try {
+      const BOM = '\uFEFF';
+      const header = '单词,音标,罗马音,中文翻译,例句,关联照片数,掌握状态\n';
+      const rows = wordEntries.map((w) => {
+        const mastered = isMastered(w.word) ? '已掌握' : '生词';
+        const examples = w.examples.length > 0 ? w.examples.join('；') : '';
+        const escapedWord = w.word.includes(',') ? `"${w.word}"` : w.word;
+        const escapedPhonetic = w.phonetic.includes(',') ? `"${w.phonetic}"` : w.phonetic;
+        const escapedRomaji = w.romaji.includes(',') ? `"${w.romaji}"` : w.romaji;
+        const escapedChinese = w.chinese.includes(',') ? `"${w.chinese}"` : w.chinese;
+        const escapedExamples = examples.includes(',') ? `"${examples}"` : examples;
+        return `${escapedWord},${escapedPhonetic},${escapedRomaji},${escapedChinese},${escapedExamples},${w.photoCount},${mastered}`;
+      }).join('\n');
+
+      const csv = BOM + header + rows;
+      await Taro.setClipboardData({ data: csv });
+      Taro.showToast({ title: '已复制到剪贴板，可粘贴到 Excel', icon: 'success', duration: 2000 });
+    } catch (err) {
+      console.error('[WordBook] 导出失败:', err);
+      Taro.showToast({ title: '导出失败，请重试', icon: 'none' });
+    }
+  }, [wordEntries]);
 
   const handleWordClick = useCallback((word: string) => {
     dispatch({ type: 'setWordDetail', word });
@@ -240,7 +209,13 @@ export default function WordBookPage() {
             <Text className="wordbook-back-arrow">←</Text>
           </View>
           <Text className="wordbook-header-title">我的单词本</Text>
-          <View className="wordbook-back-btn" />
+          {!loading && wordEntries.length > 0 ? (
+            <View className="wordbook-export-btn" onClick={handleExport}>
+              <Text className="wordbook-export-text">导出</Text>
+            </View>
+          ) : (
+            <View className="wordbook-back-btn" />
+          )}
         </View>
         <Text className="wordbook-header-subtitle">共 {wordEntries.length} 个单词</Text>
       </View>
@@ -301,20 +276,6 @@ export default function WordBookPage() {
               </View>
             </View>
           ))}
-
-          {/* 加载更多按钮 */}
-          {hasMore && (
-            <View className="wordbook-loadmore">
-              <Button
-                className="wordbook-loadmore-btn"
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-              >
-                {loadingMore ? '加载中...' : '加载更多'}
-              </Button>
-              <Text className="wordbook-loadmore-text">已加载 {loadedDays} 天的数据</Text>
-            </View>
-          )}
         </ScrollView>
       )}
     </View>

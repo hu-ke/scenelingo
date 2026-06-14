@@ -184,7 +184,14 @@ export const api = {
     });
   },
 
-  listPhotos(startDate?: string, endDate?: string) {
+  listPhotos(startDate?: string, endDate?: string, words?: string[]) {
+    // 当有 words 参数时使用 POST，避免 URL 过长
+    if (words && words.length > 0) {
+      return request<{ photos: Record<string, unknown>[] }>('/api/photos/list', {
+        method: 'POST',
+        body: JSON.stringify({ start_date: startDate, end_date: endDate, words }),
+      });
+    }
     let path = '/api/photos/list';
     const params: string[] = [];
     if (startDate) params.push(`start_date=${startDate}`);

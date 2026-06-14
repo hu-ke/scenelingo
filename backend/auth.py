@@ -505,12 +505,12 @@ async def reset_photo_to_pending(photo_id: str) -> bool:
         logger.warning(f"[reset_photo_to_pending] 未找到照片 photo_id={photo_id}")
     return result.matched_count > 0
 
-async def list_user_photos_mongo(user_id: str, start_date: str = None, end_date: str = None) -> list[dict]:
+async def list_user_photos_mongo(user_id: str, start_date: str = None, end_date: str = None, words: list[str] = None) -> list[dict]:
     from db import db
     if db is None:
         logger.warning("[list_user_photos_mongo] db 为 None, 无法查询 MongoDB")
         return None
-    logger.info(f"[list_user_photos_mongo] 查询 user_id={user_id}, start_date={start_date}, end_date={end_date}")
+    logger.info(f"[list_user_photos_mongo] 查询 user_id={user_id}, start_date={start_date}, end_date={end_date}, words={words}")
     
     query = {"user_id": user_id}
     if start_date or end_date:
@@ -520,6 +520,9 @@ async def list_user_photos_mongo(user_id: str, start_date: str = None, end_date:
         if end_date:
             date_filter["$lte"] = end_date
         query["collection_date"] = date_filter
+    if words:
+        # 只返回 objects.name 在指定单词列表中的照片
+        query["objects.name"] = {"$in": [w.lower() for w in words]}
     
     cursor = db.photos.find(query).sort("collection_date", -1)
     photos = []

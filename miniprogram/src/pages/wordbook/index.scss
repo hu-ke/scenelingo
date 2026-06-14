@@ -34,6 +34,23 @@
   flex-shrink: 0;
 }
 
+.wordbook-export-btn {
+  width: 80rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 26rpx;
+}
+
+.wordbook-export-text {
+  font-size: 24rpx;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
 .wordbook-back-arrow {
   font-size: 36rpx;
   color: #FFFFFF;
