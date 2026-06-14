@@ -27,6 +27,16 @@ function formatDateLabel(dateStr: string): string {
   return `${m}月${d}日 ${weekDays[date.getDay()]}`;
 }
 
+function getDateString(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
+function getDateBefore(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return getDateString(date);
+}
+
 const ANNOTATION_COLORS = ['#A29BFE', '#54A0FF', '#2ED573', '#FFA94D', '#FF6B6B'];
 
 function roundRect(
@@ -287,6 +297,9 @@ export default function HomePage() {
   );
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadedChunks, setLoadedChunks] = useState(0); // 已加载的2周块数
+  const [oldestDate, setOldestDate] = useState<string>(''); // 用户最早照片日期
   const initialLoadDone = useRef(false);
 
   const countWordbookWords = (photos: PhotoItem[], wordbookWords: string[]): number => {
@@ -324,7 +337,7 @@ export default function HomePage() {
     }
   };
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (startDate?: string, endDate?: string) => {
     const loggedIn = isLoggedIn();
 
     if (loggedIn) {
@@ -333,7 +346,14 @@ export default function HomePage() {
         migrateLocalWordbook();
         // 从服务端获取生词本列表
         const wordbookWords = await getWordbookWords();
-        const result = await api.listPhotos();
+
+        const result: any = await api.listPhotos(startDate, endDate);
+
+        // 记录用户最早照片日期
+        if (result.oldest_date) {
+          setOldestDate(result.oldest_date);
+        }
+
         const cloudPhotos: PhotoItem[] = (result.photos || []).map((p: any) => ({
           id: p.id,
           dataUrl: p.originalUrl,
@@ -402,10 +422,67 @@ export default function HomePage() {
     setLoading(false);
   }, []);
 
+  // 加载下一个2周块，与已有数据合并
+  const loadMorePhotos = useCallback(async () => {
+    setLoadingMore(true);
+    try {
+      const nextChunk = loadedChunks + 1;
+      const endDate = getDateBefore((nextChunk - 1) * 14);
+      const startDate = getDateBefore(nextChunk * 14 - 1);
+
+      const result: any = await api.listPhotos(startDate, endDate);
+      if (result.oldest_date) {
+        setOldestDate(result.oldest_date);
+      }
+
+      const newPhotos: PhotoItem[] = (result.photos || []).map((p: any) => ({
+        id: p.id,
+        dataUrl: p.originalUrl,
+        annotatedDataUrl: p.annotatedUrl,
+        objects: p.objects,
+        status: p.status || 'completed',
+        collectionDate: p.collectionDate,
+      }));
+
+      // 合并到现有分组
+      const merged = { ...groupedPhotos };
+      for (const photo of newPhotos) {
+        const date = (photo as any).collectionDate || new Date().toISOString().split('T')[0];
+        if (!merged[date]) merged[date] = [];
+        // 避免重复
+        if (!merged[date].some(p => p.id === photo.id)) {
+          merged[date].push(photo);
+        }
+      }
+
+      // 重新计算总数和生词
+      const wordbookWords = await getWordbookWords();
+      const allPhotos = Object.values(merged).flat();
+      setGroupedPhotos(merged);
+      setTotalCount(allPhotos.length);
+      setWordCount(countWordbookWords(allPhotos, wordbookWords));
+      dispatch({ type: 'setSavedPhotos', photos: allPhotos });
+
+      setLoadedChunks(nextChunk);
+    } catch (err) {
+      console.error('加载更早照片失败:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadedChunks, groupedPhotos]);
+
+  // 是否还有更多可加载：下一块起始日期 > 最早照片日期
+  const hasMore = oldestDate
+    ? getDateBefore((loadedChunks + 1) * 14 - 1) > oldestDate
+    : true;
+
   useEffect(() => {
     if (!initialLoadDone.current) {
       initialLoadDone.current = true;
-      loadData();
+      const today = getDateString(new Date());
+      const twoWeeksAgo = getDateBefore(13);
+      loadData(twoWeeksAgo, today);
+      setLoadedChunks(1);
     }
   }, [loadData]);
 
@@ -419,11 +496,13 @@ export default function HomePage() {
     if (!hasNonCompleted) return;
 
     const interval = setInterval(() => {
-      loadData();
+      const today = getDateString(new Date());
+      const startDate = getDateBefore(loadedChunks * 14 - 1);
+      loadData(startDate, today);
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [groupedPhotos, loadData]);
+  }, [groupedPhotos, loadedChunks, loadData]);
 
   useEffect(() => {
     const allIds = Object.values(groupedPhotos).flat().map(p => p.id);
@@ -869,6 +948,42 @@ export default function HomePage() {
               </div>
             );
           })}
+
+          {/* 加载更早的照片按钮 */}
+          {hasMore && isLoggedIn() && (
+            <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+              <button
+                onClick={loadMorePhotos}
+                disabled={loadingMore}
+                style={{
+                  padding: '0.75rem 2rem',
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
+                  borderRadius: 'var(--radius-full)',
+                  border: 'none',
+                  background: loadingMore
+                    ? 'var(--color-border)'
+                    : 'linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end))',
+                  color: '#FFFFFF',
+                  cursor: loadingMore ? 'not-allowed' : 'pointer',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                  opacity: loadingMore ? 0.6 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!loadingMore) {
+                    (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 12px rgba(255, 107, 107, 0.3)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.transform = '';
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = '';
+                }}
+              >
+                {loadingMore ? '加载中...' : '加载更早的照片'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

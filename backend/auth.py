@@ -505,7 +505,7 @@ async def reset_photo_to_pending(photo_id: str) -> bool:
         logger.warning(f"[reset_photo_to_pending] 未找到照片 photo_id={photo_id}")
     return result.matched_count > 0
 
-async def list_user_photos_mongo(user_id: str, start_date: str = None, end_date: str = None, words: list[str] = None) -> list[dict]:
+async def list_user_photos_mongo(user_id: str, start_date: str = None, end_date: str = None, words: list[str] = None) -> dict:
     from db import db
     if db is None:
         logger.warning("[list_user_photos_mongo] db 为 None, 无法查询 MongoDB")
@@ -546,7 +546,15 @@ async def list_user_photos_mongo(user_id: str, start_date: str = None, end_date:
             sample = await db.photos.find_one()
             logger.warning(f"[list_user_photos_mongo] 样例文档 user_id={sample.get('user_id')} photo_id={sample.get('photo_id')}")
 
-    return photos
+    # 查询该用户最早的照片日期
+    oldest_doc = await db.photos.find_one(
+        {"user_id": user_id},
+        sort=[("collection_date", 1)],
+        projection={"collection_date": 1}
+    )
+    oldest_date = oldest_doc.get("collection_date") if oldest_doc else None
+
+    return {"photos": photos, "oldest_date": oldest_date}
 
 async def delete_photo_record(user_id: str, photo_id: str) -> bool:
     from db import db

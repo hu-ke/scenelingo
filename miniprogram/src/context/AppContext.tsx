@@ -10,6 +10,7 @@ export interface PhotoItem {
   objects?: RecognizedObject[];
   actions?: RecognizedAction[];
   status?: 'pending' | 'processing' | 'completed';
+  collectionDate?: string;
 }
 
 export interface RecognizedObject {

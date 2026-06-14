@@ -28,6 +28,12 @@ function getTodayStr(): string {
   return `${y}-${m}-${day}`;
 }
 
+function getDateBefore(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString().split('T')[0];
+}
+
 function countWordbookWords(photos: PhotoItem[], wordbookWords: string[]): number {
   const photoWordSet = new Set<string>();
   for (const photo of photos) {
@@ -81,26 +87,30 @@ export default function HomePage() {
   const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set());
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadedChunks, setLoadedChunks] = useState(0); // 已加载的2周块数
+  const [oldestDate, setOldestDate] = useState(''); // 用户最早照片日期
   const initialLoadDone = useRef(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const loadingRef = useRef(false);
 
   console.log('home page mounted');
-  const loadPhotos = useCallback(async () => {
+  const loadPhotos = useCallback(async (startDate?: string, endDate?: string) => {
     if (loadingRef.current) return;
-    // auth 未就绪时跳过，等 auth 完成后 useEffect 会重新触发
     if (authState.loading) return;
     loadingRef.current = true;
     let photos: PhotoItem[] = [];
     let dateMap: Record<string, string> = {};
     let wordbookWords: string[] = [];
 
-    // 迁移本地残留的生词本数据到服务端
     migrateLocalWordbook();
-    // 从服务端获取生词本列表
     wordbookWords = await getWordbookWords();
     try {
-      const res = await api.listPhotos();
+      const res = await api.listPhotos(startDate, endDate);
+      // 记录用户最早照片日期
+      if (res.oldest_date) {
+        setOldestDate(res.oldest_date as string);
+      }
       const rawPhotos = res.photos || [];
       photos = rawPhotos.map((p: Record<string, unknown>) => {
         const id = (p.id as string) || '';
@@ -138,7 +148,10 @@ export default function HomePage() {
             }
           }
           try {
-            const reloadRes = await api.listPhotos();
+            const reloadRes = await api.listPhotos(startDate, endDate);
+            if (reloadRes.oldest_date) {
+              setOldestDate(reloadRes.oldest_date as string);
+            }
             const reloadRaw = reloadRes.photos || [];
             const newPhotos = reloadRaw.map((p: Record<string, unknown>) => ({
               id: (p.id as string) || '',
@@ -219,16 +232,73 @@ export default function HomePage() {
     loadingRef.current = false;
   }, [dispatch, authState.loading]);
 
+  // 加载下一个2周块，与已有数据合并
+  const loadMorePhotos = useCallback(async () => {
+    setLoadingMore(true);
+    const nextChunk = loadedChunks + 1;
+    const endDate = getDateBefore((nextChunk - 1) * 14);
+    const startDate = getDateBefore(nextChunk * 14 - 1);
+
+    try {
+      const res = await api.listPhotos(startDate, endDate);
+      if (res.oldest_date) {
+        setOldestDate(res.oldest_date as string);
+      }
+      const rawPhotos = res.photos || [];
+      const newPhotos: PhotoItem[] = rawPhotos.map((p: Record<string, unknown>) => ({
+        id: (p.id as string) || '',
+        dataUrl: (p.originalUrl as string) || '',
+        annotatedDataUrl: p.annotatedUrl as string | undefined,
+        objects: p.objects as RecognizedObject[] | undefined,
+        status: (p.status as PhotoItem['status']) || 'completed',
+        collectionDate: p.collectionDate as string || getTodayStr(),
+      } as PhotoItem));
+
+      // 合并到现有分组
+      const merged = { ...groupedPhotos };
+      for (const photo of newPhotos) {
+        const date = photo.collectionDate || getTodayStr();
+        if (!merged[date]) merged[date] = [];
+        if (!merged[date].some(p => p.id === photo.id)) {
+          merged[date].push(photo);
+        }
+      }
+
+      const wordbookWords = await getWordbookWords();
+      const allPhotos = Object.values(merged).flat();
+      setGroupedPhotos(merged);
+      setTotalCount(allPhotos.length);
+      setWordCount(countWordbookWords(allPhotos, wordbookWords));
+      setDayCount(Object.keys(merged).length);
+      dispatch({ type: 'setSavedPhotos', photos: allPhotos });
+      dispatch({ type: 'cleanSelection', ids: allPhotos.map(p => p.id) });
+
+      setLoadedChunks(nextChunk);
+    } catch (err) {
+      console.error('[HomePage] 加载更早照片失败:', err);
+      Taro.showToast({ title: '加载失败，请重试', icon: 'none' });
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadedChunks, groupedPhotos]);
+
+  // 是否还有更多可加载：下一块起始日期 > 最早照片日期
+  const hasMore = oldestDate
+    ? getDateBefore((loadedChunks + 1) * 14 - 1) > oldestDate
+    : true;
+
   useEffect(() => {
     if (!initialLoadDone.current && !authState.loading) {
       initialLoadDone.current = true;
-      loadPhotos();
+      loadPhotos(getDateBefore(13), getTodayStr());
+      setLoadedChunks(1);
     }
   }, [loadPhotos, authState.loading]);
 
   useDidShow(() => {
     if (initialLoadDone.current) {
-      loadPhotos();
+      const startDate = getDateBefore(loadedChunks * 14 - 1);
+      loadPhotos(startDate, getTodayStr());
     }
   });
 
@@ -248,7 +318,8 @@ export default function HomePage() {
 
     if (pollingRef.current) clearInterval(pollingRef.current);
     pollingRef.current = setInterval(() => {
-      loadPhotos();
+      const startDate = getDateBefore(loadedChunks * 14 - 1);
+      loadPhotos(startDate, getTodayStr());
     }, 2000);
 
     return () => {
@@ -257,7 +328,7 @@ export default function HomePage() {
         pollingRef.current = null;
       }
     };
-  }, [groupedPhotos, loadPhotos]);
+  }, [groupedPhotos, loadedChunks, loadPhotos]);
 
   const handleToggleCollection = useCallback((date: string) => {
     setExpandedCollections((prev) => {
@@ -509,6 +580,19 @@ export default function HomePage() {
           </View>
         );
       })}
+
+      {/* 加载更早的照片按钮 */}
+      {hasMore && (
+        <View className="home-loadmore">
+          <Button
+            className="home-loadmore-btn"
+            onClick={loadMorePhotos}
+            disabled={loadingMore}
+          >
+            {loadingMore ? '加载中...' : '加载更早的照片'}
+          </Button>
+        </View>
+      )}
     </View>
   ) : null;
 

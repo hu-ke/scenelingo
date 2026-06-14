@@ -561,3 +561,35 @@
     border: none;
   }
 }
+
+.home-loadmore {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40rpx 0 20rpx;
+}
+
+.home-loadmore-btn {
+  width: 360rpx;
+  height: 72rpx;
+  background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
+  color: #FFFFFF;
+  font-size: 28rpx;
+  font-weight: 600;
+  border-radius: 36rpx;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 72rpx;
+
+  &::after {
+    border: none;
+  }
+
+  &[disabled] {
+    opacity: 0.6;
+    background: #E0EAF3;
+    color: #A0AFBF;
+  }
+}

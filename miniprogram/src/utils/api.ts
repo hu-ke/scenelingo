@@ -187,7 +187,7 @@ export const api = {
   listPhotos(startDate?: string, endDate?: string, words?: string[]) {
     // 当有 words 参数时使用 POST，避免 URL 过长
     if (words && words.length > 0) {
-      return request<{ photos: Record<string, unknown>[] }>('/api/photos/list', {
+      return request<{ photos: Record<string, unknown>[]; oldest_date?: string }>('/api/photos/list', {
         method: 'POST',
         body: JSON.stringify({ start_date: startDate, end_date: endDate, words }),
       });
@@ -197,7 +197,7 @@ export const api = {
     if (startDate) params.push(`start_date=${startDate}`);
     if (endDate) params.push(`end_date=${endDate}`);
     if (params.length > 0) path += '?' + params.join('&');
-    return request<{ photos: Record<string, unknown>[] }>(path);
+    return request<{ photos: Record<string, unknown>[]; oldest_date?: string }>(path);
   },
 
   deletePhoto(id: string) {

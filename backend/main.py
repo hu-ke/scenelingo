@@ -489,9 +489,9 @@ async def list_photos(request: Request, start_date: str = None, end_date: str = 
     photos = await list_user_photos_mongo(user_id, start_date, end_date, word_list)
     if photos is None:
         logger.warning(f"[list_photos] MongoDB 不可用, 降级到 OSS 查询")
-        photos = list_user_photos(user_id)
-    logger.info(f"[list_photos] 返回 {len(photos)} 张照片给 {user_id}")
-    return {"photos": photos}
+        photos = {"photos": list_user_photos(user_id), "oldest_date": None}
+    logger.info(f"[list_photos] 返回 {len(photos['photos'])} 张照片给 {user_id}")
+    return photos
 
 @app.post("/scenelingo-service/api/photos/list")
 async def list_photos_post(request: Request, req: PhotoListRequest):
@@ -500,9 +500,9 @@ async def list_photos_post(request: Request, req: PhotoListRequest):
     photos = await list_user_photos_mongo(user_id, req.start_date, req.end_date, req.words)
     if photos is None:
         logger.warning(f"[list_photos_post] MongoDB 不可用, 降级到 OSS 查询")
-        photos = list_user_photos(user_id)
-    logger.info(f"[list_photos_post] 返回 {len(photos)} 张照片给 {user_id}")
-    return {"photos": photos}
+        photos = {"photos": list_user_photos(user_id), "oldest_date": None}
+    logger.info(f"[list_photos_post] 返回 {len(photos['photos'])} 张照片给 {user_id}")
+    return photos
 
 
 @app.delete("/scenelingo-service/api/photos/delete")
