@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import Taro, { useDidShow } from '@tarojs/taro';
+import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro';
 import { View, Text, Image, Button, Canvas } from '@tarojs/components';
 import { useReview } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
@@ -7,6 +7,7 @@ import { api } from '../../utils/api';
 import { getJSONStorage, setJSONStorage } from '../../utils/storage';
 import { generateUUID } from '../../utils/uuid';
 import { renderAnnotatedImageToTempFile } from '../../utils/annotateImage';
+import { generateShareCardImage } from '../../utils/shareCard';
 import { getWordbookWords, migrateLocalWordbook } from '../../utils/wordMastery';
 import { useTheme } from '../../hooks/useTheme';
 import type { PhotoItem, RecognizedObject } from '../../context/AppContext';
@@ -82,6 +83,18 @@ export default function HomePage() {
   const initialLoadDone = useRef(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const loadingRef = useRef(false);
+  const shareImageRef = useRef<string>('');
+
+  // 预生成分享卡片图片
+  useEffect(() => {
+    generateShareCardImage('share-card-canvas')
+      .then((path) => {
+        shareImageRef.current = path;
+      })
+      .catch((err) => {
+        console.warn('分享卡片生成失败，分享时将使用默认图片:', err);
+      });
+  }, []);
 
   console.log('home page mounted');
   const loadPhotos = useCallback(async (startDate?: string, endDate?: string) => {
@@ -613,6 +626,20 @@ export default function HomePage() {
     </View>
   ) : null;
 
+  // 分享给朋友
+  useShareAppMessage(() => ({
+    title: '我发现一个超实用的拍照学外语小程序！拍张照就能学单词，快来试试~',
+    path: '/pages/home/index',
+    imageUrl: shareImageRef.current || undefined,
+  }));
+
+  // 分享到朋友圈
+  useShareTimeline(() => ({
+    title: '场景外语 - 拍照学外语，所见即所学',
+    path: '/pages/home/index',
+    imageUrl: shareImageRef.current || undefined,
+  }));
+
   return (
     <View className="home-page" style={themeStyle}>
       {headerNode}
@@ -641,6 +668,16 @@ export default function HomePage() {
           top: '-9999px',
           width: '2000px',
           height: '2000px',
+        }}
+      />
+      <Canvas
+        canvasId="share-card-canvas"
+        style={{
+          position: 'fixed',
+          left: '-9999px',
+          top: '-9999px',
+          width: '500px',
+          height: '400px',
         }}
       />
     </View>
