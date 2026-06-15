@@ -1,5 +1,8 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8022/scenelingo-service';
 
+// 防止多个并行的 401 响应各自触发页面重载
+let _redirectingAfter401 = false;
+
 export function getApiBaseUrl(): string {
   return BASE_URL;
 }
@@ -28,9 +31,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
 
   if (res.status === 401) {
-    localStorage.removeItem('scene_lingo_token');
-    localStorage.removeItem('scene_lingo_email');
-    window.location.reload();
+    if (!_redirectingAfter401) {
+      _redirectingAfter401 = true;
+      localStorage.removeItem('scene_lingo_token');
+      localStorage.removeItem('scene_lingo_email');
+      // 用 replace 而非 reload，避免页面闪烁，且无法通过"后退"回到已登录状态
+      window.location.replace('/');
+    }
     throw new Error('未登录或token已过期');
   }
 

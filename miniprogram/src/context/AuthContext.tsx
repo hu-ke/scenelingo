@@ -61,10 +61,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setState({ token: res.token, userId: res.user_id, isLoggedIn: true, loading: false });
         }
       } catch (e) {
-        console.error('自动登录失败:', e);
+        console.error('自动登录失败，1秒后重试:', e);
+        // 登录失败先不标记为已登录，等待重试
+        await new Promise(r => setTimeout(r, 1000));
+        if (cancelled) return;
+        try {
+          const retryLoginRes = await Taro.login();
+          if (retryLoginRes.code) {
+            const retryRes = await api.wechatLogin(retryLoginRes.code);
+            if (!cancelled) {
+              Taro.setStorageSync('scene_lingo_token', retryRes.token);
+              Taro.setStorageSync('scene_lingo_user_id', retryRes.user_id);
+              setState({ token: retryRes.token, userId: retryRes.user_id, isLoggedIn: true, loading: false });
+            }
+            return;
+          }
+        } catch (retryErr) {
+          console.error('自动登录重试也失败:', retryErr);
+        }
         if (!cancelled) {
-          // 登录失败也设置为已登录状态（降级），但无 token
-          setState({ token: null, userId: null, isLoggedIn: true, loading: false });
+          // 两次尝试均失败，标记为未登录
+          setState({ token: null, userId: null, isLoggedIn: false, loading: false });
         }
       }
     }

@@ -114,6 +114,7 @@ export default function HomePage() {
 
     migrateLocalWordbook();
     wordbookWords = await getWordbookWords();
+    if (authState.isLoggedIn && authState.token) {
     try {
       const res = await api.listPhotos(startDate, endDate);
       const rawPhotos = res.photos || [];
@@ -201,6 +202,12 @@ export default function HomePage() {
         })();
       }
     } catch {
+      photos = getJSONStorage<PhotoItem[]>('saved_photos', []);
+      for (const p of photos) {
+        dateMap[p.id] = getTodayStr();
+      }
+    }
+    } else {
       photos = getJSONStorage<PhotoItem[]>('saved_photos', []);
       for (const p of photos) {
         dateMap[p.id] = getTodayStr();
@@ -322,6 +329,7 @@ export default function HomePage() {
     : true;
 
   const fetchStats = useCallback(async () => {
+    if (!authState.isLoggedIn || !authState.token) return;
     try {
       const stats = await api.getUserStats();
       setTotalCount(stats.total_count);
@@ -443,6 +451,26 @@ export default function HomePage() {
       setShowQuotaModal(true);
       return;
     }
+
+    // 确保已登录且有有效 token
+    let token = authState.token;
+    if (!token) {
+      Taro.showLoading({ title: '登录中...' });
+      try {
+        const loginRes = await Taro.login();
+        if (!loginRes.code) throw new Error('wx.login 失败');
+        const result = await api.wechatLogin(loginRes.code);
+        Taro.setStorageSync('scene_lingo_token', result.token);
+        Taro.setStorageSync('scene_lingo_user_id', result.user_id);
+        token = result.token;
+      } catch {
+        Taro.hideLoading();
+        Taro.showToast({ title: '登录失败，请稍后重试', icon: 'none' });
+        return;
+      }
+      Taro.hideLoading();
+    }
+
     try {
       const res = await Taro.chooseMedia({
         count: 9,
@@ -484,7 +512,7 @@ export default function HomePage() {
       if (msg.includes('cancel')) return;
       Taro.showToast({ title: '选择图片失败', icon: 'error' });
     }
-  }, [quota, dispatch, loadPhotos, fetchQuota]);
+  }, [quota, authState.token, dispatch, loadPhotos, fetchQuota]);
 
   const handleBatchDelete = useCallback(async () => {
     const ids = [...state.selectedPhotoIds];

@@ -4,6 +4,9 @@ type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8022/scenelingo-service';
 
+// 防止多个并行的 401 响应各自触发页面跳转
+let _redirectingAfter401 = false;
+
 function getToken(): string {
   return Taro.getStorageSync('scene_lingo_token') || '';
 }
@@ -29,9 +32,12 @@ async function request<T>(path: string, options: Record<string, unknown> = {}): 
   });
 
   if (res.statusCode === 401) {
-    Taro.removeStorageSync('scene_lingo_token');
-    Taro.removeStorageSync('scene_lingo_user_id');
-    Taro.reLaunch({ url: '/pages/home/index' });
+    if (!_redirectingAfter401) {
+      _redirectingAfter401 = true;
+      Taro.removeStorageSync('scene_lingo_token');
+      Taro.removeStorageSync('scene_lingo_user_id');
+      Taro.reLaunch({ url: '/pages/home/index' });
+    }
     throw new Error('未登录或token已过期');
   }
 
