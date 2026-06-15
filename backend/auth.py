@@ -194,7 +194,6 @@ async def get_or_create_user_by_openid(openid: str) -> dict:
             target_lang = "en"
             theme = "warm-orange"
             result = await db.users.insert_one({
-                "email": "",
                 "openid": openid,
                 "native_lang": native_lang,
                 "target_lang": target_lang,
