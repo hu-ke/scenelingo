@@ -8,6 +8,7 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 from bson import ObjectId
 from loguru import logger
+from fastapi import HTTPException
 
 CODE_EXPIRE_SECONDS = 300
 CODE_RESEND_SECONDS = 60
@@ -173,39 +174,43 @@ async def get_or_create_user_by_openid(openid: str) -> dict:
     from db import db
     if db is None:
         logger.warning("[get_or_create_user_by_openid] db 为 None")
-        return {"user_id": "", "email": "", "nativeLang": "zh", "targetLang": "en"}
+        return {"user_id": "", "email": "", "nativeLang": "zh", "targetLang": "en", "theme": "warm-orange"}
 
-    user = await db.users.find_one({"openid": openid})
-    now = datetime.utcnow()
-    if user:
-        await db.users.update_one(
-            {"_id": user["_id"]},
-            {"$set": {"last_login_at": now, "updated_at": now}}
-        )
-        user_id = str(user["_id"])
-        native_lang = user.get("native_lang", "zh")
-        target_lang = user.get("target_lang", "en")
-        theme = user.get("theme", "warm-orange")
-        logger.info(f"[get_or_create_user_by_openid] 已有用户 openid={openid} user_id={user_id}")
-    else:
-        native_lang = "zh"
-        target_lang = "en"
-        theme = "warm-orange"
-        result = await db.users.insert_one({
-            "email": "",
-            "openid": openid,
-            "native_lang": native_lang,
-            "target_lang": target_lang,
-            "theme": theme,
-            "recognition_quota": DEFAULT_RECOGNITION_QUOTA,
-            "created_at": now,
-            "updated_at": now,
-            "last_login_at": now,
-        })
-        user_id = str(result.inserted_id)
-        logger.info(f"[get_or_create_user_by_openid] 新建用户 openid={openid} user_id={user_id}")
+    try:
+        user = await db.users.find_one({"openid": openid})
+        now = datetime.utcnow()
+        if user:
+            await db.users.update_one(
+                {"_id": user["_id"]},
+                {"$set": {"last_login_at": now, "updated_at": now}}
+            )
+            user_id = str(user["_id"])
+            native_lang = user.get("native_lang", "zh")
+            target_lang = user.get("target_lang", "en")
+            theme = user.get("theme", "warm-orange")
+            logger.info(f"[get_or_create_user_by_openid] 已有用户 openid={openid} user_id={user_id}")
+        else:
+            native_lang = "zh"
+            target_lang = "en"
+            theme = "warm-orange"
+            result = await db.users.insert_one({
+                "email": "",
+                "openid": openid,
+                "native_lang": native_lang,
+                "target_lang": target_lang,
+                "theme": theme,
+                "recognition_quota": DEFAULT_RECOGNITION_QUOTA,
+                "created_at": now,
+                "updated_at": now,
+                "last_login_at": now,
+            })
+            user_id = str(result.inserted_id)
+            logger.info(f"[get_or_create_user_by_openid] 新建用户 openid={openid} user_id={user_id}")
 
-    return {"user_id": user_id, "email": "", "nativeLang": native_lang, "targetLang": target_lang, "theme": theme}
+        return {"user_id": user_id, "email": "", "nativeLang": native_lang, "targetLang": target_lang, "theme": theme}
+    except Exception as e:
+        logger.error(f"[get_or_create_user_by_openid] 操作失败 openid={openid}: {e}")
+        raise
 
 async def wechat_login(code: str, email: str = "") -> dict | None:
     import urllib.request
@@ -232,38 +237,42 @@ async def wechat_login(code: str, email: str = "") -> dict | None:
     
     logger.info(f"[wechat_login] 获取到 openid={openid}")
     
-    # 如果客户端传了旧邮箱，尝试绑定到已有账号
-    from db import db
-    if email and db is not None:
-        existing_user = await db.users.find_one({"email": email})
-        if existing_user:
-            # 已有邮箱用户，将 openid 绑定到该用户
-            user_id = str(existing_user["_id"])
-            await db.users.update_one(
-                {"_id": existing_user["_id"]},
-                {"$set": {"openid": openid, "updated_at": datetime.utcnow(), "last_login_at": datetime.utcnow()}}
-            )
-            native_lang = existing_user.get("native_lang", "zh")
-            target_lang = existing_user.get("target_lang", "en")
-            theme = existing_user.get("theme", "warm-orange")
-            logger.info(f"[wechat_login] 已将 openid={openid} 绑定到已有邮箱用户 {email} user_id={user_id}")
-            token = generate_token(user_id)
-            return {
-                "token": token,
-                "user_id": user_id,
-                "email": email,
-                "nativeLang": native_lang,
-                "targetLang": target_lang,
-                "theme": theme,
-            }
-    
-    user_info = await get_or_create_user_by_openid(openid)
-    token = generate_token(user_info["user_id"])
-    
-    return {
-        "token": token,
-        **user_info,
-    }
+    try:
+        # 如果客户端传了旧邮箱，尝试绑定到已有账号
+        from db import db
+        if email and db is not None:
+            existing_user = await db.users.find_one({"email": email})
+            if existing_user:
+                # 已有邮箱用户，将 openid 绑定到该用户
+                user_id = str(existing_user["_id"])
+                await db.users.update_one(
+                    {"_id": existing_user["_id"]},
+                    {"$set": {"openid": openid, "updated_at": datetime.utcnow(), "last_login_at": datetime.utcnow()}}
+                )
+                native_lang = existing_user.get("native_lang", "zh")
+                target_lang = existing_user.get("target_lang", "en")
+                theme = existing_user.get("theme", "warm-orange")
+                logger.info(f"[wechat_login] 已将 openid={openid} 绑定到已有邮箱用户 {email} user_id={user_id}")
+                token = generate_token(user_id)
+                return {
+                    "token": token,
+                    "user_id": user_id,
+                    "email": email,
+                    "nativeLang": native_lang,
+                    "targetLang": target_lang,
+                    "theme": theme,
+                }
+        
+        user_info = await get_or_create_user_by_openid(openid)
+        token = generate_token(user_info["user_id"])
+        
+        return {
+            "token": token,
+            **user_info,
+        }
+    except Exception as e:
+        logger.error(f"[wechat_login] 登录处理异常 openid={openid}: {e}")
+        raise HTTPException(status_code=500, detail="登录处理失败，请稍后重试")
 
 async def update_user_language(user_id: str, nativeLang: str, targetLang: str) -> bool:
     from db import db
@@ -658,3 +667,4 @@ async def is_new_user(user_id: str) -> bool:
         return True
     count = await db.photos.count_documents({"user_id": user_id})
     return count == 0
+
