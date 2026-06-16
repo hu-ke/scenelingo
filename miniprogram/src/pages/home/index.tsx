@@ -280,7 +280,7 @@ export default function HomePage() {
     }
   }, []);
 
-  // 检测 inviter 参数并领取分享奖励
+  // 检测 inviter 参数并触发分享奖励（奖励给邀请者，新用户不显示提示）
   useEffect(() => {
     const launchOptions = Taro.getLaunchOptionsSync();
     const inviter = launchOptions.query?.inviter;
@@ -288,7 +288,6 @@ export default function HomePage() {
       api.shareReward(inviter).then((res) => {
         if (res.success) {
           fetchQuota();
-          Taro.showToast({ title: `获得 ${res.quota_added || rewardQuota} 次识别机会！`, icon: 'success' });
         }
       }).catch(() => {});
     }

@@ -1,13 +1,35 @@
-import { useCallback } from 'react';
-import Taro from '@tarojs/taro';
+import { useCallback, useState, useEffect } from 'react';
+import Taro, { useDidShow } from '@tarojs/taro';
 import { View, Text } from '@tarojs/components';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../hooks/useTheme';
+import { api } from '../../utils/api';
 import './index.scss';
 
 export default function ProfilePage() {
   const themeStyle = useTheme();
   const { state: authState } = useAuth();
+  const [quota, setQuota] = useState<number | null>(null);
+  const [rewardQuota, setRewardQuota] = useState(10);
+
+  useEffect(() => {
+    api.getUserQuota().then(res => setQuota(res.quota)).catch(() => {});
+    api.getShareRewardInfo().then(res => setRewardQuota(res.reward_quota)).catch(() => {});
+  }, []);
+
+  // 每次切到"我的"页面时刷新识别次数
+  useDidShow(() => {
+    api.getUserQuota().then(res => setQuota(res.quota)).catch(() => {});
+  });
+
+  const handleQuota = useCallback(() => {
+    Taro.showModal({
+      title: '剩余识别次数',
+      content: `当前剩余 ${quota ?? '--'} 次识别机会\n\n分享首页给好友，好友通过你的分享进入小程序，你即可获得 ${rewardQuota} 次识别机会！`,
+      showCancel: false,
+      confirmText: '知道了',
+    });
+  }, [quota, rewardQuota]);
 
   const handleLanguage = useCallback(() => {
     Taro.navigateTo({ url: '/pages/settings/index' });
@@ -55,6 +77,14 @@ export default function ProfilePage() {
 
       {/* 菜单区域 */}
       <View className="profile-menu">
+        <View className="profile-menu-item" onClick={handleQuota}>
+          <View className="profile-menu-item-left">
+            <Text className="profile-menu-item-icon">📸</Text>
+            <Text className="profile-menu-item-text">剩余识别次数</Text>
+          </View>
+          <Text className="profile-menu-item-arrow">{quota !== null ? quota : '...'} ›</Text>
+        </View>
+
         <View className="profile-menu-item" onClick={handleLanguage}>
           <View className="profile-menu-item-left">
             <Text className="profile-menu-item-icon">🌐</Text>
