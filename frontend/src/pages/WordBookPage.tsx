@@ -153,7 +153,9 @@ export default function WordBookPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `我的单词本_${new Date().toISOString().split('T')[0]}.csv`;
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    link.download = `我的单词本_${today}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

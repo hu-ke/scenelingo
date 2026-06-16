@@ -21,14 +21,27 @@ function blobToDataURL(blob: Blob): Promise<string> {
 
 function formatDateLabel(dateStr: string): string {
   if (dateStr === 'earlier') return '更早的照片';
-  const [y, m, d] = dateStr.split('-').map(Number);
+  // 兼容 yyyy-mm-dd 和 yyyy-mm-dd hh:mm:ss 两种格式
+  const datePart = dateStr.split(' ')[0];
+  const [y, m, d] = datePart.split('-').map(Number);
   const date = new Date(y, m - 1, d);
   const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   return `${m}月${d}日 ${weekDays[date.getDay()]}`;
 }
 
+// 提取日期部分 (YYYY-MM-DD)，兼容新旧格式
+function getDateKey(dateStr: string): string {
+  return dateStr.split(' ')[0];
+}
+
 function getDateString(date: Date): string {
-  return date.toISOString().split('T')[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const h = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  const s = String(date.getSeconds()).padStart(2, '0');
+  return `${y}-${m}-${d} ${h}:${min}:${s}`;
 }
 
 function getDateBefore(days: number): string {
@@ -315,12 +328,12 @@ export default function HomePage() {
     setWordCount(0);
     dispatch({ type: 'setSavedPhotos', photos });
 
-    const today = new Date().toISOString().split('T')[0];
-    if (grouped[today]) {
+    const todayKey = getDateKey(getDateString(new Date()));
+    if (grouped[todayKey]) {
       setExpandedCollections((prev) => {
-        if (prev.has(today)) return prev;
+        if (prev.has(todayKey)) return prev;
         const next = new Set(prev);
-        next.add(today);
+        next.add(todayKey);
         return next;
       });
     }
@@ -374,7 +387,7 @@ export default function HomePage() {
 
         const grouped: Record<string, PhotoItem[]> = {};
         for (const photo of cloudPhotos) {
-          const date = (photo as any).collectionDate || new Date().toISOString().split('T')[0];
+          const date = getDateKey((photo as any).collectionDate || getDateString(new Date()));
           if (!grouped[date]) grouped[date] = [];
           grouped[date].push(photo);
         }
@@ -389,12 +402,12 @@ export default function HomePage() {
 
           dispatch({ type: 'setSavedPhotos', photos: cloudPhotos });
 
-        const today = new Date().toISOString().split('T')[0];
-        if (grouped[today]) {
+        const todayKey = getDateKey(getDateString(new Date()));
+        if (grouped[todayKey]) {
           setExpandedCollections((prev) => {
-            if (prev.has(today)) return prev;
+            if (prev.has(todayKey)) return prev;
             const next = new Set(prev);
-            next.add(today);
+            next.add(todayKey);
             return next;
           });
         }
@@ -431,7 +444,7 @@ export default function HomePage() {
       // 合并到现有分组
       const merged = { ...groupedPhotos };
       for (const photo of newPhotos) {
-        const date = (photo as any).collectionDate || new Date().toISOString().split('T')[0];
+        const date = getDateKey((photo as any).collectionDate || getDateString(new Date()));
         if (!merged[date]) merged[date] = [];
         // 避免重复
         if (!merged[date].some(p => p.id === photo.id)) {

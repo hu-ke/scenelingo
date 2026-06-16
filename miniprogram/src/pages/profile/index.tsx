@@ -58,7 +58,7 @@ export default function ProfilePage() {
         <View className="profile-menu-item" onClick={handleLanguage}>
           <View className="profile-menu-item-left">
             <Text className="profile-menu-item-icon">🌐</Text>
-            <Text className="profile-menu-item-text">语言</Text>
+            <Text className="profile-menu-item-text">语言&主题色</Text>
           </View>
           <Text className="profile-menu-item-arrow">›</Text>
         </View>

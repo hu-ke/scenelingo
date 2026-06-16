@@ -5,9 +5,20 @@ import smtplib
 import jwt
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime, timedelta
-from bson import ObjectId
+from datetime import datetime, timedelta, timezone
 from loguru import logger
+
+# 中国时区 (UTC+8)
+CHINA_TZ = timezone(timedelta(hours=8))
+
+def china_now_str() -> str:
+    """返回中国时区的当前时间，格式 yyyy-mm-dd hh:mm:ss"""
+    return datetime.now(CHINA_TZ).strftime('%Y-%m-%d %H:%M:%S')
+
+def china_now() -> datetime:
+    """返回中国时区的当前 datetime"""
+    return datetime.now(CHINA_TZ)
+from bson import ObjectId
 from fastapi import HTTPException
 
 CODE_EXPIRE_SECONDS = 300
@@ -441,7 +452,7 @@ async def save_pending_photo_record(user_id: str, photo_id: str) -> bool:
     await db.photos.insert_one({
         "photo_id": photo_id,
         "user_id": user_id,
-        "collection_date": datetime.utcnow().strftime('%Y-%m-%d'),
+        "collection_date": china_now_str(),
         "original_url": f"{base_url}/photos/{user_id}/{photo_id}/original.jpg",
         "annotated_url": "",
         "objects": [],

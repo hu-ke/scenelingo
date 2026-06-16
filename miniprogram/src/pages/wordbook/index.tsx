@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { View, Text, Button, ScrollView } from '@tarojs/components';
 import { useReview } from '../../context/AppContext';
@@ -27,6 +27,7 @@ export default function WordBookPage() {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [wordbookWordList, setWordbookWordList] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const isReturningFromDetail = useRef(false);
 
   const loadAllPhotos = useCallback(async () => {
     setLoading(true);
@@ -62,8 +63,14 @@ export default function WordBookPage() {
   }, []);
 
   useDidShow(() => {
-    loadAllPhotos();
-    setRefreshKey((k) => k + 1);
+    if (isReturningFromDetail.current) {
+      // 从单词详情页返回，只刷新掌握状态，不重新加载数据，避免闪烁和滚动重置
+      isReturningFromDetail.current = false;
+      setRefreshKey((k) => k + 1);
+    } else {
+      loadAllPhotos();
+      setRefreshKey((k) => k + 1);
+    }
   });
 
   const wordEntries = useMemo(() => {
@@ -165,6 +172,7 @@ export default function WordBookPage() {
   }, [wordEntries]);
 
   const handleWordClick = useCallback((word: string) => {
+    isReturningFromDetail.current = true;
     dispatch({ type: 'setWordDetail', word });
     Taro.navigateTo({ url: '/pages/worddetail/index' });
   }, [dispatch]);

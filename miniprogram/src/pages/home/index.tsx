@@ -15,10 +15,17 @@ import './index.scss';
 
 function formatDateLabel(dateStr: string): string {
   if (dateStr === 'earlier') return '更早的照片';
-  const [y, m, d] = dateStr.split('-').map(Number);
+  // 兼容 yyyy-mm-dd 和 yyyy-mm-dd hh:mm:ss 两种格式
+  const datePart = dateStr.split(' ')[0];
+  const [y, m, d] = datePart.split('-').map(Number);
   const date = new Date(y, m - 1, d);
   const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   return `${m}月${d}日 ${weekDays[date.getDay()]}`;
+}
+
+// 提取日期部分 (YYYY-MM-DD)，兼容新旧格式
+function getDateKey(dateStr: string): string {
+  return dateStr.split(' ')[0];
 }
 
 function getTodayStr(): string {
@@ -26,13 +33,22 @@ function getTodayStr(): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const s = String(d.getSeconds()).padStart(2, '0');
+  return `${y}-${m}-${day} ${h}:${min}:${s}`;
 }
 
 function getDateBefore(days: number): string {
   const date = new Date();
   date.setDate(date.getDate() - days);
-  return date.toISOString().split('T')[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const h = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  const s = String(date.getSeconds()).padStart(2, '0');
+  return `${y}-${m}-${d} ${h}:${min}:${s}`;
 }
 
 
@@ -177,7 +193,7 @@ export default function HomePage() {
               return db.localeCompare(da);
             });
             for (const p of sorted) {
-              const date = newDateMap[p.id] || getTodayStr();
+              const date = getDateKey(newDateMap[p.id] || getTodayStr());
               if (!grouped[date]) grouped[date] = [];
               grouped[date].push(p);
             }
@@ -221,7 +237,7 @@ export default function HomePage() {
       return db.localeCompare(da);
     });
     for (const photo of sorted) {
-      const date = dateMap[photo.id] || getTodayStr();
+      const date = getDateKey(dateMap[photo.id] || getTodayStr());
       if (!grouped[date]) grouped[date] = [];
       grouped[date].push(photo);
     }
@@ -241,12 +257,12 @@ export default function HomePage() {
     dispatch({ type: 'setSavedPhotos', photos });
     dispatch({ type: 'cleanSelection', ids: photos.map(p => p.id) });
 
-    const today = getTodayStr();
-    if (grouped[today]) {
+    const todayKey = getDateKey(getTodayStr());
+    if (grouped[todayKey]) {
       setExpandedCollections((prev) => {
-        if (prev.has(today)) return prev;
+        if (prev.has(todayKey)) return prev;
         const next = new Set(prev);
-        next.add(today);
+        next.add(todayKey);
         return next;
       });
     }
@@ -300,7 +316,7 @@ export default function HomePage() {
       // 合并到现有分组
       const merged = { ...groupedPhotos };
       for (const photo of newPhotos) {
-        const date = photo.collectionDate || getTodayStr();
+        const date = getDateKey(photo.collectionDate || getTodayStr());
         if (!merged[date]) merged[date] = [];
         if (!merged[date].some(p => p.id === photo.id)) {
           merged[date].push(photo);

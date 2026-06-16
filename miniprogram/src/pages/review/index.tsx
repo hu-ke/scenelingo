@@ -41,6 +41,7 @@ export default function ReviewPage() {
   const [showReRecognizeDialog, setShowReRecognizeDialog] = useState(false)
   const [reRecognizeHint, setReRecognizeHint] = useState('')
   const [wordbookWords, setWordbookWords] = useState<string[]>([])
+  const [canvasKey, setCanvasKey] = useState(0)
   const lastRecognizedRef = useRef(-1)
   const currentObjectsRef = useRef(currentObjects)
   const currentActionsRef = useRef(currentActions)
@@ -104,12 +105,14 @@ export default function ReviewPage() {
 
   const handleReRecognizeConfirm = useCallback(() => {
     setShowReRecognizeDialog(false)
+    setCanvasKey(k => k + 1)
     recognizeImage(reRecognizeHint.trim() || undefined)
     setReRecognizeHint('')
   }, [recognizeImage, reRecognizeHint])
 
   const handleReRecognizeSkip = useCallback(() => {
     setShowReRecognizeDialog(false)
+    setCanvasKey(k => k + 1)
     recognizeImage()
     setReRecognizeHint('')
   }, [recognizeImage])
@@ -172,7 +175,16 @@ export default function ReviewPage() {
         nativeLang,
         targetLang,
         id: currentPhoto.id,
-        collectionDate: new Date().toISOString().split('T')[0],
+        collectionDate: (() => {
+          const d = new Date();
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          const h = String(d.getHours()).padStart(2, '0');
+          const min = String(d.getMinutes()).padStart(2, '0');
+          const s = String(d.getSeconds()).padStart(2, '0');
+          return `${y}-${m}-${day} ${h}:${min}:${s}`;
+        })(),
         createdAt: Date.now(),
       })
     } catch {
@@ -183,6 +195,31 @@ export default function ReviewPage() {
 
     dispatch({ type: 'nextPhoto' })
   }, [currentPhoto, currentObjects, dispatch, nativeLang, targetLang])
+
+  const handleRemoveObject = useCallback((index: number) => {
+    if (!currentObjects) return
+    const updated = currentObjects.filter((_, i) => i !== index)
+    dispatch({ type: 'setCurrentObjects', objects: updated })
+    dispatch({ type: 'updatePhotoObjects', index: currentIndex, objects: updated, actions: currentActions ?? undefined })
+    // 持久化到数据库
+    if (currentPhoto?.id) {
+      api.reRecognize(currentPhoto.id, updated as Record<string, unknown>[], (currentActions ?? []) as Record<string, unknown>[]).catch((err) => {
+        console.error('reRecognize 持久化失败:', err)
+      })
+    }
+  }, [currentObjects, currentActions, currentIndex, currentPhoto, dispatch])
+
+  const handleRemoveAction = useCallback((index: number) => {
+    if (!currentActions) return
+    const updated = currentActions.filter((_, i) => i !== index)
+    dispatch({ type: 'setCurrentActions', actions: updated })
+    dispatch({ type: 'updatePhotoObjects', index: currentIndex, objects: currentObjects ?? [], actions: updated })
+    if (currentPhoto?.id) {
+      api.reRecognize(currentPhoto.id, (currentObjects ?? []) as Record<string, unknown>[], updated as Record<string, unknown>[]).catch((err) => {
+        console.error('reRecognize 持久化失败:', err)
+      })
+    }
+  }, [currentObjects, currentActions, currentIndex, currentPhoto, dispatch])
 
   const handleBack = useCallback(() => {
     dispatch({ type: 'resetReview' })
@@ -242,11 +279,14 @@ export default function ReviewPage() {
             </Button>
           </View>
         ) : currentObjects ? (
-          <AnnotatedImage
-            dataUrl={currentPhoto.dataUrl}
-            objects={currentObjects}
-            actions={currentActions ?? undefined}
-          />
+          !showReRecognizeDialog && (
+            <AnnotatedImage
+              key={canvasKey}
+              dataUrl={currentPhoto.dataUrl}
+              objects={currentObjects}
+              actions={currentActions ?? undefined}
+            />
+          )
         ) : null}
       </View>
 
@@ -254,6 +294,12 @@ export default function ReviewPage() {
         <View className="review-word-cards">
           {currentObjects.map((obj, idx) => (
             <View key={idx} className="review-word-card-item">
+              <View
+                className="review-word-card-remove"
+                onClick={(e) => { e.stopPropagation(); handleRemoveObject(idx); }}
+              >
+                <Text>×</Text>
+              </View>
               <WordCard obj={obj} wordbookWords={wordbookWords} onWordbookChange={(word, inWb) => {
                 setWordbookWords(prev => inWb ? [...prev, word.toLowerCase()] : prev.filter(w => w !== word.toLowerCase()))
               }} />
@@ -270,6 +316,12 @@ export default function ReviewPage() {
           </View>
           {currentActions.map((action, idx) => (
             <View key={idx} className="review-word-card-item" style={{ borderColor: '#FF9800' }}>
+              <View
+                className="review-word-card-remove"
+                onClick={(e) => { e.stopPropagation(); handleRemoveAction(idx); }}
+              >
+                <Text>×</Text>
+              </View>
               <WordCard obj={action} wordbookWords={wordbookWords} onWordbookChange={(word, inWb) => {
                 setWordbookWords(prev => inWb ? [...prev, word.toLowerCase()] : prev.filter(w => w !== word.toLowerCase()))
               }} />
@@ -289,7 +341,7 @@ export default function ReviewPage() {
 
       {/* 重新识别弹框 */}
       {showReRecognizeDialog && (
-        <View className="review-rerecognize-mask" onClick={() => { setShowReRecognizeDialog(false); setReRecognizeHint(''); }}>
+        <View className="review-rerecognize-mask" onClick={() => { setShowReRecognizeDialog(false); setReRecognizeHint(''); setCanvasKey(k => k + 1); }}>
           <View className="review-rerecognize-card" onClick={(e: unknown) => (e as { stopPropagation?: () => void })?.stopPropagation?.()}>
             <Text className="review-rerecognize-title">重新识别</Text>
             <Text className="review-rerecognize-desc">描述你希望调整的内容，AI会根据你的提示重新识别</Text>
