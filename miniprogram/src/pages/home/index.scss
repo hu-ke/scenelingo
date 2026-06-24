@@ -363,46 +363,21 @@
 
 .home-merge-bar {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--color-primary);
-  padding: 20rpx 40rpx;
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: homeSlideUp 0.25s ease;
-}
-
-@keyframes homeSlideUp {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
-.home-merge-btn {
-  height: 76rpx;
-  padding: 0 48rpx;
-  background: rgba(255, 255, 255, 0.95);
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 180rpx;
+  background: #e74c3c;
+  padding: 20rpx 48rpx;
   border-radius: 38rpx;
-  font-size: 28rpx;
-  color: var(--color-primary);
-  font-weight: 600;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 76rpx;
+  box-shadow: 0 8rpx 24rpx rgba(231, 76, 60, 0.4);
+  z-index: 999;
+}
 
-  &::after {
-    border: none;
-  }
+.home-merge-btn-text {
+  font-size: 28rpx;
+  color: #fff;
+  font-weight: 600;
+  line-height: 1.5;
 }
 
 .home-footer {

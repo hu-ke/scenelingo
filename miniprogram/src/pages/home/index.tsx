@@ -689,10 +689,8 @@ export default function HomePage() {
   ) : null;
 
   const deleteBarNode = selectedCount >= 1 ? (
-    <View className="home-merge-bar">
-      <Button className="home-merge-btn" onClick={handleBatchDelete}>
-        删除选中 ({selectedCount})
-      </Button>
+    <View className="home-merge-bar" onClick={handleBatchDelete}>
+      <Text className="home-merge-btn-text">删除选中 ({selectedCount})</Text>
     </View>
   ) : null;
 
