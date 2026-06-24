@@ -14,6 +14,11 @@ const TAB_LIST = [
     icon: '📖',
   },
   {
+    pagePath: 'pages/favorites/index',
+    text: '收藏夹',
+    icon: '⭐',
+  },
+  {
     pagePath: 'pages/profile/index',
     text: '我的',
     icon: '👤',

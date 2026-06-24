@@ -1,0 +1,25 @@
+# Checklist
+
+- [x] 后端 POST `/favorites/folders` 接口可创建文件夹，正确返回 `folder_id`
+- [x] 后端 GET `/favorites/folders?parent_id=xxx` 可获取指定层级下的子文件夹列表
+- [x] 后端 PUT `/favorites/folders/{folder_id}` 可重命名文件夹
+- [x] 后端 DELETE `/favorites/folders/{folder_id}` 可级联删除文件夹、子文件夹和收藏项
+- [x] 后端 POST `/favorites/items` 可添加收藏，重复添加返回 409
+- [x] 后端 GET `/favorites/items?folder_id=xxx` 可获取文件夹内收藏图片列表
+- [x] 后端 DELETE `/favorites/items` 可移除收藏项
+- [x] MongoDB `favorite_folders` 和 `favorite_photos` 集合索引已创建
+- [x] 底部导航栏显示"收藏夹" Tab，点击可跳转到收藏夹主页
+- [x] 收藏夹主页可展示根目录文件夹列表
+- [x] 收藏夹主页可新建文件夹
+- [x] 文件夹支持重命名（长按菜单）
+- [x] 文件夹支持删除（级联删除，有确认对话框）
+- [x] 空文件夹时显示空状态提示
+- [x] 文件夹详情页展示子文件夹列表和已收藏图片网格
+- [x] 文件夹详情页支持返回上级目录
+- [x] 文件夹详情页内可新建子文件夹
+- [x] 文件夹详情页可从文件夹移除图片
+- [x] 首页照片支持"收藏到文件夹"操作
+- [x] 复习页支持"收藏到文件夹"操作
+- [x] 文件夹选择器可递归展示文件夹树
+- [x] 同一图片可收藏到多个不同文件夹
+- [x] 重复收藏到同一文件夹时给出提示

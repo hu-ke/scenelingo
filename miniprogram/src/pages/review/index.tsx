@@ -5,6 +5,7 @@ import { useReview } from '../../context/AppContext'
 import { api } from '../../utils/api'
 import AnnotatedImage from '../../components/AnnotatedImage'
 import WordCard from '../../components/WordCard'
+import FolderPicker from '../../components/FolderPicker'
 import { getWordbookWords } from '../../utils/wordMastery'
 import { useTheme } from '../../hooks/useTheme'
 import type { RecognizedObject, RecognizedAction } from '../../context/AppContext'
@@ -42,6 +43,7 @@ export default function ReviewPage() {
   const [reRecognizeHint, setReRecognizeHint] = useState('')
   const [wordbookWords, setWordbookWords] = useState<string[]>([])
   const [canvasKey, setCanvasKey] = useState(0)
+  const [favPickerVisible, setFavPickerVisible] = useState(false)
   const lastRecognizedRef = useRef(-1)
   const currentObjectsRef = useRef(currentObjects)
   const currentActionsRef = useRef(currentActions)
@@ -226,6 +228,47 @@ export default function ReviewPage() {
     Taro.reLaunch({ url: '/pages/home/index' })
   }, [dispatch])
 
+  const handleFavorite = useCallback(() => {
+    if (!currentPhoto) return
+    setFavPickerVisible(true)
+  }, [currentPhoto])
+
+  const handleFolderSelect = useCallback(
+    async (folder: { folder_id: string; name: string }) => {
+      if (!currentPhoto) return
+      const token = Taro.getStorageSync('scene_lingo_token')
+      const BASE_URL = process.env.BASE_URL || 'http://localhost:8022/scenelingo-service'
+
+      try {
+        const res = await Taro.request({
+          url: `${BASE_URL}/api/favorites/items`,
+          method: 'POST',
+          header: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          data: {
+            folder_id: folder.folder_id,
+            photo_id: currentPhoto.id,
+          },
+        })
+
+        if (res.statusCode === 200) {
+          Taro.showToast({ title: '已收藏', icon: 'success' })
+        } else if (res.statusCode === 409) {
+          Taro.showToast({ title: '该图片已在此文件夹中', icon: 'none' })
+        } else {
+          Taro.showToast({ title: '收藏失败', icon: 'none' })
+        }
+      } catch {
+        Taro.showToast({ title: '收藏失败', icon: 'none' })
+      } finally {
+        setFavPickerVisible(false)
+      }
+    },
+    [currentPhoto],
+  )
+
   if (!isReviewing && photos.length > 0) {
     return (
       <View className="review-page">
@@ -334,6 +377,9 @@ export default function ReviewPage() {
         <Button onClick={handleReRecognize} disabled={loading}>
           {loading ? '识别中...' : '重新识别'}
         </Button>
+        <Button onClick={handleFavorite} disabled={loading || !currentObjects}>
+          收藏
+        </Button>
         <Button onClick={handleDownload} disabled={loading || !currentObjects}>
           下载
         </Button>
@@ -364,6 +410,11 @@ export default function ReviewPage() {
           </View>
         </View>
       )}
+      <FolderPicker
+        visible={favPickerVisible}
+        onClose={() => setFavPickerVisible(false)}
+        onSelect={handleFolderSelect}
+      />
     </View>
   )
 }

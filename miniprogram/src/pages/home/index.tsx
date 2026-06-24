@@ -10,6 +10,7 @@ import { renderAnnotatedImageToTempFile } from '../../utils/annotateImage';
 import { generateShareCardImage } from '../../utils/shareCard';
 import { getWordbookWords, migrateLocalWordbook } from '../../utils/wordMastery';
 import { useTheme } from '../../hooks/useTheme';
+import FolderPicker from '../../components/FolderPicker';
 import type { PhotoItem, RecognizedObject } from '../../context/AppContext';
 import './index.scss';
 
@@ -84,6 +85,9 @@ export default function HomePage() {
   const themeStyle = useTheme();
   const { state, dispatch } = useReview();
   const { state: authState } = useAuth();
+
+  const [favPickerVisible, setFavPickerVisible] = useState(false);
+  const [favTargetPhoto, setFavTargetPhoto] = useState<PhotoItem | null>(null);
 
   const [groupedPhotos, setGroupedPhotos] = useState<Record<string, PhotoItem[]>>({});
   const [totalCount, setTotalCount] = useState(0);
@@ -423,6 +427,52 @@ export default function HomePage() {
     [dispatch],
   );
 
+  const handleAddToFavorites = useCallback(
+    (photo: PhotoItem, e: unknown) => {
+      (e as { stopPropagation?: () => void })?.stopPropagation?.();
+      setFavTargetPhoto(photo);
+      setFavPickerVisible(true);
+    },
+    [],
+  );
+
+  const handleFolderSelect = useCallback(
+    async (folder: { folder_id: string; name: string }) => {
+      if (!favTargetPhoto) return;
+      const token = Taro.getStorageSync('scene_lingo_token');
+      const BASE_URL = process.env.BASE_URL || 'http://localhost:8022/scenelingo-service';
+
+      try {
+        const res = await Taro.request({
+          url: `${BASE_URL}/api/favorites/items`,
+          method: 'POST',
+          header: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          data: {
+            folder_id: folder.folder_id,
+            photo_id: favTargetPhoto.id,
+          },
+        });
+
+        if (res.statusCode === 200) {
+          Taro.showToast({ title: '已收藏', icon: 'success' });
+        } else if (res.statusCode === 409) {
+          Taro.showToast({ title: '该图片已在此文件夹中', icon: 'none' });
+        } else {
+          Taro.showToast({ title: '收藏失败', icon: 'none' });
+        }
+      } catch {
+        Taro.showToast({ title: '收藏失败', icon: 'none' });
+      } finally {
+        setFavPickerVisible(false);
+        setFavTargetPhoto(null);
+      }
+    },
+    [favTargetPhoto],
+  );
+
   const handleDeletePhoto = useCallback(
     async (photo: PhotoItem, e: unknown) => {
       (e as { stopPropagation?: () => void })?.stopPropagation?.();
@@ -659,6 +709,12 @@ export default function HomePage() {
                         <Text>{isSelected ? '✓' : '○'}</Text>
                       </View>
                       <View
+                        className="home-photo-fav"
+                        onClick={(e) => handleAddToFavorites(photo, e)}
+                      >
+                        <Text>⭐</Text>
+                      </View>
+                      <View
                         className="home-photo-delete"
                         onClick={(e) => handleDeletePhoto(photo, e)}
                       >
@@ -778,6 +834,11 @@ export default function HomePage() {
           width: '500px',
           height: '400px',
         }}
+      />
+      <FolderPicker
+        visible={favPickerVisible}
+        onClose={() => setFavPickerVisible(false)}
+        onSelect={handleFolderSelect}
       />
     </View>
   );

@@ -39,6 +39,8 @@ from auth import get_user_stats
 from auth import get_user_quota, decrement_user_quota, add_user_quota, record_share_invite, is_new_user
 from auth import complete_photo
 from auth import SHARE_REWARD_QUOTA
+from auth import create_favorite_folder, list_favorite_folders, rename_favorite_folder, delete_favorite_folder
+from auth import add_favorite_item, list_favorite_items, remove_favorite_item
 from db import get_db, init_db, _client
 from oss_client import upload_photo, upload_metadata, list_user_photos, delete_photo
 
@@ -85,6 +87,21 @@ class PhotoReRecognizeRequest(BaseModel):
 
 class ShareRewardRequest(BaseModel):
     inviter_user_id: str
+
+class CreateFolderRequest(BaseModel):
+    name: str
+    parent_id: str | None = None
+
+class RenameFolderRequest(BaseModel):
+    name: str
+
+class AddFavoriteItemRequest(BaseModel):
+    folder_id: str
+    photo_id: str
+
+class RemoveFavoriteItemRequest(BaseModel):
+    folder_id: str
+    photo_id: str
 
 
 def require_auth(request: Request) -> str:
@@ -514,6 +531,66 @@ async def remove_from_wordbook(request: Request, req: WordbookWordRequest):
     if not success:
         raise HTTPException(status_code=500, detail="移除生词失败")
     return {"success": True}
+
+# ---- Favorites API ----
+@app.post("/scenelingo-service/api/favorites/folders")
+async def create_folder(request: Request, req: CreateFolderRequest):
+    user_id = require_auth(request)
+    result = await create_favorite_folder(user_id, req.name, req.parent_id)
+    if result is None:
+        raise HTTPException(status_code=500, detail="创建文件夹失败")
+    return result
+
+
+@app.get("/scenelingo-service/api/favorites/folders")
+async def list_folders(request: Request, parent_id: str = None):
+    user_id = require_auth(request)
+    folders = await list_favorite_folders(user_id, parent_id)
+    return {"folders": folders}
+
+
+@app.put("/scenelingo-service/api/favorites/folders/{folder_id}")
+async def rename_folder(request: Request, folder_id: str, req: RenameFolderRequest):
+    user_id = require_auth(request)
+    success = await rename_favorite_folder(user_id, folder_id, req.name)
+    if not success:
+        raise HTTPException(status_code=404, detail="文件夹不存在")
+    return {"success": True}
+
+
+@app.delete("/scenelingo-service/api/favorites/folders/{folder_id}")
+async def delete_folder(request: Request, folder_id: str):
+    user_id = require_auth(request)
+    success = await delete_favorite_folder(user_id, folder_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="删除文件夹失败")
+    return {"success": True}
+
+
+@app.post("/scenelingo-service/api/favorites/items")
+async def add_item(request: Request, req: AddFavoriteItemRequest):
+    user_id = require_auth(request)
+    result = await add_favorite_item(user_id, req.folder_id, req.photo_id)
+    if result is None:
+        raise HTTPException(status_code=409, detail="已收藏过该照片")
+    return result
+
+
+@app.get("/scenelingo-service/api/favorites/items")
+async def list_items(request: Request, folder_id: str):
+    user_id = require_auth(request)
+    items = await list_favorite_items(user_id, folder_id)
+    return {"photos": items}
+
+
+@app.delete("/scenelingo-service/api/favorites/items")
+async def remove_item(request: Request, req: RemoveFavoriteItemRequest):
+    user_id = require_auth(request)
+    success = await remove_favorite_item(user_id, req.folder_id, req.photo_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="收藏项不存在")
+    return {"success": True}
+
 
 @app.on_event("startup")
 async def startup():

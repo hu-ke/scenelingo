@@ -3,6 +3,7 @@ import time
 import random
 import smtplib
 import jwt
+import uuid
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta, timezone
@@ -668,6 +669,190 @@ async def record_share_invite(inviter_id: str, new_user_id: str) -> bool:
         "created_at": datetime.utcnow(),
     })
     return True
+
+
+# ---- Favorites operations (MongoDB) ----
+async def _collect_descendant_folder_ids(user_id: str, parent_id: str) -> list[str]:
+    """Recursively collect all descendant folder_ids for a given parent_id."""
+    from db import db
+    if db is None:
+        return []
+
+    direct_children = await db.favorite_folders.find(
+        {"user_id": user_id, "parent_id": parent_id}
+    ).to_list(length=None)
+
+    all_ids = []
+    for child in direct_children:
+        child_id = child["folder_id"]
+        all_ids.append(child_id)
+        descendants = await _collect_descendant_folder_ids(user_id, child_id)
+        all_ids.extend(descendants)
+
+    return all_ids
+
+
+async def create_favorite_folder(user_id: str, name: str, parent_id: str = None) -> dict | None:
+    from db import db
+    if db is None:
+        logger.warning("[create_favorite_folder] db 为 None")
+        return None
+
+    folder_id = uuid.uuid4().hex[:16]
+    now = datetime.utcnow()
+    await db.favorite_folders.insert_one({
+        "folder_id": folder_id,
+        "user_id": user_id,
+        "name": name,
+        "parent_id": parent_id,
+        "sort_order": 0,
+        "created_at": now,
+        "updated_at": now,
+    })
+    logger.info(f"[create_favorite_folder] 文件夹已创建 folder_id={folder_id} name={name} user_id={user_id}")
+    return {"folder_id": folder_id, "name": name, "parent_id": parent_id, "created_at": now}
+
+
+async def list_favorite_folders(user_id: str, parent_id: str = None) -> list:
+    from db import db
+    if db is None:
+        logger.warning("[list_favorite_folders] db 为 None")
+        return []
+
+    query = {"user_id": user_id, "parent_id": parent_id}
+    cursor = db.favorite_folders.find(query).sort([
+        ("sort_order", 1),
+        ("created_at", 1),
+    ])
+    folders = []
+    async for doc in cursor:
+        folders.append({
+            "folder_id": doc["folder_id"],
+            "name": doc["name"],
+            "parent_id": doc.get("parent_id"),
+            "created_at": doc["created_at"],
+            "updated_at": doc["updated_at"],
+        })
+    logger.info(f"[list_favorite_folders] 找到 {len(folders)} 个文件夹 user_id={user_id} parent_id={parent_id}")
+    return folders
+
+
+async def rename_favorite_folder(user_id: str, folder_id: str, name: str) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[rename_favorite_folder] db 为 None")
+        return False
+
+    result = await db.favorite_folders.update_one(
+        {"user_id": user_id, "folder_id": folder_id},
+        {"$set": {"name": name, "updated_at": datetime.utcnow()}},
+    )
+    if result.matched_count > 0:
+        logger.info(f"[rename_favorite_folder] 文件夹已重命名 folder_id={folder_id} name={name}")
+    else:
+        logger.warning(f"[rename_favorite_folder] 未找到文件夹 folder_id={folder_id}")
+    return result.matched_count > 0
+
+
+async def delete_favorite_folder(user_id: str, folder_id: str) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[delete_favorite_folder] db 为 None")
+        return False
+
+    # Collect the target folder and all its descendants
+    ids_to_delete = [folder_id]
+    descendant_ids = await _collect_descendant_folder_ids(user_id, folder_id)
+    ids_to_delete.extend(descendant_ids)
+
+    logger.info(f"[delete_favorite_folder] 将删除 {len(ids_to_delete)} 个文件夹 folder_id={folder_id} user_id={user_id}")
+
+    # Delete all favorite_photos entries in those folders
+    await db.favorite_photos.delete_many({
+        "user_id": user_id,
+        "folder_id": {"$in": ids_to_delete},
+    })
+
+    # Delete all folders
+    await db.favorite_folders.delete_many({
+        "user_id": user_id,
+        "folder_id": {"$in": ids_to_delete},
+    })
+
+    logger.info(f"[delete_favorite_folder] 已删除文件夹及其子内容 folder_id={folder_id}")
+    return True
+
+
+async def add_favorite_item(user_id: str, folder_id: str, photo_id: str) -> dict | None:
+    from db import db
+    if db is None:
+        logger.warning("[add_favorite_item] db 为 None")
+        return None
+
+    # Check for duplicate
+    existing = await db.favorite_photos.find_one({
+        "user_id": user_id,
+        "folder_id": folder_id,
+        "photo_id": photo_id,
+    })
+    if existing:
+        logger.warning(f"[add_favorite_item] 重复收藏 user_id={user_id} folder_id={folder_id} photo_id={photo_id}")
+        return None
+
+    now = datetime.utcnow()
+    await db.favorite_photos.insert_one({
+        "user_id": user_id,
+        "folder_id": folder_id,
+        "photo_id": photo_id,
+        "created_at": now,
+    })
+    logger.info(f"[add_favorite_item] 收藏已添加 user_id={user_id} folder_id={folder_id} photo_id={photo_id}")
+    return {"user_id": user_id, "folder_id": folder_id, "photo_id": photo_id, "created_at": now}
+
+
+async def list_favorite_items(user_id: str, folder_id: str) -> list:
+    from db import db
+    if db is None:
+        logger.warning("[list_favorite_items] db 为 None")
+        return []
+
+    cursor = db.favorite_photos.find(
+        {"user_id": user_id, "folder_id": folder_id}
+    ).sort("created_at", -1)
+
+    items = []
+    async for fav in cursor:
+        photo = await db.photos.find_one({"photo_id": fav["photo_id"]})
+        if photo:
+            items.append({
+                "photo_id": fav["photo_id"],
+                "original_url": photo.get("original_url", ""),
+                "annotated_url": photo.get("annotated_url", ""),
+                "collection_date": photo.get("collection_date", ""),
+                "created_at": fav["created_at"],
+                "objects_count": len(photo.get("objects", [])),
+            })
+
+    logger.info(f"[list_favorite_items] 找到 {len(items)} 个收藏项 user_id={user_id} folder_id={folder_id}")
+    return items
+
+
+async def remove_favorite_item(user_id: str, folder_id: str, photo_id: str) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[remove_favorite_item] db 为 None")
+        return False
+
+    result = await db.favorite_photos.delete_one({
+        "user_id": user_id,
+        "folder_id": folder_id,
+        "photo_id": photo_id,
+    })
+    if result.deleted_count > 0:
+        logger.info(f"[remove_favorite_item] 收藏已移除 user_id={user_id} folder_id={folder_id} photo_id={photo_id}")
+    else:
+        logger.warning(f"[remove_favorite_item] 未找到收藏项 user_id={user_id} folder_id={folder_id} photo_id={photo_id}")
+    return result.deleted_count > 0
 
 
 async def is_new_user(user_id: str) -> bool:

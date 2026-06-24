@@ -5,6 +5,8 @@ export default {
     'pages/merge/index',
     'pages/wordbook/index',
     'pages/worddetail/index',
+    'pages/favorites/index',
+    'pages/favorites/folder',
     'pages/settings/index',
     'pages/profile/index',
     'pages/user-agreement/index',
@@ -30,6 +32,10 @@ export default {
       {
         pagePath: 'pages/wordbook/index',
         text: '生词本',
+      },
+      {
+        pagePath: 'pages/favorites/index',
+        text: '收藏夹',
       },
       {
         pagePath: 'pages/profile/index',
