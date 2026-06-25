@@ -613,16 +613,6 @@ export default function HomePage() {
   const headerNode = (
     <View className="home-header">
       <Image className="home-header-banner" src={`${CDN}/banner.png`} mode="aspectFill" />
-      <View className="home-header-stats">
-        <View className="home-header-stat">
-          <Text className="home-header-stat-value">{dayCount}</Text>
-          <Text className="home-header-stat-label">学习天数</Text>
-        </View>
-        <View className="home-header-stat">
-          <Text className="home-header-stat-value">{wordCount}</Text>
-          <Text className="home-header-stat-label">生词累计</Text>
-        </View>
-      </View>
     </View>
   );
 

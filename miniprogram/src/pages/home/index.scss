@@ -165,7 +165,7 @@
 
 .home-collection-group {
   margin-bottom: 20rpx;
-  background: #fff;
+  background: #fef8ed;
   border-radius: 20rpx;
   overflow: hidden;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
@@ -336,7 +336,7 @@
 
 .home-empty-desc {
   font-size: 26rpx;
-  color: #999;
+  color: #fff;
   text-align: center;
   line-height: 1.6;
 }
@@ -344,12 +344,10 @@
 .home-fab {
   position: fixed;
   right: 40rpx;
-  bottom: 180rpx;
-  width: 100rpx;
-  height: 100rpx;
+  bottom: 210rpx;
+  width: 160rpx;
+  height: 160rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
-  box-shadow: 0 8rpx 24rpx rgba(74, 144, 217, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -357,7 +355,6 @@
 
   &:active {
     transform: scale(0.92);
-    box-shadow: 0 4rpx 16rpx rgba(74, 144, 217, 0.3);
   }
 }
 
@@ -368,8 +365,8 @@
 }
 
 .home-fab-icon-img {
-  width: 56rpx;
-  height: 56rpx;
+  width: 128rpx;
+  height: 128rpx;
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;

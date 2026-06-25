@@ -18,7 +18,7 @@ const TAB_LIST = [
   {
     pagePath: 'pages/favorites/index',
     text: '收藏夹',
-    icon: null,
+    icon: `${CDN}/favorite.png`,
   },
   {
     pagePath: 'pages/profile/index',
@@ -49,7 +49,7 @@ export default function CustomTabBar() {
           >
             {tab.icon ? (
               <View
-                className="custom-tab-bar-icon-img"
+                className={`custom-tab-bar-icon-img ${isActive ? 'custom-tab-bar-icon-img-active' : ''}`}
                 style={{ backgroundImage: `url(${tab.icon})` }}
               />
             ) : (
