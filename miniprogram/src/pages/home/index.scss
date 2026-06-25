@@ -5,6 +5,7 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  background-attachment: fixed;
   padding-bottom: 200rpx;
   position: relative;
 }
@@ -412,7 +413,7 @@
 
 .home-loading-text {
   font-size: 28rpx;
-  color: #999;
+  color: #fff;
 }
 
 .home-upload-mask {
