@@ -14,6 +14,8 @@ import FolderPicker from '../../components/FolderPicker';
 import type { PhotoItem, RecognizedObject } from '../../context/AppContext';
 import './index.scss';
 
+const CDN = 'https://scenelingo.oss-cn-hangzhou.aliyuncs.com/assets';
+
 function formatDateLabel(dateStr: string): string {
   if (dateStr === 'earlier') return '更早的照片';
   // 兼容 yyyy-mm-dd 和 yyyy-mm-dd hh:mm:ss 两种格式
@@ -604,17 +606,23 @@ export default function HomePage() {
     await loadPhotos();
   }, [state.selectedPhotoIds, dispatch, loadPhotos]);
 
-  const handleWordbookClick = useCallback(() => {
-    Taro.switchTab({ url: '/pages/wordbook/index' });
-  }, []);
-
   const hasPhotos = totalCount > 0;
   const dates = Object.keys(groupedPhotos);
   const selectedCount = state.selectedPhotoIds.length;
 
   const headerNode = (
     <View className="home-header">
-      <Text className="home-header-subtitle">用照片探索身边的事物，轻松学习英语单词</Text>
+      <Image className="home-header-banner" src={`${CDN}/banner.png`} mode="aspectFill" />
+      <View className="home-header-stats">
+        <View className="home-header-stat">
+          <Text className="home-header-stat-value">{dayCount}</Text>
+          <Text className="home-header-stat-label">学习天数</Text>
+        </View>
+        <View className="home-header-stat">
+          <Text className="home-header-stat-value">{wordCount}</Text>
+          <Text className="home-header-stat-label">生词累计</Text>
+        </View>
+      </View>
     </View>
   );
 
@@ -624,26 +632,6 @@ export default function HomePage() {
       <Text className="home-hint-text">
         每张图片识别大约需要5-10秒。上传后自动后台处理，您可继续浏览。
       </Text>
-    </View>
-  ) : null;
-
-  const statsRowNode = hasPhotos ? (
-    <View className="home-stats-row">
-      <View className="home-stat-card">
-        <Text className="home-stat-icon">📅</Text>
-        <Text className="home-stat-value">{dayCount}</Text>
-        <Text className="home-stat-label">学习天数</Text>
-      </View>
-      <View className="home-stat-card">
-        <Text className="home-stat-icon">📸</Text>
-        <Text className="home-stat-value">{totalCount}</Text>
-        <Text className="home-stat-label">照片总数</Text>
-      </View>
-      <View className="home-stat-card home-stat-clickable" onClick={handleWordbookClick}>
-        <Text className="home-stat-icon">📝</Text>
-        <Text className="home-stat-value">{wordCount}</Text>
-        <Text className="home-stat-label">生词累计</Text>
-      </View>
     </View>
   ) : null;
 
@@ -786,13 +774,12 @@ export default function HomePage() {
         </View>
       ) : (
         <>
-          {statsRowNode}
           {collectionsNode}
           {emptyNode}
         </>
       )}
       <View className="home-fab" onClick={handleFabClick}>
-        <Text className="home-fab-icon">📷</Text>
+        <View className="home-fab-icon-img" style={{ backgroundImage: `url(${CDN}/camera.png)` }} />
       </View>
       {deleteBarNode}
       {uploadDialogNode}

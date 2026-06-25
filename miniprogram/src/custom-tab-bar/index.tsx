@@ -1,27 +1,29 @@
 import Taro from '@tarojs/taro';
-import { CoverView } from '@tarojs/components';
+import { View } from '@tarojs/components';
 import './index.scss';
+
+const CDN = 'https://scenelingo.oss-cn-hangzhou.aliyuncs.com/assets';
 
 const TAB_LIST = [
   {
     pagePath: 'pages/home/index',
     text: '首页',
-    icon: '🏠',
+    icon: `${CDN}/home.png`,
   },
   {
     pagePath: 'pages/wordbook/index',
     text: '生词本',
-    icon: '📖',
+    icon: `${CDN}/wordbook.png`,
   },
   {
     pagePath: 'pages/favorites/index',
     text: '收藏夹',
-    icon: '⭐',
+    icon: null,
   },
   {
     pagePath: 'pages/profile/index',
     text: '我的',
-    icon: '👤',
+    icon: `${CDN}/mine.png`,
   },
 ];
 
@@ -36,22 +38,29 @@ export default function CustomTabBar() {
   };
 
   return (
-    <CoverView className="custom-tab-bar">
+    <View className="custom-tab-bar">
       {TAB_LIST.map((tab) => {
         const isActive = currentPath === tab.pagePath;
         return (
-          <CoverView
+          <View
             key={tab.pagePath}
             className={`custom-tab-bar-item ${isActive ? 'custom-tab-bar-item-active' : ''}`}
             onClick={() => handleSwitch(tab.pagePath)}
           >
-            <CoverView className="custom-tab-bar-icon">{tab.icon}</CoverView>
-            <CoverView className={`custom-tab-bar-text ${isActive ? 'custom-tab-bar-text-active' : ''}`}>
+            {tab.icon ? (
+              <View
+                className="custom-tab-bar-icon-img"
+                style={{ backgroundImage: `url(${tab.icon})` }}
+              />
+            ) : (
+              <View className="custom-tab-bar-icon-fav">⭐</View>
+            )}
+            <View className={`custom-tab-bar-text ${isActive ? 'custom-tab-bar-text-active' : ''}`}>
               {tab.text}
-            </CoverView>
-          </CoverView>
+            </View>
+          </View>
         );
       })}
-    </CoverView>
+    </View>
   );
 }

@@ -25,7 +25,16 @@
   height: 100%;
 }
 
-.custom-tab-bar-icon {
+.custom-tab-bar-icon-img {
+  width: 44rpx;
+  height: 44rpx;
+  margin-bottom: 2rpx;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.custom-tab-bar-icon-fav {
   font-size: 40rpx;
   line-height: 1.2;
   margin-bottom: 2rpx;
