@@ -1,10 +1,12 @@
 import { useCallback, useState, useEffect } from 'react';
 import Taro, { useDidShow } from '@tarojs/taro';
-import { View, Text } from '@tarojs/components';
+import { View, Text, Image } from '@tarojs/components';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../hooks/useTheme';
 import { api } from '../../utils/api';
 import './index.scss';
+
+const CDN = 'https://scenelingo.oss-cn-hangzhou.aliyuncs.com/assets/mine';
 
 export default function ProfilePage() {
   const themeStyle = useTheme();
@@ -17,7 +19,6 @@ export default function ProfilePage() {
     api.getShareRewardInfo().then(res => setRewardQuota(res.reward_quota)).catch(() => {});
   }, []);
 
-  // 每次切到"我的"页面时刷新识别次数
   useDidShow(() => {
     api.getUserQuota().then(res => setQuota(res.quota)).catch(() => {});
   });
@@ -62,62 +63,80 @@ export default function ProfilePage() {
   }, []);
 
   return (
-    <View className="profile-page" style={themeStyle}>
-      {/* 用户信息区域 */}
+    <View
+      className="profile-page"
+      style={{ ...themeStyle, backgroundImage: `url(${CDN}/background.png)` }}
+    >
+      {/* 用户信息 — 直接置于背景图上，无白底 */}
       <View className="profile-header">
         <View className="profile-avatar">
-          <Text className="profile-avatar-icon">👤</Text>
+          <Text className="profile-avatar-text">👤</Text>
         </View>
-        <Text className="profile-nickname">
-          {authState.isLoggedIn && authState.userInfo?.nickName
-            ? authState.userInfo.nickName
-            : '场景外语用户'}
-        </Text>
+        <View className="profile-info">
+          <Text className="profile-nickname">
+            {authState.isLoggedIn && authState.userInfo?.nickName
+              ? authState.userInfo.nickName
+              : '场景外语用户'}
+          </Text>
+          <Text className="profile-subtitle">记录每一个语言探索的瞬间</Text>
+        </View>
       </View>
 
-      {/* 菜单区域 */}
+      {/* 菜单列表 — 所有项合并在一个卡片中，项之间无间隔 */}
       <View className="profile-menu">
         <View className="profile-menu-item" onClick={handleQuota}>
           <View className="profile-menu-item-left">
-            <Text className="profile-menu-item-icon">📸</Text>
+            <Image className="profile-menu-item-icon" src={`${CDN}/camera.png`} mode="aspectFit" />
             <Text className="profile-menu-item-text">剩余识别次数</Text>
           </View>
-          <Text className="profile-menu-item-arrow">{quota !== null ? quota : '...'} ›</Text>
+          <View className="profile-menu-item-right">
+            <Text className="profile-menu-item-value">{quota !== null ? quota : '...'}</Text>
+            <Text className="profile-menu-item-arrow">›</Text>
+          </View>
         </View>
 
         <View className="profile-menu-item" onClick={handleLanguage}>
           <View className="profile-menu-item-left">
-            <Text className="profile-menu-item-icon">🌐</Text>
+            <Image className="profile-menu-item-icon" src={`${CDN}/globe.png`} mode="aspectFit" />
             <Text className="profile-menu-item-text">语言&主题色</Text>
           </View>
-          <Text className="profile-menu-item-arrow">›</Text>
+          <View className="profile-menu-item-right">
+            <Text className="profile-menu-item-arrow">›</Text>
+          </View>
         </View>
 
         <View className="profile-menu-item" onClick={handleFeedback}>
           <View className="profile-menu-item-left">
-            <Text className="profile-menu-item-icon">💬</Text>
+            <Image className="profile-menu-item-icon" src={`${CDN}/feedback.png`} mode="aspectFit" />
             <Text className="profile-menu-item-text">意见反馈</Text>
           </View>
-          <Text className="profile-menu-item-arrow">›</Text>
+          <View className="profile-menu-item-right">
+            <Text className="profile-menu-item-arrow">›</Text>
+          </View>
         </View>
 
         <View className="profile-menu-item" onClick={handleUserAgreement}>
           <View className="profile-menu-item-left">
-            <Text className="profile-menu-item-icon">📄</Text>
+            <Image className="profile-menu-item-icon" src={`${CDN}/agreement.png`} mode="aspectFit" />
             <Text className="profile-menu-item-text">用户协议</Text>
           </View>
-          <Text className="profile-menu-item-arrow">›</Text>
+          <View className="profile-menu-item-right">
+            <Text className="profile-menu-item-arrow">›</Text>
+          </View>
         </View>
 
         <View className="profile-menu-item" onClick={handlePrivacyPolicy}>
           <View className="profile-menu-item-left">
-            <Text className="profile-menu-item-icon">🔒</Text>
+            <Image className="profile-menu-item-icon" src={`${CDN}/lock.png`} mode="aspectFit" />
             <Text className="profile-menu-item-text">隐私政策</Text>
           </View>
-          <Text className="profile-menu-item-arrow">›</Text>
+          <View className="profile-menu-item-right">
+            <Text className="profile-menu-item-arrow">›</Text>
+          </View>
         </View>
       </View>
 
+      {/* 底部版本信息 */}
       <View className="profile-footer">
         <Text className="profile-footer-text">场景外语 v1.0.0</Text>
       </View>
