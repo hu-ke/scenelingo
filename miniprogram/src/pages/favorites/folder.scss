@@ -1,189 +1,276 @@
 .folder-page {
   min-height: 100vh;
-  background: var(--bg-primary, #f5f5f5);
-  padding: 0 0 140rpx;
+  background: #fefcf6;
+  padding-bottom: 140rpx;
 }
 
+/* ========== 顶部导航 ========== */
 .folder-header {
-  background: #FFFFFF;
+  background: #ffffff;
   padding: 20rpx 28rpx;
   display: flex;
   align-items: center;
-  border-bottom: 1rpx solid #E8E8E8;
+  border-bottom: 1rpx solid #ede5d8;
 }
 
-.breadcrumb {
+.folder-back {
   display: flex;
   align-items: center;
-  gap: 8rpx;
-  color: #4A90D9;
-  font-size: 28rpx;
 }
 
-.breadcrumb-text {
-  font-size: 28rpx;
-  color: #4A90D9;
+.folder-back-text {
+  font-size: 26rpx;
+  color: #8b7355;
 }
 
-.current-folder-name {
-  font-size: 32rpx;
+.folder-current-name {
+  font-size: 30rpx;
   font-weight: 600;
-  color: #333;
+  color: #4a3f35;
   margin-left: 16rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
 }
 
-.section-header {
+/* ========== 区域通用 ========== */
+.folder-section {
+  margin-top: 20rpx;
+}
+
+.folder-section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 32rpx 28rpx 16rpx;
+  padding: 8rpx 32rpx 16rpx;
 }
 
-.section-title {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #333;
-}
-
-.create-btn {
+.folder-section-title {
   font-size: 28rpx;
-  color: #4A90D9;
-  padding: 8rpx 16rpx;
+  font-weight: 600;
+  color: #4a3f35;
 }
 
-.empty-hint {
-  text-align: center;
-  padding: 40rpx 0;
-  font-size: 26rpx;
-  color: #999;
-  background: #fff;
-  margin: 0 28rpx;
-  border-radius: 12rpx;
-}
-
-.folder-item {
+.folder-section-create {
   display: flex;
   align-items: center;
-  padding: 28rpx;
-  margin: 0 28rpx;
-  background: #FFFFFF;
-  border-radius: 12rpx;
-  margin-bottom: 12rpx;
+  background: #f0e9d3;
+  border-radius: 20rpx;
+  padding: 8rpx 20rpx;
 
   &:active {
-    background: #F5F8FC;
+    opacity: 0.8;
   }
 }
 
-.folder-icon {
-  font-size: 40rpx;
-  margin-right: 20rpx;
-  line-height: 1;
+.folder-section-create-icon {
+  font-size: 24rpx;
+  color: #8b7355;
+  margin-right: 4rpx;
+  font-weight: 500;
 }
 
-.folder-name {
+.folder-section-create-text {
+  font-size: 22rpx;
+  color: #8b7355;
+}
+
+/* ========== 空提示 ========== */
+.folder-empty-hint {
+  text-align: center;
+  padding: 40rpx 0;
+  font-size: 26rpx;
+  color: #b8a99a;
+  background: #fff;
+  margin: 0 32rpx;
+  border-radius: 12rpx;
+}
+
+.folder-empty-state {
+  text-align: center;
+  padding: 60rpx 0;
+  font-size: 26rpx;
+  color: #b8a99a;
+}
+
+/* ========== 文件夹项 ========== */
+.folder-item {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 28rpx;
+  margin: 0 32rpx;
+  background: #ffffff;
+  border-radius: 12rpx;
+  margin-bottom: 12rpx;
+  box-shadow: 0 1rpx 8rpx rgba(139, 115, 85, 0.05);
+
+  &:active {
+    background: #faf7f0;
+  }
+}
+
+.folder-item-icon {
+  width: 44rpx;
+  height: 44rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.folder-item-name {
   flex: 1;
   font-size: 28rpx;
-  color: #333;
+  color: #4a3f35;
   font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.folder-arrow {
-  font-size: 36rpx;
-  color: #C0C0C0;
+.folder-item-arrow {
+  font-size: 32rpx;
+  color: #c8bda8;
+  flex-shrink: 0;
+  margin-left: 8rpx;
 }
 
-.photo-grid {
+/* ========== 图片网格 ========== */
+.folder-photo-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8rpx;
-  padding: 16rpx 28rpx;
+  padding: 8rpx 32rpx;
 }
 
-.photo-item {
+.folder-photo-item {
   aspect-ratio: 1;
   border-radius: 8rpx;
   overflow: hidden;
-  background: #E8E8E8;
+  background: #ede5d8;
 }
 
-.photo-item image {
+.folder-photo-item image {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.empty-state {
-  text-align: center;
-  padding: 80rpx 0;
-  font-size: 28rpx;
-  color: #999;
-}
-
-/* Dialog styles */
-.dialog-overlay {
+/* ========== 弹框遮罩 ========== */
+.folder-dialog-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
 
-.dialog {
+/* ========== 弹框 ========== */
+.folder-dialog {
   width: 560rpx;
-  background: #FFFFFF;
-  border-radius: 16rpx;
-  padding: 40rpx 36rpx;
+  background: #fefcf6;
+  border-radius: 24rpx;
+  padding: 48rpx 40rpx 36rpx;
+  box-shadow: 0 8rpx 40rpx rgba(139, 115, 85, 0.15);
+  position: relative;
+  overflow: hidden;
 }
 
-.dialog-title {
-  font-size: 32rpx;
+/* ========== 弹框装饰 ========== */
+.folder-dialog-decor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 120rpx;
+  pointer-events: none;
+}
+
+.folder-dialog-decor-left {
+  position: absolute;
+  top: -8rpx;
+  left: -4rpx;
+  width: 100rpx;
+  height: 100rpx;
+  opacity: 0.6;
+}
+
+.folder-dialog-decor-right {
+  position: absolute;
+  top: -4rpx;
+  right: -4rpx;
+  width: 72rpx;
+  height: 72rpx;
+  opacity: 0.5;
+}
+
+/* ========== 弹框标题 ========== */
+.folder-dialog-title {
+  display: block;
+  font-size: 30rpx;
   font-weight: 600;
-  color: #333;
+  color: #4a3f35;
   text-align: center;
-  margin-bottom: 32rpx;
+  margin-bottom: 28rpx;
+  position: relative;
 }
 
-.dialog-input {
+/* ========== 弹框输入框 ========== */
+.folder-dialog-input {
   width: 100%;
   height: 80rpx;
-  border: 1rpx solid #E0E0E0;
-  border-radius: 8rpx;
-  padding: 0 20rpx;
+  background: #ffffff;
+  border: 2rpx solid #e8e0d3;
+  border-radius: 12rpx;
+  padding: 0 24rpx;
   font-size: 28rpx;
+  color: #4a3f35;
   box-sizing: border-box;
-  margin-bottom: 32rpx;
+  margin-bottom: 28rpx;
 }
 
-.dialog-buttons {
+/* ========== 弹框按钮组 ========== */
+.folder-dialog-buttons {
   display: flex;
   gap: 20rpx;
 }
 
-.dialog-btn {
+.folder-dialog-btn-cancel {
   flex: 1;
   height: 80rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8rpx;
+  background: #f0e9d3;
+  border-radius: 16rpx;
   font-size: 28rpx;
-  border: none;
-  padding: 0;
-  line-height: 80rpx;
+  color: #8b7355;
+
+  &:active {
+    opacity: 0.8;
+  }
 }
 
-.dialog-btn-cancel {
-  background: #F5F5F5;
-  color: #666;
+.folder-dialog-btn-confirm {
+  flex: 1;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #8b7355;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  color: #ffffff;
+
+  &:active {
+    opacity: 0.85;
+  }
 }
 
-.dialog-btn-confirm {
-  background: #4A90D9;
-  color: #FFFFFF;
+.folder-dialog-btn-disabled {
+  opacity: 0.45;
 }

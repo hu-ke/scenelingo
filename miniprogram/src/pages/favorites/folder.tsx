@@ -4,6 +4,7 @@ import { View, Text, Image, Input } from '@tarojs/components';
 import './folder.scss';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8022/scenelingo-service';
+const CDN_FAVORITE = 'https://scenelingo.oss-cn-hangzhou.aliyuncs.com/assets/favorite';
 
 interface SubFolder {
   folder_id: string;
@@ -115,12 +116,10 @@ export default function FolderDetailPage() {
       success: (res) => {
         const index = res.tapIndex;
         if (index === 0) {
-          // 重命名
           setRenameTargetId(folder.folder_id);
           setRenameFolderName(folder.name);
           setShowRenameDialog(true);
         } else if (index === 1) {
-          // 删除
           Taro.showModal({
             title: '确认删除',
             content: `确定要删除文件夹「${folder.name}」吗？子文件夹和其中的图片也会被删除。`,
@@ -225,118 +224,162 @@ export default function FolderDetailPage() {
   return (
     <View className="folder-page">
       <View className="folder-header">
-        <View className="breadcrumb" onClick={handleBack}>
-          <Text className="breadcrumb-text">← 返回</Text>
+        <View className="folder-back" onClick={handleBack}>
+          <Text className="folder-back-text">← 返回</Text>
         </View>
-        <Text className="current-folder-name">{folderName}</Text>
+        <Text className="folder-current-name">{folderName}</Text>
       </View>
 
-      <View className="section-header">
-        <Text className="section-title">子文件夹</Text>
-        <Text className="create-btn" onClick={() => setShowCreateDialog(true)}>
-          + 新建
-        </Text>
-      </View>
-
-      {loading && subFolders.length === 0 && (
-        <View className="empty-hint">加载中...</View>
-      )}
-
-      {!loading && subFolders.length === 0 && (
-        <View className="empty-hint">暂无子文件夹</View>
-      )}
-
-      {subFolders.map((f) => (
-        <View
-          className="folder-item"
-          key={f.folder_id}
-          onClick={() => handleSubFolderTap(f)}
-          onLongPress={() => handleFolderLongPress(f)}
-        >
-          <Text className="folder-icon">📁</Text>
-          <Text className="folder-name">{f.name}</Text>
-          <Text className="folder-arrow">›</Text>
+      <View className="folder-section">
+        <View className="folder-section-header">
+          <Text className="folder-section-title">子文件夹</Text>
+          <View className="folder-section-create" onClick={() => setShowCreateDialog(true)}>
+            <Text className="folder-section-create-icon">+</Text>
+            <Text className="folder-section-create-text">新建</Text>
+          </View>
         </View>
-      ))}
 
-      <View className="section-header">
-        <Text className="section-title">收藏图片</Text>
-      </View>
+        {loading && subFolders.length === 0 && (
+          <View className="folder-empty-hint">加载中...</View>
+        )}
 
-      {loading && photos.length === 0 && (
-        <View className="empty-state">加载中...</View>
-      )}
+        {!loading && subFolders.length === 0 && (
+          <View className="folder-empty-hint">暂无子文件夹</View>
+        )}
 
-      {!loading && photos.length === 0 && (
-        <View className="empty-state">暂无收藏图片</View>
-      )}
-
-      <View className="photo-grid">
-        {photos.map((p) => (
+        {subFolders.map((f) => (
           <View
-            className="photo-item"
-            key={p.photo_id}
-            onClick={() => handlePhotoTap(p)}
-            onLongPress={() => handlePhotoLongPress(p)}
+            className="folder-item"
+            key={f.folder_id}
+            onClick={() => handleSubFolderTap(f)}
+            onLongPress={() => handleFolderLongPress(f)}
           >
-            <Image src={p.annotated_url || p.original_url} mode="aspectFill" />
+            <Image
+              className="folder-item-icon"
+              src={`${CDN_FAVORITE}/folder.png`}
+              mode="aspectFit"
+            />
+            <Text className="folder-item-name">{f.name}</Text>
+            <Text className="folder-item-arrow">›</Text>
           </View>
         ))}
       </View>
 
-      {/* Create folder dialog */}
+      <View className="folder-section">
+        <View className="folder-section-header">
+          <Text className="folder-section-title">收藏图片</Text>
+        </View>
+
+        {loading && photos.length === 0 && (
+          <View className="folder-empty-state">加载中...</View>
+        )}
+
+        {!loading && photos.length === 0 && (
+          <View className="folder-empty-state">暂无收藏图片</View>
+        )}
+
+        <View className="folder-photo-grid">
+          {photos.map((p) => (
+            <View
+              className="folder-photo-item"
+              key={p.photo_id}
+              onClick={() => handlePhotoTap(p)}
+              onLongPress={() => handlePhotoLongPress(p)}
+            >
+              <Image src={p.annotated_url || p.original_url} mode="aspectFill" />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* 新建子文件夹弹框 */}
       {showCreateDialog && (
-        <View className="dialog-overlay" onClick={() => setShowCreateDialog(false)}>
-          <View className="dialog" onClick={(e) => e.stopPropagation()}>
-            <Text className="dialog-title">新建子文件夹</Text>
+        <View className="folder-dialog-overlay" onClick={() => { setShowCreateDialog(false); setNewFolderName(''); }}>
+          <View className="folder-dialog" onClick={(e) => e.stopPropagation()}>
+            <View className="folder-dialog-decor">
+              <Image
+                className="folder-dialog-decor-left"
+                src={`${CDN_FAVORITE}/branch.png`}
+                mode="aspectFit"
+              />
+              <Image
+                className="folder-dialog-decor-right"
+                src={`${CDN_FAVORITE}/grassflower.png`}
+                mode="aspectFit"
+              />
+            </View>
+
+            <Text className="folder-dialog-title">新建子文件夹</Text>
+
             <Input
-              className="dialog-input"
+              className="folder-dialog-input"
               value={newFolderName}
               onInput={(e) => setNewFolderName((e as unknown as { detail: { value: string } }).detail.value)}
               placeholder="请输入文件夹名称"
+              maxlength={20}
               focus
             />
-            <View className="dialog-buttons">
+
+            <View className="folder-dialog-buttons">
               <View
-                className="dialog-btn dialog-btn-cancel"
-                onClick={() => {
-                  setShowCreateDialog(false);
-                  setNewFolderName('');
-                }}
+                className="folder-dialog-btn-cancel"
+                onClick={() => { setShowCreateDialog(false); setNewFolderName(''); }}
               >
-                取消
+                <Text>取消</Text>
               </View>
-              <View className="dialog-btn dialog-btn-confirm" onClick={handleCreateSubFolder}>
-                确定
+              <View
+                className={`folder-dialog-btn-confirm ${!newFolderName.trim() ? 'folder-dialog-btn-disabled' : ''}`}
+                onClick={handleCreateSubFolder}
+              >
+                <Text>确定</Text>
               </View>
             </View>
           </View>
         </View>
       )}
 
-      {/* Rename folder dialog */}
+      {/* 重命名弹框 */}
       {showRenameDialog && (
-        <View className="dialog-overlay" onClick={() => setShowRenameDialog(false)}>
-          <View className="dialog" onClick={(e) => e.stopPropagation()}>
-            <Text className="dialog-title">重命名文件夹</Text>
+        <View className="folder-dialog-overlay" onClick={() => setShowRenameDialog(false)}>
+          <View className="folder-dialog" onClick={(e) => e.stopPropagation()}>
+            <View className="folder-dialog-decor">
+              <Image
+                className="folder-dialog-decor-left"
+                src={`${CDN_FAVORITE}/branch.png`}
+                mode="aspectFit"
+              />
+              <Image
+                className="folder-dialog-decor-right"
+                src={`${CDN_FAVORITE}/grassflower.png`}
+                mode="aspectFit"
+              />
+            </View>
+
+            <Text className="folder-dialog-title">重命名文件夹</Text>
+
             <Input
-              className="dialog-input"
+              className="folder-dialog-input"
               value={renameFolderName}
               onInput={(e) =>
                 setRenameFolderName((e as unknown as { detail: { value: string } }).detail.value)
               }
               placeholder="请输入新名称"
+              maxlength={20}
               focus
             />
-            <View className="dialog-buttons">
+
+            <View className="folder-dialog-buttons">
               <View
-                className="dialog-btn dialog-btn-cancel"
+                className="folder-dialog-btn-cancel"
                 onClick={() => setShowRenameDialog(false)}
               >
-                取消
+                <Text>取消</Text>
               </View>
-              <View className="dialog-btn dialog-btn-confirm" onClick={handleRenameFolder}>
-                确定
+              <View
+                className={`folder-dialog-btn-confirm ${!renameFolderName.trim() ? 'folder-dialog-btn-disabled' : ''}`}
+                onClick={handleRenameFolder}
+              >
+                <Text>确定</Text>
               </View>
             </View>
           </View>

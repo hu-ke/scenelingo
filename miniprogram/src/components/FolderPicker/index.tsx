@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text, ScrollView, Input } from '@tarojs/components'
+import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8022/scenelingo-service'
+const CDN_FAVORITE = 'https://scenelingo.oss-cn-hangzhou.aliyuncs.com/assets/favorite'
 
 interface FolderItem {
   folder_id: string
@@ -191,7 +192,11 @@ export default function FolderPicker({ visible, onClose, onSelect, title }: Fold
               {folders.map(f => (
                 <View className="picker-item" key={f.folder_id}>
                   <View className="picker-item-content" onClick={() => navigateInto(f)}>
-                    <Text className="picker-item-icon">📁</Text>
+                    <Image
+                      className="picker-item-icon-img"
+                      src={`${CDN_FAVORITE}/folder.png`}
+                      mode="aspectFit"
+                    />
                     <Text className="picker-item-name">{f.name}</Text>
                     <Text className="picker-item-arrow">›</Text>
                   </View>

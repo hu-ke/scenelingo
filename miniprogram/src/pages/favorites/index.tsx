@@ -1,10 +1,11 @@
 import { useState, useCallback } from 'react';
 import Taro, { useDidShow } from '@tarojs/taro';
-import { View, Text, Input, Button } from '@tarojs/components';
+import { View, Text, Input, Image } from '@tarojs/components';
 import { useTheme } from '../../hooks/useTheme';
 import './index.scss';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8022/scenelingo-service';
+const CDN_FAVORITE = 'https://scenelingo.oss-cn-hangzhou.aliyuncs.com/assets/favorite';
 
 function getToken(): string {
   return Taro.getStorageSync('scene_lingo_token') || '';
@@ -167,81 +168,144 @@ export default function FavoritesPage() {
 
   return (
     <View className="favorites-page" style={themeStyle}>
+      {/* 顶部 Banner */}
+      <View className="favorites-banner">
+        <Image
+          className="favorites-banner-img"
+          src={`${CDN_FAVORITE}/banner.png`}
+          mode="aspectFill"
+        />
+      </View>
+
+      {/* 标题与新建按钮 */}
       <View className="favorites-header">
-        <Text>我的收藏夹</Text>
-        <View className="create-btn" onClick={() => setShowCreateDialog(true)}>
-          <Text>+ 新建文件夹</Text>
+        <Text className="favorites-title">我的收藏夹</Text>
+        <View className="favorites-create-btn" onClick={() => setShowCreateDialog(true)}>
+          <Text className="favorites-create-icon">+</Text>
+          <Text className="favorites-create-text">新建文件夹</Text>
         </View>
       </View>
 
+      {/* 加载状态 */}
       {loading && (
-        <View className="loading-state">加载中...</View>
+        <View className="favorites-loading">加载中...</View>
       )}
 
+      {/* 空状态 */}
       {!loading && folders.length === 0 && (
-        <View className="empty-state">暂无收藏夹，点击上方按钮创建一个吧</View>
+        <View className="favorites-empty">
+          <Image
+            className="favorites-empty-icon"
+            src={`${CDN_FAVORITE}/folder.png`}
+            mode="aspectFit"
+          />
+          <Text className="favorites-empty-text">暂无收藏夹</Text>
+          <Text className="favorites-empty-sub">点击上方按钮创建你的第一个收藏夹吧</Text>
+        </View>
       )}
 
-      <View className="folder-list">
+      {/* 文件夹列表 */}
+      <View className="favorites-list">
         {folders.map((folder) => (
           <View
-            className="folder-item"
+            className="favorites-item"
             key={folder.folder_id}
             onClick={() => handleFolderTap(folder)}
             onLongPress={() => handleLongPress(folder)}
           >
-            <Text className="folder-icon">📁</Text>
-            <Text className="folder-name">{folder.name}</Text>
-            <Text className="folder-arrow">›</Text>
+            <Image
+              className="favorites-item-icon"
+              src={`${CDN_FAVORITE}/folder.png`}
+              mode="aspectFit"
+            />
+            <Text className="favorites-item-name">{folder.name}</Text>
+            <Text className="favorites-item-arrow">›</Text>
           </View>
         ))}
       </View>
 
+      {/* 新建文件夹弹框 */}
       {showCreateDialog && (
-        <View className="dialog-overlay" onClick={handleCancelCreate}>
-          <View className="dialog" onClick={(e) => e.stopPropagation()}>
-            <Text className="dialog-title">新建文件夹</Text>
+        <View className="favorites-dialog-overlay" onClick={handleCancelCreate}>
+          <View className="favorites-dialog" onClick={(e) => e.stopPropagation()}>
+            {/* 装饰图标 */}
+            <View className="favorites-dialog-decor">
+              <Image
+                className="favorites-dialog-decor-left"
+                src={`${CDN_FAVORITE}/branch.png`}
+                mode="aspectFit"
+              />
+              <Image
+                className="favorites-dialog-decor-right"
+                src={`${CDN_FAVORITE}/grassflower.png`}
+                mode="aspectFit"
+              />
+            </View>
+
+            <Text className="favorites-dialog-title">新建文件夹</Text>
+
             <Input
-              className="dialog-input"
+              className="favorites-dialog-input"
               value={newFolderName}
               onInput={(e) => setNewFolderName(e.detail.value)}
               placeholder="输入文件夹名称"
+              maxlength={20}
               autoFocus
             />
-            <View className="dialog-buttons">
-              <Button className="dialog-btn" onClick={handleCancelCreate}>取消</Button>
-              <Button
-                className="dialog-btn dialog-btn-primary"
+
+            <View className="favorites-dialog-buttons">
+              <View className="favorites-dialog-btn-cancel" onClick={handleCancelCreate}>
+                <Text>取消</Text>
+              </View>
+              <View
+                className={`favorites-dialog-btn-confirm ${!newFolderName.trim() ? 'favorites-dialog-btn-disabled' : ''}`}
                 onClick={handleCreateFolder}
-                disabled={!newFolderName.trim()}
               >
-                确定
-              </Button>
+                <Text>确定</Text>
+              </View>
             </View>
           </View>
         </View>
       )}
 
+      {/* 重命名弹框 */}
       {showRenameDialog && (
-        <View className="dialog-overlay" onClick={handleCancelRename}>
-          <View className="dialog" onClick={(e) => e.stopPropagation()}>
-            <Text className="dialog-title">重命名文件夹</Text>
+        <View className="favorites-dialog-overlay" onClick={handleCancelRename}>
+          <View className="favorites-dialog" onClick={(e) => e.stopPropagation()}>
+            <View className="favorites-dialog-decor">
+              <Image
+                className="favorites-dialog-decor-left"
+                src={`${CDN_FAVORITE}/branch.png`}
+                mode="aspectFit"
+              />
+              <Image
+                className="favorites-dialog-decor-right"
+                src={`${CDN_FAVORITE}/grassflower.png`}
+                mode="aspectFit"
+              />
+            </View>
+
+            <Text className="favorites-dialog-title">重命名文件夹</Text>
+
             <Input
-              className="dialog-input"
+              className="favorites-dialog-input"
               value={renameFolderName}
               onInput={(e) => setRenameFolderName(e.detail.value)}
               placeholder="输入新名称"
+              maxlength={20}
               autoFocus
             />
-            <View className="dialog-buttons">
-              <Button className="dialog-btn" onClick={handleCancelRename}>取消</Button>
-              <Button
-                className="dialog-btn dialog-btn-primary"
+
+            <View className="favorites-dialog-buttons">
+              <View className="favorites-dialog-btn-cancel" onClick={handleCancelRename}>
+                <Text>取消</Text>
+              </View>
+              <View
+                className={`favorites-dialog-btn-confirm ${!renameFolderName.trim() ? 'favorites-dialog-btn-disabled' : ''}`}
                 onClick={handleRenameFolder}
-                disabled={!renameFolderName.trim()}
               >
-                确定
-              </Button>
+                <Text>确定</Text>
+              </View>
             </View>
           </View>
         </View>
