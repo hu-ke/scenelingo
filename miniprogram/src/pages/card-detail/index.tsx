@@ -52,6 +52,7 @@ export default function CardDetailPage() {
 
   const categoryPath: string[] = categoryPathStr ? decodeURIComponent(categoryPathStr).split(',') : []
   const scenePath: string[] = scenePathStr ? decodeURIComponent(scenePathStr).split(',') : []
+  const scenePathDecoded = scenePathStr ? decodeURIComponent(scenePathStr) : ''
   const gridIndex = parseInt(gridIndexStr || '1', 10)
 
   const [detail, setDetail] = useState<DetailData | null>(null)
@@ -73,7 +74,7 @@ export default function CardDetailPage() {
         const res = await Taro.request({
           url: `${BASE_URL}/api/scene-grids/detail`,
           method: 'GET',
-          data: { scene_path: scenePathStr },
+          data: { scene_path: scenePathDecoded },
         })
         if (res.statusCode === 200) {
           const data = (res.data as { scene: DetailData }).scene
@@ -97,7 +98,7 @@ export default function CardDetailPage() {
     } finally {
       setLoading(false)
     }
-  }, [isScene, categoryPathStr, scenePathStr, gridIndex])
+  }, [isScene, categoryPathStr, scenePathDecoded, gridIndex])
 
   useEffect(() => {
     fetchDetail()
@@ -115,7 +116,7 @@ export default function CardDetailPage() {
           const res = await Taro.request({
             url: `${BASE_URL}/api/scene-grids/re-annotate`,
             method: 'POST',
-            data: { scene_path: scenePathStr },
+            data: { scene_path: scenePathDecoded },
           })
           if (res.statusCode === 200) {
             setDetail((res.data as { scene: DetailData }).scene)
@@ -139,7 +140,7 @@ export default function CardDetailPage() {
       }
     }
     doAnnotate()
-  }, [detail, loading, annotating, annotated, isScene, categoryPathStr, scenePathStr, gridIndex])
+  }, [detail, loading, annotating, annotated, isScene, categoryPathStr, scenePathDecoded, gridIndex])
 
   // Upload annotated image after rendering
   const uploadAnnotated = useCallback(async () => {
@@ -155,14 +156,14 @@ export default function CardDetailPage() {
 
       if (isScene) {
         await Taro.uploadFile({
-          url: `${BASE_URL}/api/scene-grids/upload-annotated?scene_path=${encodeURIComponent(scenePathStr)}`,
+          url: `${BASE_URL}/api/scene-grids/upload-annotated?scene_path=${encodeURIComponent(scenePathDecoded)}`,
           filePath: tempPath,
           name: 'file',
           timeout: 30000,
         })
       } else {
         await Taro.uploadFile({
-          url: `${BASE_URL}/api/category-grids/upload-annotated?category_path=${encodeURIComponent(categoryPathStr)}&grid_index=${gridIndex}`,
+          url: `${BASE_URL}/api/category-grids/upload-annotated?category_path=${encodeURIComponent(categoryPathStr || '')}&grid_index=${gridIndex}`,
           filePath: tempPath,
           name: 'file',
           timeout: 30000,
@@ -172,7 +173,7 @@ export default function CardDetailPage() {
     } catch (err) {
       console.error('Upload annotated failed:', err)
     }
-  }, [detail, annotated, isScene, categoryPathStr, scenePathStr, gridIndex])
+  }, [detail, annotated, isScene, categoryPathStr, scenePathDecoded, gridIndex])
 
   // Upload annotated image after canvas renders
   useEffect(() => {

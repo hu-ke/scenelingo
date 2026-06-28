@@ -416,9 +416,10 @@ async def ensure_scene_grids_indexes() -> None:
 # ── Scene tree ──────────────────────────────────────────────────────
 
 async def get_scene_tree() -> list[dict]:
-    """Query all scene_grids records and build a tree structure.
+    """Query all scene_grids records and build a flat tree (2 levels).
 
-    Returns a list of top-level scene nodes (parent scenes), each with name, path, children, scenes.
+    Top-level = category (airport, school), with all scene photos directly under scenes[].
+    No intermediate sub-nodes.
     """
     from db import db
 
@@ -433,13 +434,23 @@ async def get_scene_tree() -> list[dict]:
         logger.error(f"[scene_grid] 查询记录失败: {e}")
         return []
 
-    # Build tree: key is tuple(scene_path), value is node dict
-    tree: dict[tuple[str, ...], dict] = {}
+    # Group by top-level category (first element of scene_path)
+    roots: dict[str, dict] = {}
 
     for rec in records:
         path: list[str] = rec.get("scene_path", [])
         if not path:
             continue
+
+        root_name = path[0]
+
+        if root_name not in roots:
+            roots[root_name] = {
+                "name": root_name,
+                "path": [root_name],
+                "children": [],
+                "scenes": [],
+            }
 
         scene_entry = {
             "image_url": rec.get("image_url", ""),
@@ -447,33 +458,9 @@ async def get_scene_tree() -> list[dict]:
             "oss_key": rec.get("oss_key", ""),
             "word_count": len(rec.get("words", [])),
             "words": [{"word": w["word"]} for w in rec.get("words", [])],
+            "scene_path": path,
         }
 
-        # Ensure every prefix of path exists as a node
-        for i in range(1, len(path) + 1):
-            prefix = tuple(path[:i])
-            if prefix not in tree:
-                tree[prefix] = {
-                    "name": path[i - 1],
-                    "path": list(path[:i]),
-                    "children": [],
-                    "scenes": [],
-                }
+        roots[root_name]["scenes"].append(scene_entry)
 
-        # Add scene to the leaf node (full path)
-        leaf_key = tuple(path)
-        if leaf_key in tree:
-            tree[leaf_key]["scenes"].append(scene_entry)
-
-    # Build parent-child relationships
-    for key_tuple, node in tree.items():
-        if len(key_tuple) > 1:
-            parent_key = key_tuple[:-1]
-            if parent_key in tree:
-                parent = tree[parent_key]
-                if node not in parent["children"]:
-                    parent["children"].append(node)
-
-    # Return only root nodes (path length == 1)
-    roots = [node for key, node in tree.items() if len(key) == 1]
-    return roots
+    return list(roots.values())

@@ -30,6 +30,7 @@ interface SceneRecord {
   oss_key: string;
   word_count: number;
   words: WordItem[];
+  scene_path: string[];
 }
 
 interface WordItem {
@@ -96,11 +97,12 @@ export default function CardsPage() {
 
   const pathToKey = (path: string[]) => path.join('/');
 
-  const renderSceneCards = (scenes: SceneRecord[], scenePath: string[]) => {
-    const pathStr = encodeURIComponent(scenePath.join(','));
+  const renderSceneCards = (scenes: SceneRecord[], _scenePath: string[]) => {
     return (
       <View className="category-grids">
-        {scenes.map((scene, idx) => (
+        {scenes.map((scene, idx) => {
+          const pathStr = encodeURIComponent((scene.scene_path || _scenePath).join(','));
+          return (
           <View
             key={idx}
             className="grid-card"
@@ -127,7 +129,7 @@ export default function CardsPage() {
               </View>
             </View>
           </View>
-        ))}
+        )})}
       </View>
     );
   };
@@ -168,13 +170,27 @@ export default function CardsPage() {
     );
   };
 
+  const renderSceneSections = () => {
+    return (
+      <View className="category-tree">
+        {sceneTree.map(node => (
+          <View key={pathToKey(node.path)} className="category-node">
+            <View className="category-node-header" style={{ paddingLeft: '20rpx' }}>
+              <Text className="category-node-name">{node.name}</Text>
+            </View>
+            {node.scenes && renderSceneCards(node.scenes, node.path)}
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   const renderNode = (node: TreeNode, depth: number) => {
     const pathKey = pathToKey(node.path);
     const isExpanded = expandedPaths.has(pathKey);
     const hasChildren = node.children && node.children.length > 0;
     const hasGrids = node.grids && node.grids.length > 0;
-    const hasScenes = node.scenes && node.scenes.length > 0;
-    const hasContent = hasGrids || hasScenes;
+    const hasContent = hasGrids;
 
     return (
       <View key={pathKey} className="category-node">
@@ -196,13 +212,10 @@ export default function CardsPage() {
             {node.children.map(child => renderNode(child, depth + 1))}
           </View>
         )}
-        {isExpanded && hasScenes && renderSceneCards(node.scenes, node.path)}
         {isExpanded && hasGrids && renderObjectGrids(node.grids, node.path)}
       </View>
     );
   };
-
-  const currentTree = activeTab === 'scenes' ? sceneTree : objectTree;
 
   if (loading) {
     return (
@@ -232,12 +245,20 @@ export default function CardsPage() {
         </View>
       </View>
 
-      {currentTree.length === 0 ? (
-        <View className="cards-empty">暂无数据</View>
+      {activeTab === 'scenes' ? (
+        sceneTree.length === 0 ? (
+          <View className="cards-empty">暂无数据</View>
+        ) : (
+          renderSceneSections()
+        )
       ) : (
-        <View className="category-tree">
-          {currentTree.map(node => renderNode(node, 0))}
-        </View>
+        objectTree.length === 0 ? (
+          <View className="cards-empty">暂无数据</View>
+        ) : (
+          <View className="category-tree">
+            {objectTree.map(node => renderNode(node, 0))}
+          </View>
+        )
       )}
     </View>
   );
