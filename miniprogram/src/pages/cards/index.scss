@@ -11,6 +11,32 @@
   color: #3d3226;
 }
 
+// Tab bar
+.cards-tabs {
+  display: flex;
+  margin: 0 32rpx 20rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 8rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+.cards-tab {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 0;
+  font-size: 28rpx;
+  color: #999;
+  border-radius: 12rpx;
+  transition: all 0.2s;
+}
+
+.cards-tab.active {
+  background: #fef8ed;
+  color: #5c4a2e;
+  font-weight: 600;
+}
+
 // Category tree
 .category-tree {
   padding: 0 32rpx;

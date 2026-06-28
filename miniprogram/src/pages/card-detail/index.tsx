@@ -5,29 +5,29 @@ import AnnotatedImage from '../../components/AnnotatedImage'
 import WordCard from '../../components/WordCard'
 import type { RecognizedObject } from '../../context/AppContext'
 import { getWordbookWords } from '../../utils/wordMastery'
-import { getApiBaseUrl } from '../../utils/api'
 import './index.scss'
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8022/scenelingo-service'
 
 interface WordDetail {
   word: string
-  row: number
-  col: number
+  row?: number
+  col?: number
   bbox?: [number, number, number, number]
   chinese?: string
   phonetic?: string
   examples?: string[]
 }
 
-interface GridDetail {
+interface DetailData {
   _id: string
-  category_path: string[]
-  grid_index: number
   image_url: string
   annotated_url?: string
   oss_key: string
   words: WordDetail[]
+  category_path?: string[]
+  scene_path?: string[]
+  grid_index?: number
 }
 
 function wordsToRecognizedObjects(words: WordDetail[]): RecognizedObject[] {
@@ -47,11 +47,14 @@ function hasBbox(words: WordDetail[]): boolean {
 
 export default function CardDetailPage() {
   const router = useRouter()
-  const { category_path: categoryPathStr, grid_index: gridIndexStr } = router.params
+  const { type, category_path: categoryPathStr, scene_path: scenePathStr, grid_index: gridIndexStr } = router.params
+  const isScene = type === 'scene'
+
   const categoryPath: string[] = categoryPathStr ? decodeURIComponent(categoryPathStr).split(',') : []
+  const scenePath: string[] = scenePathStr ? decodeURIComponent(scenePathStr).split(',') : []
   const gridIndex = parseInt(gridIndexStr || '1', 10)
 
-  const [grid, setGrid] = useState<GridDetail | null>(null)
+  const [detail, setDetail] = useState<DetailData | null>(null)
   const [loading, setLoading] = useState(true)
   const [annotating, setAnnotating] = useState(false)
   const [annotated, setAnnotated] = useState(false)
@@ -66,25 +69,35 @@ export default function CardDetailPage() {
   const fetchDetail = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await Taro.request({
-        url: `${BASE_URL}/api/category-grids/detail`,
-        method: 'GET',
-        data: { category_path: categoryPathStr, grid_index: gridIndex },
-      })
-      if (res.statusCode === 200) {
-        const data = res.data.grid as GridDetail
-        setGrid(data)
-        // Skip re-upload if annotated image already exists
-        if (data.annotated_url) {
-          setAnnotated(true)
+      if (isScene) {
+        const res = await Taro.request({
+          url: `${BASE_URL}/api/scene-grids/detail`,
+          method: 'GET',
+          data: { scene_path: scenePathStr },
+        })
+        if (res.statusCode === 200) {
+          const data = (res.data as { scene: DetailData }).scene
+          setDetail(data)
+          if (data.annotated_url) setAnnotated(true)
+        }
+      } else {
+        const res = await Taro.request({
+          url: `${BASE_URL}/api/category-grids/detail`,
+          method: 'GET',
+          data: { category_path: categoryPathStr, grid_index: gridIndex },
+        })
+        if (res.statusCode === 200) {
+          const data = (res.data as { grid: DetailData }).grid
+          setDetail(data)
+          if (data.annotated_url) setAnnotated(true)
         }
       }
     } catch (err) {
-      console.error('Failed to fetch grid detail:', err)
+      console.error('Failed to fetch detail:', err)
     } finally {
       setLoading(false)
     }
-  }, [categoryPathStr, gridIndex])
+  }, [isScene, categoryPathStr, scenePathStr, gridIndex])
 
   useEffect(() => {
     fetchDetail()
@@ -92,20 +105,32 @@ export default function CardDetailPage() {
 
   // Auto-annotate if no bbox data
   useEffect(() => {
-    if (!grid || loading || annotating || annotated) return
-    if (hasBbox(grid.words)) return
+    if (!detail || loading || annotating || annotated) return
+    if (hasBbox(detail.words)) return
 
     const doAnnotate = async () => {
       setAnnotating(true)
       try {
-        const res = await Taro.request({
-          url: `${BASE_URL}/api/category-grids/re-annotate`,
-          method: 'POST',
-          data: { category_path: categoryPathStr, grid_index: gridIndex },
-        })
-        if (res.statusCode === 200) {
-          setGrid(res.data.grid as GridDetail)
-          setCanvasKey((k) => k + 1)
+        if (isScene) {
+          const res = await Taro.request({
+            url: `${BASE_URL}/api/scene-grids/re-annotate`,
+            method: 'POST',
+            data: { scene_path: scenePathStr },
+          })
+          if (res.statusCode === 200) {
+            setDetail((res.data as { scene: DetailData }).scene)
+            setCanvasKey((k) => k + 1)
+          }
+        } else {
+          const res = await Taro.request({
+            url: `${BASE_URL}/api/category-grids/re-annotate`,
+            method: 'POST',
+            data: { category_path: categoryPathStr, grid_index: gridIndex },
+          })
+          if (res.statusCode === 200) {
+            setDetail((res.data as { grid: DetailData }).grid)
+            setCanvasKey((k) => k + 1)
+          }
         }
       } catch (err) {
         console.error('Re-annotate failed:', err)
@@ -114,11 +139,11 @@ export default function CardDetailPage() {
       }
     }
     doAnnotate()
-  }, [grid, loading, annotating, annotated, categoryPathStr, gridIndex])
+  }, [detail, loading, annotating, annotated, isScene, categoryPathStr, scenePathStr, gridIndex])
 
   // Upload annotated image after rendering
   const uploadAnnotated = useCallback(async () => {
-    if (!grid || annotated) return
+    if (!detail || annotated) return
     try {
       const tempPath = await new Promise<string>((resolve, reject) => {
         Taro.canvasToTempFilePath({
@@ -128,29 +153,38 @@ export default function CardDetailPage() {
         })
       })
 
-      await Taro.uploadFile({
-        url: `${BASE_URL}/api/category-grids/upload-annotated?category_path=${encodeURIComponent(categoryPathStr)}&grid_index=${gridIndex}`,
-        filePath: tempPath,
-        name: 'file',
-        timeout: 30000,
-      })
+      if (isScene) {
+        await Taro.uploadFile({
+          url: `${BASE_URL}/api/scene-grids/upload-annotated?scene_path=${encodeURIComponent(scenePathStr)}`,
+          filePath: tempPath,
+          name: 'file',
+          timeout: 30000,
+        })
+      } else {
+        await Taro.uploadFile({
+          url: `${BASE_URL}/api/category-grids/upload-annotated?category_path=${encodeURIComponent(categoryPathStr)}&grid_index=${gridIndex}`,
+          filePath: tempPath,
+          name: 'file',
+          timeout: 30000,
+        })
+      }
       setAnnotated(true)
     } catch (err) {
       console.error('Upload annotated failed:', err)
     }
-  }, [grid, annotated, categoryPathStr, gridIndex])
+  }, [detail, annotated, isScene, categoryPathStr, scenePathStr, gridIndex])
 
   // Upload annotated image after canvas renders
   useEffect(() => {
     if (uploadTimerRef.current) clearTimeout(uploadTimerRef.current)
-    if (!grid || annotated || !hasBbox(grid.words)) return
+    if (!detail || annotated || !hasBbox(detail.words)) return
     uploadTimerRef.current = setTimeout(() => {
       uploadAnnotated()
     }, 1500)
     return () => {
       if (uploadTimerRef.current) clearTimeout(uploadTimerRef.current)
     }
-  }, [grid, annotated, uploadAnnotated, canvasKey])
+  }, [detail, annotated, uploadAnnotated, canvasKey])
 
   if (loading) {
     return (
@@ -160,7 +194,7 @@ export default function CardDetailPage() {
     )
   }
 
-  if (!grid) {
+  if (!detail) {
     return (
       <View className="card-detail-page">
         <View className="card-detail-empty">暂无数据</View>
@@ -168,8 +202,10 @@ export default function CardDetailPage() {
     )
   }
 
-  const recognizedObjects = wordsToRecognizedObjects(grid.words || [])
-  const title = grid.category_path.join(' / ')
+  const recognizedObjects = wordsToRecognizedObjects(detail.words || [])
+  const title = isScene
+    ? (detail.scene_path || []).join(' / ')
+    : (detail.category_path || []).join(' / ')
 
   return (
     <View className="card-detail-page">
@@ -177,7 +213,7 @@ export default function CardDetailPage() {
         <Text className="card-detail-title">{title}</Text>
       </View>
 
-      {/* Annotated image with bbox markers (same as review page) */}
+      {/* Annotated image with bbox markers */}
       <View className="card-detail-image-wrap">
         {annotating ? (
           <View className="card-detail-annotating">
@@ -187,13 +223,13 @@ export default function CardDetailPage() {
         ) : (
           <AnnotatedImage
             key={canvasKey}
-            dataUrl={grid.image_url}
+            dataUrl={detail.image_url}
             objects={recognizedObjects}
           />
         )}
       </View>
 
-      {/* Word cards (same as review page) */}
+      {/* Word cards */}
       {recognizedObjects.length > 0 && (
         <View className="card-detail-word-cards">
           {recognizedObjects.map((obj, idx) => (

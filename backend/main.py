@@ -666,6 +666,79 @@ async def category_grids_search(
     return {"grids": grids}
 
 
+# ── Scene Grids APIs ─────────────────────────────────────────────────
+
+@app.get("/scenelingo-service/api/scene-grids/tree")
+async def scene_grids_tree():
+    """Return the scene tree structure for all scene grids. No auth required."""
+    from shared.scene_grid import get_scene_tree
+    tree = await get_scene_tree()
+    return {"scenes": tree}
+
+
+@app.get("/scenelingo-service/api/scene-grids/detail")
+async def scene_grids_detail(
+    scene_path: str = Query(..., description="Comma-separated scene path, e.g. 'airport,runway'"),
+):
+    """Return the full detail of a single scene including enriched words. No auth required."""
+    from shared.scene_grid import get_scene_detail
+    path_parts = [p.strip() for p in scene_path.split(",") if p.strip()]
+    if not path_parts:
+        raise HTTPException(status_code=400, detail="Invalid parameters")
+    detail = await get_scene_detail(path_parts)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Scene not found")
+    return {"scene": detail}
+
+
+class ReAnnotateSceneRequest(BaseModel):
+    scene_path: str
+
+
+@app.post("/scenelingo-service/api/scene-grids/re-annotate")
+async def scene_grids_re_annotate(body: ReAnnotateSceneRequest):
+    """Re-annotate a scene photo with bbox coordinates and enriched words. No auth required."""
+    from shared.scene_grid import re_annotate_scene
+    path_parts = [p.strip() for p in body.scene_path.split(",") if p.strip()]
+    if not path_parts:
+        raise HTTPException(status_code=400, detail="Invalid parameters")
+    result = await re_annotate_scene(path_parts)
+    if not result:
+        raise HTTPException(status_code=500, detail="Re-annotation failed")
+    return {"scene": result}
+
+
+@app.post("/scenelingo-service/api/scene-grids/upload-annotated")
+async def scene_grids_upload_annotated(
+    scene_path: str = Query(..., description="Comma-separated scene path"),
+    file: UploadFile | None = None,
+):
+    """Upload an annotated scene image. No auth required."""
+    from shared.scene_grid import upload_annotated_scene
+    path_parts = [p.strip() for p in scene_path.split(",") if p.strip()]
+    if not path_parts:
+        raise HTTPException(status_code=400, detail="Invalid parameters")
+    if not file:
+        raise HTTPException(status_code=400, detail="No file uploaded")
+    image_data = await file.read()
+    url = await upload_annotated_scene(path_parts, image_data)
+    if not url:
+        raise HTTPException(status_code=500, detail="Upload failed")
+    return {"url": url}
+
+
+@app.get("/scenelingo-service/api/scene-grids/search")
+async def scene_grids_search(
+    word: str = Query(..., description="Word to search for"),
+):
+    """Search all scene grids for a given word. No auth required."""
+    from shared.scene_grid import search_scenes_by_word
+    if not word.strip():
+        return {"scenes": []}
+    scenes = await search_scenes_by_word(word.strip().lower())
+    return {"scenes": scenes}
+
+
 @app.on_event("startup")
 async def startup():
     database = await get_db()
