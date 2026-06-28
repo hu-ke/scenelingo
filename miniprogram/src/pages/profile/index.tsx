@@ -14,6 +14,9 @@ export default function ProfilePage() {
   const [quota, setQuota] = useState<number | null>(null);
   const [rewardQuota, setRewardQuota] = useState(10);
 
+  const [showQuotaModal, setShowQuotaModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+
   useEffect(() => {
     api.getUserQuota().then(res => setQuota(res.quota)).catch(() => {});
     api.getShareRewardInfo().then(res => setRewardQuota(res.reward_quota)).catch(() => {});
@@ -24,13 +27,8 @@ export default function ProfilePage() {
   });
 
   const handleQuota = useCallback(() => {
-    Taro.showModal({
-      title: '剩余识别次数',
-      content: `当前剩余 ${quota ?? '--'} 次识别机会\n\n分享首页给好友，好友通过你的分享进入小程序，你即可获得 ${rewardQuota} 次识别机会！`,
-      showCancel: false,
-      confirmText: '知道了',
-    });
-  }, [quota, rewardQuota]);
+    setShowQuotaModal(true);
+  }, []);
 
   const handleLanguage = useCallback(() => {
     Taro.navigateTo({ url: '/pages/settings/index' });
@@ -38,19 +36,9 @@ export default function ProfilePage() {
 
   const handleFeedback = useCallback(() => {
     Taro.setClipboardData({ data: '403392669@qq.com' }).then(() => {
-      Taro.showModal({
-        title: '意见反馈',
-        content: '作者邮箱：403392669@qq.com\n已复制到剪贴板',
-        showCancel: false,
-        confirmText: '知道了',
-      });
+      setShowFeedbackModal(true);
     }).catch(() => {
-      Taro.showModal({
-        title: '意见反馈',
-        content: '作者邮箱：403392669@qq.com\n请通过此邮箱联系作者',
-        showCancel: false,
-        confirmText: '知道了',
-      });
+      setShowFeedbackModal(true);
     });
   }, []);
 
@@ -98,7 +86,7 @@ export default function ProfilePage() {
         <View className="profile-menu-item" onClick={handleLanguage}>
           <View className="profile-menu-item-left">
             <Image className="profile-menu-item-icon" src={`${CDN}/globe.png`} mode="aspectFit" />
-            <Text className="profile-menu-item-text">语言&主题色</Text>
+            <Text className="profile-menu-item-text">语言设置</Text>
           </View>
           <View className="profile-menu-item-right">
             <Text className="profile-menu-item-arrow">›</Text>
@@ -140,6 +128,42 @@ export default function ProfilePage() {
       <View className="profile-footer">
         <Text className="profile-footer-text">场景外语 v1.0.0</Text>
       </View>
+
+      {/* 剩余识别次数弹框 */}
+      {showQuotaModal && (
+        <View className="profile-modal-mask" onClick={() => setShowQuotaModal(false)}>
+          <View className="profile-modal-card" onClick={(e) => e.stopPropagation()}>
+            <Text className="profile-modal-title">剩余识别次数</Text>
+            <Text className="profile-modal-content">
+              当前剩余 {quota ?? '--'} 次识别机会
+            </Text>
+            <Text className="profile-modal-tip">
+              分享首页给好友，好友通过你的分享进入小程序，你即可获得 {rewardQuota} 次识别机会！
+            </Text>
+            <View className="profile-modal-btn" onClick={() => setShowQuotaModal(false)}>
+              <Text className="profile-modal-btn-text">知道了</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* 意见反馈弹框 */}
+      {showFeedbackModal && (
+        <View className="profile-modal-mask" onClick={() => setShowFeedbackModal(false)}>
+          <View className="profile-modal-card" onClick={(e) => e.stopPropagation()}>
+            <Text className="profile-modal-title">意见反馈</Text>
+            <Text className="profile-modal-content">
+              作者邮箱：403392669@qq.com
+            </Text>
+            <Text className="profile-modal-tip">
+              邮箱地址已复制到剪贴板，请通过此邮箱联系作者
+            </Text>
+            <View className="profile-modal-btn" onClick={() => setShowFeedbackModal(false)}>
+              <Text className="profile-modal-btn-text">知道了</Text>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }

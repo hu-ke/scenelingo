@@ -1,32 +1,16 @@
 import { useState, useCallback } from 'react';
 import Taro from '@tarojs/taro';
-import { View, Text, Button, Picker } from '@tarojs/components';
+import { View, Text, Picker } from '@tarojs/components';
 import { useReview } from '../../context/AppContext';
 import { LANGUAGES, setLanguagePrefs } from '../../utils/languagePrefs';
-import { THEMES, setTheme } from '../../utils/theme';
 import { api } from '../../utils/api';
-import { useTheme } from '../../hooks/useTheme';
 import './index.scss';
 
-const GRADIENTS: Record<string, string> = {
-  'warm-orange': 'linear-gradient(135deg, #FF6B6B, #FFA94D)',
-  'ocean-blue': 'linear-gradient(135deg, #4A90D9, #6DB5F5)',
-  'forest-green': 'linear-gradient(135deg, #27AE60, #58D68D)',
-  'royal-purple': 'linear-gradient(135deg, #8E44AD, #BB8FCE)',
-  'midnight-dark': 'linear-gradient(135deg, #1A1D23, #6C8CFF)',
-};
-
 export default function SettingsPage() {
-  const themeStyle = useTheme();
   const { state, dispatch } = useReview();
   const [selectedLang, setSelectedLang] = useState(state.targetLang);
-  const [selectedTheme, setSelectedTheme] = useState(state.theme);
 
   const targetLanguages = LANGUAGES.filter((l) => l.code !== 'zh');
-
-  const handleBack = useCallback(() => {
-    Taro.navigateBack();
-  }, []);
 
   const handleLangChange = useCallback(
     (e: { detail: { value: number } }) => {
@@ -40,35 +24,24 @@ export default function SettingsPage() {
     [targetLanguages, dispatch],
   );
 
-  const handleThemeChange = useCallback((themeId: string) => {
-    setSelectedTheme(themeId);
-    setTheme(themeId);
-    dispatch({ type: 'setTheme', theme: themeId });
-    api.updateTheme(themeId).catch(() => {});
-  }, [dispatch]);
-
   const currentLangIndex = targetLanguages.findIndex((l) => l.code === selectedLang);
 
   return (
-    <View className="settings-page" style={themeStyle}>
+    <View className="settings-page">
       <View className="settings-card">
-        <View className="settings-header">
-          <Text className="settings-logo">🔍</Text>
-          <Text className="settings-title">设置</Text>
-        </View>
-
         <View className="settings-section">
-          <Text className="settings-label">母语 (Native Language)</Text>
+          <Text className="settings-label">母语</Text>
           <View className="settings-readonly">中文</View>
         </View>
 
         <View className="settings-section">
-          <Text className="settings-label">目标语言 (Target Language)</Text>
+          <Text className="settings-label">学习语言</Text>
           <Picker
             mode="selector"
             range={targetLanguages}
             rangeKey="name"
             value={currentLangIndex >= 0 ? currentLangIndex : 0}
+            // @ts-ignore
             onChange={handleLangChange}
           >
             <View className="settings-picker">
@@ -79,28 +52,6 @@ export default function SettingsPage() {
             </View>
           </Picker>
         </View>
-
-        <View className="settings-section">
-          <Text className="settings-label">主题风格</Text>
-          <View className="settings-theme-row">
-            {THEMES.map((theme) => (
-              <View
-                key={theme.id}
-                className={`settings-theme-circle ${selectedTheme === theme.id ? 'settings-theme-selected' : ''}`}
-                style={{ background: GRADIENTS[theme.id] }}
-                onClick={() => handleThemeChange(theme.id)}
-              >
-                {selectedTheme === theme.id && (
-                  <Text className="settings-theme-check">✓</Text>
-                )}
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <Button className="settings-back-btn" onClick={handleBack}>
-          返回
-        </Button>
       </View>
     </View>
   );

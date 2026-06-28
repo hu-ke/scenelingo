@@ -9,3 +9,4 @@ alibabacloud_dysmsapi20170525
 python-dotenv
 motor
 loguru==0.7.3
+requests

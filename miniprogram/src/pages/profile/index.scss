@@ -133,3 +133,67 @@
   color: #a19e5d;
   text-align: center;
 }
+
+// ========== 弹框 ==========
+.profile-modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.profile-modal-card {
+  width: 580rpx;
+  background: #f0e9d3;
+  border-radius: 20rpx;
+  padding: 48rpx 40rpx 36rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-modal-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 24rpx;
+}
+
+.profile-modal-content {
+  font-size: 30rpx;
+  color: #2D3436;
+  text-align: center;
+  line-height: 1.6;
+  margin-bottom: 16rpx;
+}
+
+.profile-modal-tip {
+  font-size: 24rpx;
+  color: #a19e5d;
+  text-align: center;
+  line-height: 1.6;
+  margin-bottom: 32rpx;
+  padding: 0 16rpx;
+}
+
+.profile-modal-btn {
+  width: 100%;
+  padding: 24rpx 0;
+  background: #a19e5d;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-modal-btn-text {
+  font-size: 30rpx;
+  color: #FFFFFF;
+  font-weight: 500;
+}

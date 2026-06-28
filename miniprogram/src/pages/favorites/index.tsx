@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { View, Text, Input, Image } from '@tarojs/components';
 import { useTheme } from '../../hooks/useTheme';
@@ -62,10 +62,11 @@ export default function FavoritesPage() {
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [renameFolderName, setRenameFolderName] = useState('');
   const [renameTarget, setRenameTarget] = useState<Folder | null>(null);
+  const firstLoad = useRef(true);
 
-  const loadFolders = useCallback(async () => {
+  const loadFolders = useCallback(async (showLoading = false) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const data = await request<{ folders: Folder[] }>('/api/favorites/folders');
       setFolders(data.folders || []);
     } catch (err) {
@@ -76,7 +77,12 @@ export default function FavoritesPage() {
   }, []);
 
   useDidShow(() => {
-    loadFolders();
+    if (firstLoad.current) {
+      firstLoad.current = false;
+      loadFolders(true);
+    } else {
+      loadFolders(false);
+    }
   });
 
   const handleCreateFolder = useCallback(async () => {

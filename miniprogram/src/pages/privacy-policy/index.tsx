@@ -1,12 +1,10 @@
 import { View, Text } from '@tarojs/components';
-import { useTheme } from '../../hooks/useTheme';
 import './index.scss';
 
 export default function PrivacyPolicyPage() {
-  const themeStyle = useTheme();
 
   return (
-    <View className="agreement-page" style={themeStyle}>
+    <View className="agreement-page">
       <View className="agreement-content">
         <Text className="agreement-title">隐私政策</Text>
         
