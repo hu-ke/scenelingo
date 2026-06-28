@@ -466,9 +466,9 @@ export default function HomePage() {
     }
   }, [loadedChunks, groupedPhotos]);
 
-  // 是否还有更多可加载：下一块起始日期 > 最早照片日期
+  // 是否还有更多可加载：已加载数据边界 > 最早照片日期
   const hasMore = oldestDate
-    ? getDateBefore((loadedChunks + 1) * 14 - 1) > oldestDate
+    ? getDateBefore(loadedChunks * 14) > oldestDate
     : true;
 
   const fetchStats = useCallback(async () => {

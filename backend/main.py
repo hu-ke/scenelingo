@@ -592,6 +592,80 @@ async def remove_item(request: Request, req: RemoveFavoriteItemRequest):
     return {"success": True}
 
 
+@app.get("/scenelingo-service/api/category-grids/tree")
+async def category_grids_tree():
+    """Return the category tree structure for all category grids. No auth required."""
+    from shared.category_grid import get_category_tree
+    tree = await get_category_tree()
+    return {"categories": tree}
+
+
+@app.get("/scenelingo-service/api/category-grids/detail")
+async def category_grids_detail(
+    category_path: str = Query(..., description="Comma-separated category path, e.g. 'fruits' or 'mammal,land,feline'"),
+    grid_index: int = Query(..., description="Grid index (1-based)"),
+):
+    """Return the full detail of a single grid including enriched words. No auth required."""
+    from shared.category_grid import get_grid_detail
+    path_parts = [p.strip() for p in category_path.split(",") if p.strip()]
+    if not path_parts or grid_index < 1:
+        raise HTTPException(status_code=400, detail="Invalid parameters")
+    detail = await get_grid_detail(path_parts, grid_index)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Grid not found")
+    return {"grid": detail}
+
+
+class ReAnnotateRequest(BaseModel):
+    category_path: str
+    grid_index: int
+
+
+@app.post("/scenelingo-service/api/category-grids/re-annotate")
+async def category_grids_re_annotate(body: ReAnnotateRequest):
+    """Re-annotate a grid image with bbox coordinates and enriched words. No auth required."""
+    from shared.category_grid import re_annotate_grid
+    path_parts = [p.strip() for p in body.category_path.split(",") if p.strip()]
+    if not path_parts or body.grid_index < 1:
+        raise HTTPException(status_code=400, detail="Invalid parameters")
+    result = await re_annotate_grid(path_parts, body.grid_index)
+    if not result:
+        raise HTTPException(status_code=500, detail="Re-annotation failed")
+    return {"grid": result}
+
+
+@app.post("/scenelingo-service/api/category-grids/upload-annotated")
+async def category_grids_upload_annotated(
+    category_path: str = Query(..., description="Comma-separated category path"),
+    grid_index: int = Query(..., description="Grid index (1-based)"),
+    file: UploadFile | None = None,
+):
+    """Upload an annotated grid image. No auth required."""
+    from shared.category_grid import upload_annotated_grid
+    path_parts = [p.strip() for p in category_path.split(",") if p.strip()]
+    if not path_parts or grid_index < 1:
+        raise HTTPException(status_code=400, detail="Invalid parameters")
+    if not file:
+        raise HTTPException(status_code=400, detail="No file uploaded")
+    image_data = await file.read()
+    url = await upload_annotated_grid(path_parts, grid_index, image_data)
+    if not url:
+        raise HTTPException(status_code=500, detail="Upload failed")
+    return {"url": url}
+
+
+@app.get("/scenelingo-service/api/category-grids/search")
+async def category_grids_search(
+    word: str = Query(..., description="Word to search for"),
+):
+    """Search all category grids for a given word. No auth required."""
+    from shared.category_grid import search_grids_by_word
+    if not word.strip():
+        return {"grids": []}
+    grids = await search_grids_by_word(word.strip().lower())
+    return {"grids": grids}
+
+
 @app.on_event("startup")
 async def startup():
     database = await get_db()

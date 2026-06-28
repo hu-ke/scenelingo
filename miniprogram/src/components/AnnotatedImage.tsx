@@ -230,6 +230,7 @@ function AnnotatedImage({ dataUrl, objects, actions, style }: Props) {
         const pw = (bx2 - bx1) * scaleX
         const ph = (by2 - by1) * scaleY
         const bboxCenterX = px + pw / 2
+        const bboxCenterY = py + ph / 2
 
         const wordWidth = estimateTextWidth(obj.name, fontSize)
         const phoneticWidth = estimateTextWidth(obj.phonetic || '', phoneticFontSize)
@@ -240,16 +241,41 @@ function AnnotatedImage({ dataUrl, objects, actions, style }: Props) {
         const bubbleW = Math.max(60, Math.min(120, textWidth + speakerSize + speakerGap + bubblePaddingX * 2))
         const bubbleH = bubblePaddingY * 2 + lineHeight + phoneticLineHeight + (hasRomaji ? romajiLineHeight : 0)
 
+        // Position bubble so the tail points to the object CENTER, not the edge
         let bubbleX = bboxCenterX - bubbleW / 2
-        let bubbleY = py - bubbleH - tailHeight - bubbleGap
+        let bubbleY = bboxCenterY - bubbleH - tailHeight
         let tailUp = false
 
         if (bubbleX < 2) bubbleX = 2
         if (bubbleX + bubbleW > canvasW - 2) bubbleX = canvasW - bubbleW - 2
 
         if (bubbleY < 0) {
-          bubbleY = py + ph + bubbleGap
+          bubbleY = bboxCenterY + tailHeight
           tailUp = true
+        }
+
+        // Collision avoidance: push bubbles apart to prevent overlap
+        const MIN_BUBBLE_GAP = 2
+        for (let attempt = 0; attempt < 10; attempt++) {
+          let collides = false
+          for (const prev of layouts) {
+            const overlaps =
+              bubbleX < prev.x + prev.w + MIN_BUBBLE_GAP &&
+              bubbleX + bubbleW + MIN_BUBBLE_GAP > prev.x &&
+              bubbleY < prev.y + prev.h + MIN_BUBBLE_GAP &&
+              bubbleY + bubbleH + MIN_BUBBLE_GAP > prev.y
+            if (overlaps) {
+              collides = true
+              break
+            }
+          }
+          if (!collides) break
+          // Try pushing down first; if too low, push up instead
+          if (bubbleY + bubbleH < canvasH - bubbleH) {
+            bubbleY += bubbleH + MIN_BUBBLE_GAP
+          } else {
+            bubbleY -= bubbleH + MIN_BUBBLE_GAP
+          }
         }
 
         const speakerX = bubbleX + bubbleW - bubblePaddingX - speakerSize

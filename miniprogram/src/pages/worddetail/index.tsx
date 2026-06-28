@@ -10,12 +10,40 @@ import { useTheme } from '../../hooks/useTheme';
 import type { PhotoItem, RecognizedObject } from '../../context/AppContext';
 import './index.scss';
 
+const BASE_URL = process.env.BASE_URL || 'http://localhost:8022/scenelingo-service';
+
+interface GridImageItem {
+  id: string;
+  dataUrl: string;
+  annotatedDataUrl?: string;
+  objects?: RecognizedObject[];
+}
+
+interface GridResult {
+  _id: string;
+  category_path: string[];
+  grid_index: number;
+  image_url: string;
+  annotated_url?: string;
+  thumbnail_url?: string;
+  words: Array<{
+    word: string;
+    row: number;
+    col: number;
+    bbox?: [number, number, number, number];
+    chinese?: string;
+    phonetic?: string;
+    examples?: string[];
+  }>;
+}
+
 export default function WordDetailPage() {
   const themeStyle = useTheme();
   const { state, dispatch } = useReview();
   const word = state.wordDetailWord;
   const [loading, setLoading] = useState(true);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [gridImages, setGridImages] = useState<GridImageItem[]>([]);
   const [mastered, setMastered] = useState(false);
 
   useEffect(() => {
@@ -25,6 +53,7 @@ export default function WordDetailPage() {
   useEffect(() => {
     if (word) {
       setMastered(isMastered(word));
+      loadGridImages();
     }
   }, [word]);
 
@@ -47,6 +76,35 @@ export default function WordDetailPage() {
     }
   }, []);
 
+  const loadGridImages = useCallback(async () => {
+    if (!word) return;
+    try {
+      const res = await Taro.request({
+        url: `${BASE_URL}/api/category-grids/search`,
+        method: 'GET',
+        data: { word },
+      });
+      if (res.statusCode === 200) {
+        const grids = (res.data as { grids: GridResult[] }).grids || [];
+        const items: GridImageItem[] = grids.map((g) => ({
+          id: g._id || `${g.category_path.join('/')}_${g.grid_index}`,
+          dataUrl: g.image_url || '',
+          annotatedDataUrl: g.annotated_url || g.image_url || '',
+          objects: g.words.map((w) => ({
+            name: w.word,
+            bbox: w.bbox || [0, 0, 0, 0],
+            chinese: w.chinese || '',
+            phonetic: w.phonetic || '',
+            examples: w.examples || [],
+          })),
+        }));
+        setGridImages(items);
+      }
+    } catch {
+      // ignore
+    }
+  }, [word]);
+
   const wordData = useMemo(() => {
     if (!word) return null;
     const matchedObjects: RecognizedObject[] = [];
@@ -64,6 +122,25 @@ export default function WordDetailPage() {
       }
     }
 
+    // Also search category_grid images for the word
+    for (const grid of gridImages) {
+      if (!grid.objects) continue;
+      const matched = grid.objects.filter(
+        (obj) => obj.name.toLowerCase() === word.toLowerCase()
+      );
+      if (matched.length > 0) {
+        matchedObjects.push(...matched);
+        if (!relatedPhotos.find((p) => p.id === grid.id)) {
+          relatedPhotos.push({
+            id: grid.id,
+            dataUrl: grid.dataUrl,
+            annotatedDataUrl: grid.annotatedDataUrl,
+            objects: grid.objects,
+          });
+        }
+      }
+    }
+
     if (matchedObjects.length === 0) return null;
 
     return {
@@ -73,7 +150,7 @@ export default function WordDetailPage() {
       examples: matchedObjects.flatMap((obj) => obj.examples || []),
       relatedPhotos,
     };
-  }, [word, photos]);
+  }, [word, photos, gridImages]);
 
   const handleToggleMastered = useCallback(() => {
     if (!word) return;

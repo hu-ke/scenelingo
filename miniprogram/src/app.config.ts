@@ -7,6 +7,8 @@ export default {
     'pages/worddetail/index',
     'pages/favorites/index',
     'pages/favorites/folder',
+    'pages/cards/index',
+    'pages/card-detail/index',
     'pages/settings/index',
     'pages/profile/index',
     'pages/user-agreement/index',
@@ -36,6 +38,10 @@ export default {
       {
         pagePath: 'pages/favorites/index',
         text: '收藏夹',
+      },
+      {
+        pagePath: 'pages/cards/index',
+        text: '卡片识词',
       },
       {
         pagePath: 'pages/profile/index',

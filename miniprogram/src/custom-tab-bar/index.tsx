@@ -21,6 +21,11 @@ const TAB_LIST = [
     icon: `${CDN}/favorite.png`,
   },
   {
+    pagePath: 'pages/cards/index',
+    text: '卡片识词',
+    icon: `${CDN}/cards.png`,
+  },
+  {
     pagePath: 'pages/profile/index',
     text: '我的',
     icon: `${CDN}/mine.png`,

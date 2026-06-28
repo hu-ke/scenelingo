@@ -1,0 +1,126 @@
+.cards-page {
+  min-height: 100vh;
+  background: #fefcf6;
+  padding-bottom: 180rpx;
+}
+
+.cards-header {
+  padding: 28rpx 32rpx 20rpx;
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #3d3226;
+}
+
+// Category tree
+.category-tree {
+  padding: 0 32rpx;
+}
+
+.category-node {
+  margin-bottom: 8rpx;
+}
+
+.category-node-header {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 20rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+.category-node-arrow {
+  width: 32rpx;
+  height: 32rpx;
+  margin-right: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: #999;
+  transition: transform 0.2s;
+}
+
+.category-node-arrow.expanded {
+  transform: rotate(90deg);
+}
+
+.category-node-name {
+  font-size: 30rpx;
+  color: #3d3226;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.category-node-children {
+  padding-left: 40rpx;
+}
+
+// Grid card (thumbnail view)
+.category-grids {
+  padding: 16rpx 0 32rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20rpx;
+}
+
+.grid-card {
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+  width: calc(50% - 10rpx);
+}
+
+.grid-thumbnail {
+  width: 100%;
+  display: block;
+  aspect-ratio: 1 / 1;
+}
+
+.grid-thumb-info {
+  padding: 14rpx 16rpx;
+}
+
+.grid-thumb-label {
+  font-size: 22rpx;
+  color: #999;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.grid-thumb-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6rpx;
+}
+
+.thumb-word-tag {
+  background: #fef8ed;
+  border: 1rpx solid #e8d5b0;
+  border-radius: 14rpx;
+  padding: 4rpx 12rpx;
+  font-size: 20rpx;
+  color: #5c4a2e;
+}
+
+.thumb-word-more {
+  font-size: 20rpx;
+  color: #bbb;
+  padding: 4rpx 12rpx;
+}
+
+// Loading & empty states
+.cards-loading {
+  text-align: center;
+  padding: 100rpx 0;
+  color: #999;
+  font-size: 28rpx;
+}
+
+.cards-empty {
+  text-align: center;
+  padding: 100rpx 0;
+  color: #bbb;
+  font-size: 28rpx;
+}

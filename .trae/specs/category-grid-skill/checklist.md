@@ -1,0 +1,21 @@
+# Checklist
+
+- [x] `stitch_grid()` 背景色为 `#fef8ed`（RGB 254, 248, 237）
+- [x] 单品图 prompt 包含 warm cream/beige 背景描述
+- [x] 多级类目（如 `["mammal", "land", "feline"]`）正确映射为 OSS 路径 `asset/category/mammal/land/feline/`
+- [x] OSS 上传到正确的 `asset/category/` 路径
+- [x] `recognize_grid()` 能调用 qwen3-vl-plus 识别九宫格，返回英文单词和行列位置
+- [x] MongoDB `category_grids` 集合存储完整记录（category_path、grid_index、image_url、words、oss_key、created_at）
+- [x] `category_grids` 集合有 `category_path` + `grid_index` 唯一联合索引
+- [x] `category_grid_skill.py` 的 `generate_category_grid()` 可被导入调用
+- [x] `category_grids_seed.py` 预定义 4 个类目，每个 1 张九宫格，可一键执行
+- [x] 背景色 `#fef8ed` 在九宫格间隙中正确显示
+- [x] `GET /api/category-grids/tree` 接口返回正确的类目树结构
+- [x] 类目树接口无需登录即可访问
+- [x] 多级类目树正确嵌套（如 mammal → land → feline）
+- [x] 小程序 `app.config.ts` 中包含 `pages/cards/index` 页面路由
+- [x] 小程序 Tab 栏包含 5 个菜单项（首页、生词本、收藏夹、卡片识词、我的）
+- [x] `custom-tab-bar/index.tsx` 的 TAB_LIST 包含卡片识词项
+- [x] 卡片识词页面调用 `/api/category-grids/tree` 获取数据
+- [x] 卡片识词页面支持多级类目展开/收起
+- [x] 末级类目展示九宫格卡片，点击格子显示英文单词

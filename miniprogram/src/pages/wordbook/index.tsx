@@ -105,6 +105,18 @@ export default function WordBookPage() {
       }
     }
 
+    for (const word of wordbookWordList) {
+      if (!wordMap.has(word.toLowerCase())) {
+        wordMap.set(word.toLowerCase(), {
+          phonetic: '',
+          romaji: '',
+          chinese: '',
+          examples: [],
+          photoIds: new Set(),
+        });
+      }
+    }
+
     const entries: WordEntry[] = [];
     wordMap.forEach((value, word) => {
       entries.push({

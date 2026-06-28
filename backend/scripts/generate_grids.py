@@ -25,13 +25,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.client import get_client
 
 # ── Logging setup (consistent with main.py) ─────────────────────────
-logger.remove()
-logger.add(
-    lambda msg: print(msg, end=""),
-    format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <level>{message}</level>",
-    level="DEBUG",
-    colorize=True,
-)
+# Only set up handler when run as script; when imported, caller manages logging.
+if __name__ == "__main__":
+    logger.remove()
+    logger.add(
+        lambda msg: print(msg, end=""),
+        format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <level>{message}</level>",
+        level="DEBUG",
+        colorize=True,
+    )
 
 
 # ── Constants ───────────────────────────────────────────────────────
@@ -54,19 +56,35 @@ def _get_api_key() -> str:
 
 # ── Function 1: generate item list ──────────────────────────────────
 
-def generate_item_list(category: str, count: int) -> list[str]:
+def generate_item_list(category: str, count: int, exclude: set[str] | None = None) -> list[str]:
     """Use qwen-plus to generate a list of *count* non-repeating item names in *category*.
 
     The LLM is instructed to return English names so the image-generation prompt
-    works well.
+    works well.  If *category* contains commas (multi-level like "mammal, land, feline"),
+    only the last segment is used as the actual category for item generation.
+
+    Args:
+        category: The category name (or comma-separated path)
+        count: Number of items to generate
+        exclude: Set of already-used words to exclude from generation
     """
+    # Extract the last meaningful segment for multi-level categories
+    effective_category = category.split(",")[-1].strip() if "," in category else category
+
     client = get_client()
     prompt = (
         f"Generate a JSON array of {count} distinct, non-repeating items in the "
-        f'category "{category}".  Return ONLY a valid JSON array of strings — no '
+        f'category "{effective_category}".  Return ONLY a valid JSON array of strings — no '
         f"extra text, no markdown fences, no explanation.  Each item name must be "
         f"in English (lowercase, e.g. \"apple\", \"t-shirt\")."
     )
+
+    if exclude:
+        exclude_list = ", ".join(sorted(exclude))
+        prompt += (
+            f"  IMPORTANT: You MUST EXCLUDE the following items (they were already "
+            f"generated in previous runs and must not appear): {exclude_list}."
+        )
 
     logger.info(f"正在生成 {count} 个 [{category}] 类别的物品列表...")
 
@@ -109,7 +127,7 @@ def generate_item_list(category: str, count: int) -> list[str]:
 def _submit_image_task(api_key: str, item_name: str) -> str:
     """Submit an async image-generation task, return task_id."""
     prompt = (
-        f"A clean product photo of a single {item_name} on a white background, "
+        f"A clean product photo of a single {item_name} on a warm cream background (#fef8ed), "
         f"studio lighting, high quality, centered, no text, no watermark"
     )
     payload = {
@@ -219,7 +237,7 @@ def stitch_grid(images: list["Image.Image"], cell_size: int, gap: int = 4) -> "I
     total_width = cell_size * cols + gap * (cols + 1)
     total_height = cell_size * rows + gap * (rows + 1)
 
-    canvas = PILImage.new("RGB", (total_width, total_height), color=(255, 255, 255))
+    canvas = PILImage.new("RGB", (total_width, total_height), color=(254, 248, 237))
 
     for idx, img in enumerate(images):
         if idx >= 9:
