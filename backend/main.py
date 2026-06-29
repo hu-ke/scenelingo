@@ -41,7 +41,7 @@ from auth import get_user_quota, decrement_user_quota, add_user_quota, record_sh
 from auth import complete_photo
 from auth import SHARE_REWARD_QUOTA
 from auth import create_favorite_folder, list_favorite_folders, update_favorite_folder, delete_favorite_folder
-from auth import add_favorite_item, list_favorite_items, remove_favorite_item, move_favorite_item
+from auth import add_favorite_item, list_favorite_items, remove_favorite_item, move_favorite_item, get_favorited_photo_ids
 from db import get_db, init_db, _client
 from oss_client import upload_photo, upload_metadata, list_user_photos, delete_photo
 
@@ -602,6 +602,11 @@ async def delete_folder(request: Request, folder_id: str):
         raise HTTPException(status_code=500, detail="删除文件夹失败")
     return {"success": True}
 
+@app.get("/scenelingo-service/api/favorites/photo-ids")
+async def list_favorited_photo_ids(request: Request):
+    user_id = require_auth(request)
+    photo_ids = await get_favorited_photo_ids(user_id)
+    return {"photo_ids": photo_ids}
 
 @app.post("/scenelingo-service/api/favorites/items")
 async def add_item(request: Request, req: AddFavoriteItemRequest):

@@ -291,13 +291,6 @@ export default function WordDetailPage() {
           )}
         </View>
 
-        {/* 例句分割线 */}
-        <Image
-          className="worddetail-sep"
-          src={`${CDN}/wordbook/sep.png`}
-          mode="aspectFill"
-        />
-
         {/* 例句 */}
         <View className="worddetail-section">
           <Text className="worddetail-section-title">例句</Text>

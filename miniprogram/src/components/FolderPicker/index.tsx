@@ -183,6 +183,7 @@ export default function FolderPicker({ visible, onClose, onSelect, title }: Fold
 
         {/* Folder list */}
         <ScrollView className="picker-list" scrollY>
+          <View className="picker-list-inner">
           {loading ? (
             <View className="picker-loading">
               <Text>加载中...</Text>
@@ -210,6 +211,7 @@ export default function FolderPicker({ visible, onClose, onSelect, title }: Fold
               )}
             </>
           )}
+          </View>
         </ScrollView>
       </View>
     </View>

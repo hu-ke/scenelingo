@@ -297,6 +297,11 @@ export const api = {
     return request<{ total_count: number; total_days: number; oldest_date: string | null; all_words: string[] }>('/api/user/stats');
   },
 
+  // 获取用户所有收藏的照片ID
+  getFavoritedPhotoIds() {
+    return request<{ photo_ids: string[] }>('/api/favorites/photo-ids');
+  },
+
   // 配额相关
   getUserQuota() {
     return request<{ quota: number }>('/api/user/quota');

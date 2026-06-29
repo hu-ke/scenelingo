@@ -180,8 +180,10 @@ export default function WordBookPage() {
       }).join('\n');
 
       const csv = BOM + header + rows;
-      await Taro.setClipboardData({ data: csv });
-      Taro.showToast({ title: '已复制到剪贴板，可粘贴到 Excel', icon: 'success', duration: 2000 });
+      const fs = Taro.getFileSystemManager();
+      const filePath = `${Taro.env.USER_DATA_PATH}/生词本导出.csv`;
+      fs.writeFileSync(filePath, csv, 'utf-8');
+      await Taro.openDocument({ filePath, showMenu: true });
     } catch (err) {
       console.error('[WordBook] 导出失败:', err);
       Taro.showToast({ title: '导出失败，请重试', icon: 'none' });

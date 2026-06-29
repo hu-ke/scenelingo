@@ -133,6 +133,17 @@
   margin-left: 12rpx;
 }
 
+/* ========== 操作提示 ========== */
+.favorites-hint {
+  padding: 16rpx 32rpx 0;
+  text-align: center;
+}
+
+.favorites-hint-text {
+  font-size: 22rpx;
+  color: #c8bda8;
+}
+
 /* ========== 弹框遮罩 ========== */
 .favorites-dialog-overlay {
   position: fixed;

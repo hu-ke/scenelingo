@@ -912,6 +912,16 @@ async def remove_favorite_item(user_id: str, folder_id: str, photo_id: str) -> b
         logger.warning(f"[remove_favorite_item] 未找到收藏项 user_id={user_id} folder_id={folder_id} photo_id={photo_id}")
     return result.deleted_count > 0
 
+async def get_favorited_photo_ids(user_id: str) -> list[str]:
+    from db import db
+    if db is None:
+        return []
+    cursor = db.favorite_photos.find({"user_id": user_id}, projection={"photo_id": 1})
+    ids = []
+    async for doc in cursor:
+        ids.append(doc["photo_id"])
+    return ids
+
 async def move_favorite_item(user_id: str, photo_id: str, target_folder_id: str) -> bool:
     from db import db
     if db is None:

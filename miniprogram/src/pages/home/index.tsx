@@ -239,6 +239,17 @@ export default function HomePage() {
       }
     }
 
+    // 获取已收藏的照片ID列表，标记对应photo
+    if (authState.isLoggedIn && authState.token && photos.length > 0) {
+      try {
+        const favRes = await api.getFavoritedPhotoIds();
+        const favIds = new Set(favRes.photo_ids || []);
+        photos = photos.map(p => favIds.has(p.id) ? { ...p, favorited: true } : p);
+      } catch {
+        // 获取收藏状态失败，忽略
+      }
+    }
+
     const grouped: Record<string, PhotoItem[]> = {};
     const sorted = [...photos].sort((a, b) => {
       const da = dateMap[a.id] || '';

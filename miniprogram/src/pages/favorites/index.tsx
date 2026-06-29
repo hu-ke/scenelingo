@@ -252,6 +252,13 @@ export default function FavoritesPage() {
         ))}
       </View>
 
+      {/* 操作提示 */}
+      {!loading && folders.length > 0 && (
+        <View className="favorites-hint">
+          <Text className="favorites-hint-text">长按文件夹可重命名、移动或删除</Text>
+        </View>
+      )}
+
       {/* 新建文件夹弹框 */}
       {showCreateDialog && (
         <View className="favorites-dialog-overlay" onClick={handleCancelCreate}>
