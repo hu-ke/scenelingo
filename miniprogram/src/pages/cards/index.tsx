@@ -260,6 +260,11 @@ export default function CardsPage() {
           </View>
         )
       )}
+
+      {/* 底部提示 */}
+      <View className="cards-footer-hint">
+        <Text>列表在持续更新中，更多内容敬请期待</Text>
+      </View>
     </View>
   );
 }
