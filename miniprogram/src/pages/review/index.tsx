@@ -296,18 +296,6 @@ export default function ReviewPage() {
         <Text>←</Text>
       </View>
 
-      <View className="review-progress">
-        <View className="review-progress-bar">
-          <View
-            className="review-progress-fill"
-            style={{ width: `${((currentIndex + 1) / photos.length) * 100}%` }}
-          />
-        </View>
-        <Text className="review-progress-text">
-          {currentIndex + 1}/{photos.length}
-        </Text>
-      </View>
-
       <View className="review-card">
         {loading ? (
           <View className="review-loading">

@@ -141,6 +141,7 @@
   border-radius: 8rpx;
   font-size: 24rpx;
   margin-left: 16rpx;
+  flex-shrink: 0;
 
   &:active {
     opacity: 0.85;

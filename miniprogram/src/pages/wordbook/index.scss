@@ -1,6 +1,6 @@
 .wordbook-page {
   min-height: 100vh;
-  background-color: var(--color-bg);
+  background: #faf6f2;
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
@@ -8,108 +8,107 @@
   padding-bottom: 140rpx;
 }
 
+/* ========== 顶部 Banner ========== */
+.wordbook-banner {
+  width: 100%;
+  height: 320rpx;
+  overflow: hidden;
+}
+
+.wordbook-banner-img {
+  width: 100%;
+  height: 100%;
+}
+
+/* ========== 标题与导出按钮 ========== */
 .wordbook-header {
-  background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
-  padding: 48rpx 32rpx 40rpx;
-  text-align: center;
-  box-sizing: border-box;
-  width: 100%;
-}
-
-.wordbook-header-top {
   display: flex;
   align-items: center;
-  justify-content: center;
-  position: relative;
-  margin-bottom: 8rpx;
-  width: 100%;
-  box-sizing: border-box;
+  justify-content: space-between;
+  padding: 28rpx 32rpx 20rpx;
 }
 
-.wordbook-back-btn {
-  width: 60rpx;
-  height: 60rpx;
+.wordbook-header-left {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+}
+
+.wordbook-header-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #3d3226;
+}
+
+.wordbook-header-count {
+  font-size: 24rpx;
+  color: #a09080;
+  margin-left: 12rpx;
 }
 
 .wordbook-export-btn {
-  width: 80rpx;
-  height: 52rpx;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8rpx;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 26rpx;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 40rpx;
+  padding: 10rpx 24rpx;
+
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+.wordbook-export-icon {
+  width: 36rpx;
+  height: 36rpx;
 }
 
 .wordbook-export-text {
   font-size: 24rpx;
-  color: #FFFFFF;
-  font-weight: 600;
+  color: #666;
+  font-weight: 500;
 }
 
-.wordbook-back-arrow {
-  font-size: 36rpx;
-  color: #FFFFFF;
-  font-weight: 700;
-}
-
-.wordbook-header-title {
-  flex: 1;
-  font-size: 40rpx;
-  font-weight: 700;
-  color: #FFFFFF;
-  text-align: center;
-}
-
-.wordbook-header-subtitle {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.85);
-}
-
+/* ========== Tab 切换栏 ========== */
 .wordbook-tabs {
   display: flex;
-  background-color: #FFFFFF;
-  border-bottom: 1rpx solid #E0EAF3;
-  width: 100%;
-  box-sizing: border-box;
+  margin: 0 32rpx 20rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 8rpx;
+  box-shadow: 0 2rpx 12rpx rgba(139, 115, 85, 0.06);
 }
 
 .wordbook-tab {
   flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 28rpx 0 0;
+  padding: 18rpx 0;
   position: relative;
   min-width: 0;
   box-sizing: border-box;
+  border-radius: 12rpx;
+  transition: all 0.2s;
 }
 
 .wordbook-tab-text {
   font-size: 28rpx;
-  color: #A0AFBF;
+  color: #b8a99a;
   font-weight: 500;
-  padding-bottom: 16rpx;
 }
 
-.wordbook-tab-active .wordbook-tab-text {
-  color: var(--color-primary);
-  font-weight: 600;
+.wordbook-tab-active {
+  background: #fef8ed;
+
+  .wordbook-tab-text {
+    color: #5c4a2e;
+    font-weight: 600;
+  }
 }
 
-.wordbook-tab-indicator {
-  width: 80rpx;
-  height: 6rpx;
-  background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
-  border-radius: 3rpx;
-}
-
+/* ========== 加载状态 ========== */
 .wordbook-loading {
   flex: 1;
   display: flex;
@@ -118,30 +117,35 @@
   padding: 120rpx 0;
 }
 
+/* ========== 单词列表 ========== */
 .wordbook-list {
   flex: 1;
-  padding: 24rpx;
+  padding: 0 32rpx;
   box-sizing: border-box;
   width: 100%;
   overflow-x: hidden;
 }
 
+/* ========== 单词卡片 ========== */
 .wordbook-card {
-  background-color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  background: #ffffff;
   border-radius: 16rpx;
-  padding: 28rpx 24rpx;
+  padding: 24rpx 28rpx;
   margin-bottom: 16rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
-  box-sizing: border-box;
-  width: calc(100% - 48rpx);
-  margin-left: auto;
-  margin-right: auto;
+  box-shadow: 0 2rpx 12rpx rgba(139, 115, 85, 0.06);
+
+  &:active {
+    background: #faf7f0;
+  }
 }
 
 .wordbook-card-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
 }
 
 .wordbook-card-info {
@@ -152,9 +156,9 @@
 }
 
 .wordbook-card-word {
-  font-size: 34rpx;
-  font-weight: 700;
-  color: var(--color-primary);
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #4a3f35;
   margin-bottom: 4rpx;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -163,7 +167,7 @@
 
 .wordbook-card-phonetic {
   font-size: 24rpx;
-  color: var(--color-text-secondary);
+  color: #b8a99a;
   font-style: italic;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -172,7 +176,7 @@
 
 .wordbook-card-romaji {
   font-size: 22rpx;
-  color: #aaa;
+  color: #ccc0b4;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -188,15 +192,23 @@
 
 .wordbook-card-photo-count {
   font-size: 22rpx;
-  color: #A0AFBF;
-  background-color: #F0F5FA;
+  color: #b8a99a;
+  background-color: #f5f0e8;
   padding: 4rpx 16rpx;
   border-radius: 20rpx;
   margin-bottom: 12rpx;
 }
 
+.wordbook-card-more {
+  font-size: 32rpx;
+  color: #c8bda8;
+  flex-shrink: 0;
+  margin-left: 8rpx;
+}
+
 .wordbook-card-toggle {
   height: 52rpx;
+  min-height: 52rpx;
   padding: 0 20rpx;
   font-size: 22rpx;
   font-weight: 600;
@@ -208,20 +220,22 @@
   line-height: 52rpx;
   white-space: nowrap;
   min-width: 0;
+  background: #8b7355;
 }
 
 .wordbook-card-toggle-master {
-  background-color: #43A047;
-  color: #FFFFFF;
+  background: #8b7355 !important;
+  color: #ffffff;
   font-weight: 600;
 }
 
 .wordbook-card-toggle-remove {
-  background-color: #EF6C00;
-  color: #FFFFFF;
+  background: #d4a843 !important;
+  color: #ffffff;
   font-weight: 600;
 }
 
+/* ========== 空状态 ========== */
 .wordbook-empty {
   flex: 1;
   display: flex;
@@ -239,11 +253,12 @@
 
 .wordbook-empty-text {
   font-size: 28rpx;
-  color: #A0AFBF;
+  color: #b8a99a;
   text-align: center;
   line-height: 1.6;
 }
 
+/* ========== 加载更多 ========== */
 .wordbook-loadmore {
   display: flex;
   flex-direction: column;
@@ -255,8 +270,8 @@
 .wordbook-loadmore-btn {
   width: 280rpx;
   height: 72rpx;
-  background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
-  color: #FFFFFF;
+  background: linear-gradient(135deg, #8b7355, #6b5640);
+  color: #ffffff;
   font-size: 28rpx;
   font-weight: 600;
   border-radius: 36rpx;
@@ -264,16 +279,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  
+
   &[disabled] {
     opacity: 0.6;
-    background: #E0EAF3;
-    color: #A0AFBF;
+    background: #e8e0d3;
+    color: #b8a99a;
   }
 }
 
 .wordbook-loadmore-text {
   font-size: 24rpx;
-  color: #A0AFBF;
+  color: #b8a99a;
   margin-top: 16rpx;
 }

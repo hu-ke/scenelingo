@@ -266,6 +266,32 @@ export const api = {
     });
   },
 
+  // 已掌握
+  listMastered() {
+    return request<{ words: string[] }>('/api/mastered/list');
+  },
+
+  addMasteredWord(word: string) {
+    return request<{ success: boolean }>('/api/mastered/add', {
+      method: 'POST',
+      body: JSON.stringify({ word }),
+    });
+  },
+
+  removeMasteredWord(word: string) {
+    return request<{ success: boolean }>('/api/mastered/remove', {
+      method: 'POST',
+      body: JSON.stringify({ word }),
+    });
+  },
+
+  syncMastered(words: string[]) {
+    return request<{ success: boolean }>('/api/mastered/sync', {
+      method: 'POST',
+      body: JSON.stringify({ words }),
+    });
+  },
+
   // 用户统计
   getUserStats() {
     return request<{ total_count: number; total_days: number; oldest_date: string | null; all_words: string[] }>('/api/user/stats');

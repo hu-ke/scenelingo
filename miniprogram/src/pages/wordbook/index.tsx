@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import Taro, { useDidShow } from '@tarojs/taro';
-import { View, Text, Button, ScrollView } from '@tarojs/components';
+import { View, Text, Button, ScrollView, Image } from '@tarojs/components';
 import { useReview } from '../../context/AppContext';
 import { api } from '../../utils/api';
 import { getJSONStorage } from '../../utils/storage';
-import { isMastered, toggleMastered, getWordbookWords, removeFromWordbook } from '../../utils/wordMastery';
+import { isInMasteredList, toggleMastered, getMasteredWords, getWordbookWords, removeFromWordbook } from '../../utils/wordMastery';
 import { useTheme } from '../../hooks/useTheme';
 import type { PhotoItem } from '../../context/AppContext';
 import './index.scss';
+
+const CDN = 'https://scenelingo.oss-cn-hangzhou.aliyuncs.com/assets';
 
 interface WordEntry {
   word: string;
@@ -26,17 +28,21 @@ export default function WordBookPage() {
   const [loading, setLoading] = useState(true);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [wordbookWordList, setWordbookWordList] = useState<string[]>([]);
+  const [masteredWordList, setMasteredWordList] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const isReturningFromDetail = useRef(false);
+  const hasInitialLoaded = useRef(false);
 
-  const loadAllPhotos = useCallback(async () => {
-    setLoading(true);
+  const loadAllPhotos = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
-      // 从服务端获取生词本列表
       const words = await getWordbookWords();
       setWordbookWordList(words);
 
-      // 只请求与生词本单词有关的照片
+      // 加载已掌握列表
+      const mastered = await getMasteredWords();
+      setMasteredWordList(mastered);
+
       if (words.length > 0) {
         const res = await api.listPhotos(undefined, undefined, words);
         const cloudPhotos = (res.photos || []).map((p: Record<string, unknown>) => ({
@@ -54,21 +60,20 @@ export default function WordBookPage() {
       const localPhotos = getJSONStorage<PhotoItem[]>('saved_photos', []);
       setPhotos(localPhotos);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    loadAllPhotos();
   }, []);
 
   useDidShow(() => {
     if (isReturningFromDetail.current) {
-      // 从单词详情页返回，只刷新掌握状态，不重新加载数据，避免闪烁和滚动重置
       isReturningFromDetail.current = false;
       setRefreshKey((k) => k + 1);
-    } else {
+    } else if (!hasInitialLoaded.current) {
+      hasInitialLoaded.current = true;
       loadAllPhotos();
+      setRefreshKey((k) => k + 1);
+    } else {
+      loadAllPhotos(true);
       setRefreshKey((k) => k + 1);
     }
   });
@@ -135,19 +140,21 @@ export default function WordBookPage() {
   }, [photos, wordbookWordList, refreshKey]);
 
   const newWords = useMemo(() => {
-    return wordEntries.filter((entry) => !isMastered(entry.word));
-  }, [wordEntries, refreshKey]);
+    return wordEntries.filter((entry) => !isInMasteredList(entry.word, masteredWordList));
+  }, [wordEntries, masteredWordList, refreshKey]);
 
   const masteredWords = useMemo(() => {
-    return wordEntries.filter((entry) => isMastered(entry.word));
-  }, [wordEntries, refreshKey]);
+    return wordEntries.filter((entry) => isInMasteredList(entry.word, masteredWordList));
+  }, [wordEntries, masteredWordList, refreshKey]);
 
   const displayWords = activeTab === 'new' ? newWords : masteredWords;
 
-  const handleToggleMastered = useCallback((word: string) => {
-    toggleMastered(word);
+  const handleToggleMastered = useCallback(async (word: string) => {
+    const currentMastered = isInMasteredList(word, masteredWordList);
+    await toggleMastered(word, currentMastered);
+    setMasteredWordList(prev => currentMastered ? prev.filter(w => w !== word.toLowerCase()) : [...prev, word.toLowerCase()]);
     setRefreshKey((k) => k + 1);
-  }, []);
+  }, [masteredWordList]);
 
   const handleRemoveFromWordbook = useCallback(async (word: string) => {
     try {
@@ -162,16 +169,14 @@ export default function WordBookPage() {
   const handleExport = useCallback(async () => {
     try {
       const BOM = '\uFEFF';
-      const header = '单词,音标,罗马音,中文翻译,例句,关联照片数,掌握状态\n';
+      const header = '单词,音标,中文翻译,例句\n';
       const rows = wordEntries.map((w) => {
-        const mastered = isMastered(w.word) ? '已掌握' : '生词';
         const examples = w.examples.length > 0 ? w.examples.join('；') : '';
         const escapedWord = w.word.includes(',') ? `"${w.word}"` : w.word;
         const escapedPhonetic = w.phonetic.includes(',') ? `"${w.phonetic}"` : w.phonetic;
-        const escapedRomaji = w.romaji.includes(',') ? `"${w.romaji}"` : w.romaji;
         const escapedChinese = w.chinese.includes(',') ? `"${w.chinese}"` : w.chinese;
         const escapedExamples = examples.includes(',') ? `"${examples}"` : examples;
-        return `${escapedWord},${escapedPhonetic},${escapedRomaji},${escapedChinese},${escapedExamples},${w.photoCount},${mastered}`;
+        return `${escapedWord},${escapedPhonetic},${escapedChinese},${escapedExamples}`;
       }).join('\n');
 
       const csv = BOM + header + rows;
@@ -219,37 +224,52 @@ export default function WordBookPage() {
 
   return (
     <View className="wordbook-page" style={themeStyle}>
-      <View className="wordbook-header">
-        <View className="wordbook-header-top">
-          <Text className="wordbook-header-title">我的单词本</Text>
-          {!loading && wordEntries.length > 0 ? (
-            <View className="wordbook-export-btn" onClick={handleExport}>
-              <Text className="wordbook-export-text">导出</Text>
-            </View>
-          ) : (
-            <View className="wordbook-back-btn" />
-          )}
-        </View>
-        <Text className="wordbook-header-subtitle">共 {wordEntries.length} 个单词</Text>
+      {/* 顶部 Banner */}
+      <View className="wordbook-banner">
+        <Image
+          className="wordbook-banner-img"
+          src={`${CDN}/wordbook/banner.png`}
+          mode="aspectFill"
+        />
       </View>
 
+      {/* 标题与导出按钮 */}
+      <View className="wordbook-header">
+        <View className="wordbook-header-left">
+          <Text className="wordbook-header-title">我的生词本</Text>
+          {!loading && (
+            <Text className="wordbook-header-count">共 {wordEntries.length} 个单词</Text>
+          )}
+        </View>
+        {!loading && wordEntries.length > 0 && (
+          <View className="wordbook-export-btn" onClick={handleExport}>
+            <Image
+              className="wordbook-export-icon"
+              src={`${CDN}/wordbook/export.png`}
+              mode="aspectFit"
+            />
+            <Text className="wordbook-export-text">导出</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Tab 切换栏 */}
       <View className="wordbook-tabs">
         <View
           className={`wordbook-tab ${activeTab === 'new' ? 'wordbook-tab-active' : ''}`}
           onClick={() => setActiveTab('new')}
         >
           <Text className="wordbook-tab-text">生词表 ({newWords.length})</Text>
-          {activeTab === 'new' && <View className="wordbook-tab-indicator" />}
         </View>
         <View
           className={`wordbook-tab ${activeTab === 'mastered' ? 'wordbook-tab-active' : ''}`}
           onClick={() => setActiveTab('mastered')}
         >
           <Text className="wordbook-tab-text">已掌握 ({masteredWords.length})</Text>
-          {activeTab === 'mastered' && <View className="wordbook-tab-indicator" />}
         </View>
       </View>
 
+      {/* 内容区域 */}
       {loading ? (
         <View className="wordbook-loading">
           <View className="spinner" />
@@ -277,13 +297,13 @@ export default function WordBookPage() {
                 <View className="wordbook-card-meta">
                   <Text className="wordbook-card-photo-count">{entry.photoCount} 张</Text>
                   <Button
-                    className={`wordbook-card-toggle ${isMastered(entry.word) ? 'wordbook-card-toggle-remove' : 'wordbook-card-toggle-master'}`}
+                    className={`wordbook-card-toggle ${isInMasteredList(entry.word, masteredWordList) ? 'wordbook-card-toggle-remove' : 'wordbook-card-toggle-master'}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleToggleMastered(entry.word);
                     }}
                   >
-                    {isMastered(entry.word) ? '↩ 移回生词表' : '✓ 已掌握'}
+                    {isInMasteredList(entry.word, masteredWordList) ? '↩ 移回生词表' : '✓ 已掌握'}
                   </Button>
                 </View>
               </View>

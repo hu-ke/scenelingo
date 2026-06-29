@@ -4,7 +4,7 @@ import { useReview } from '../context/ReviewContext';
 import { api } from '../utils/api';
 import { setLanguagePrefs } from '../utils/languagePrefs';
 import { setTheme } from '../utils/theme';
-import { migrateLocalWordbook } from '../utils/wordMastery';
+import { migrateLocalWordbook, migrateLocalMastered } from '../utils/wordMastery';
 import AppLogo from '../components/AppLogo';
 
 export default function LoginPage() {
@@ -83,6 +83,7 @@ export default function LoginPage() {
       }
       // 将本地残留的生词本数据迁移到服务端
       migrateLocalWordbook();
+      migrateLocalMastered();
       dispatch({ type: 'setPage', page: 'home' });
     } catch (err: any) {
       if (err?.name === 'TypeError' || err?.message?.includes('fetch')) {

@@ -1,52 +1,219 @@
 .worddetail-page {
   min-height: 100vh;
-  background-color: var(--color-bg);
+  background: #faf6f2;
   display: flex;
   flex-direction: column;
 }
 
-.worddetail-header {
-  background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
-  padding: 48rpx 32rpx 40rpx;
+/* ========== 顶部 Banner ========== */
+.worddetail-banner {
+  width: 100%;
+  height: 320rpx;
+  overflow: hidden;
+}
+
+.worddetail-banner-img {
+  width: 100%;
+  height: 100%;
+}
+
+/* ========== 单词信息卡片 ========== */
+.worddetail-info-card {
+  margin: -40rpx 24rpx 24rpx;
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 40rpx 32rpx 32rpx;
+  box-shadow: 0 4rpx 20rpx rgba(139, 115, 85, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.worddetail-word {
+  font-size: 72rpx;
+  font-weight: 700;
+  color: #1a3a2e;
+  margin-bottom: 8rpx;
+  text-align: center;
+  word-break: break-all;
+}
+
+.worddetail-chinese {
+  font-size: 32rpx;
+  color: #6b5640;
+  margin-bottom: 4rpx;
   text-align: center;
 }
 
-.worddetail-header-top {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  margin-bottom: 8rpx;
+.worddetail-phonetic {
+  font-size: 26rpx;
+  color: #a09080;
+  font-style: italic;
+  margin-bottom: 4rpx;
+  text-align: center;
 }
 
-.worddetail-back-btn {
-  width: 60rpx;
-  height: 60rpx;
+.worddetail-romaji {
+  font-size: 24rpx;
+  color: #ccc0b4;
+  margin-bottom: 0;
+  text-align: center;
+}
+
+/* ========== 绿线分隔 ========== */
+.worddetail-green-sep {
+  width: 480rpx;
+  height: 20rpx;
+  margin: 24rpx auto;
+  display: block;
+}
+
+/* ========== 操作按钮 ========== */
+.worddetail-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 20rpx;
+  width: 100%;
+}
+
+.worddetail-speak-btn {
+  flex: 1;
+  height: 80rpx;
+  min-height: 80rpx;
+  background: #f5f0e8;
+  border: none;
+  border-radius: 16rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10rpx;
+  padding: 0 24rpx;
+
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.worddetail-speak-icon {
+  width: 36rpx;
+  height: 36rpx;
   flex-shrink: 0;
 }
 
-.worddetail-back-arrow {
-  font-size: 36rpx;
-  color: #FFFFFF;
-  font-weight: 700;
+.worddetail-speak-text {
+  font-size: 28rpx;
+  color: #5c4a2e;
+  font-weight: 500;
 }
 
-.worddetail-header-title {
+.worddetail-mastery-btn {
   flex: 1;
-  font-size: 40rpx;
-  font-weight: 700;
-  color: #FFFFFF;
+  height: 80rpx;
+  min-height: 80rpx;
+  background: #8b7355 !important;
+  color: #ffffff;
+  font-size: 26rpx;
+  font-weight: 600;
+  border-radius: 16rpx;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20rpx;
+  line-height: 80rpx;
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.worddetail-mastery-btn-active {
+  background: #c8a96e !important;
+}
+
+/* ========== 照片区域 ========== */
+.worddetail-content {
+  flex: 1;
+}
+
+.worddetail-section {
+  margin: 0 24rpx 24rpx;
+}
+
+.worddetail-section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #3d3226;
+  margin-bottom: 16rpx;
+  display: block;
+}
+
+.worddetail-section-empty {
+  font-size: 26rpx;
+  color: #b8a99a;
   text-align: center;
+  padding: 40rpx 0;
+  display: block;
 }
 
-.worddetail-header-subtitle {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.85);
+.worddetail-photo-grid {
+  display: flex;
+  flex-direction: row;
+  gap: 12rpx;
 }
 
+.worddetail-photo-thumb {
+  width: 210rpx;
+  height: 210rpx;
+  border-radius: 12rpx;
+  background-color: #f5f0e8;
+}
+
+/* ========== 例句分割线 ========== */
+.worddetail-sep {
+  width: 100%;
+  height: 20rpx;
+  margin: 8rpx 0 24rpx;
+  display: block;
+}
+
+/* ========== 例句 ========== */
+.worddetail-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.worddetail-example-card {
+  background: #ffffff;
+  border-radius: 12rpx;
+  padding: 24rpx 28rpx;
+  box-shadow: 0 2rpx 12rpx rgba(139, 115, 85, 0.06);
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.worddetail-example-bullet {
+  width: 8rpx;
+  height: 8rpx;
+  background: #8b7355;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-right: 16rpx;
+  margin-top: 12rpx;
+}
+
+.worddetail-example-text {
+  font-size: 28rpx;
+  color: #4a3f35;
+  line-height: 1.8;
+  flex: 1;
+}
+
+/* ========== 加载状态 ========== */
 .worddetail-loading {
   flex: 1;
   display: flex;
@@ -55,6 +222,7 @@
   padding: 120rpx 0;
 }
 
+/* ========== 空状态 ========== */
 .worddetail-empty {
   flex: 1;
   display: flex;
@@ -72,179 +240,7 @@
 
 .worddetail-empty-text {
   font-size: 28rpx;
-  color: #A0AFBF;
+  color: #b8a99a;
   text-align: center;
   line-height: 1.6;
-}
-
-.worddetail-content {
-  flex: 1;
-  padding: 24rpx;
-}
-
-.worddetail-info-card {
-  background-color: #FFFFFF;
-  border-radius: 16rpx;
-  padding: 48rpx 32rpx 40rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.worddetail-word {
-  font-size: 80rpx;
-  font-weight: 700;
-  color: var(--color-primary);
-  margin-bottom: 8rpx;
-  text-align: center;
-  word-break: break-all;
-}
-
-.worddetail-chinese {
-  font-size: 32rpx;
-  color: #E8642E;
-  margin-bottom: 4rpx;
-  text-align: center;
-}
-
-.worddetail-phonetic {
-  font-size: 26rpx;
-  color: #A0AFBF;
-  font-style: italic;
-  margin-bottom: 4rpx;
-  text-align: center;
-}
-
-.worddetail-romaji {
-  font-size: 24rpx;
-  color: #aaa;
-  margin-bottom: 28rpx;
-  text-align: center;
-}
-
-.worddetail-actions {
-  display: flex;
-  flex-direction: row;
-  gap: 20rpx;
-  width: 100%;
-}
-
-.worddetail-speak-btn {
-  flex: 1;
-  height: 72rpx;
-  background-color: var(--color-surface);
-  color: var(--color-primary);
-  font-size: 28rpx;
-  font-weight: 500;
-  border-radius: 16rpx;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 72rpx;
-}
-
-.worddetail-mastery-btn {
-  flex: 1;
-  height: 72rpx;
-  background-color: #E8F5E9;
-  color: #27AE60;
-  font-size: 26rpx;
-  font-weight: 500;
-  border-radius: 16rpx;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 72rpx;
-}
-
-.worddetail-mastery-btn-active {
-  background-color: #E8F5E9;
-  color: #27AE60;
-}
-
-.worddetail-wordbook-btn {
-  flex: 1;
-  height: 72rpx;
-  background-color: #FFF3E0;
-  color: #E67E22;
-  font-size: 26rpx;
-  font-weight: 500;
-  border-radius: 16rpx;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 72rpx;
-}
-
-.worddetail-wordbook-btn-active {
-  background-color: #E8F5E9;
-  color: #27AE60;
-}
-
-.worddetail-section {
-  margin-bottom: 24rpx;
-}
-
-.worddetail-section-title {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #2C3E50;
-  margin-bottom: 16rpx;
-  display: block;
-}
-
-.worddetail-section-empty {
-  font-size: 26rpx;
-  color: #A0AFBF;
-  text-align: center;
-  padding: 40rpx 0;
-  display: block;
-}
-
-.worddetail-photo-grid {
-  display: flex;
-  flex-direction: row;
-  gap: 12rpx;
-}
-
-.worddetail-photo-thumb {
-  width: 210rpx;
-  height: 210rpx;
-  border-radius: 12rpx;
-  background-color: #E0EAF3;
-}
-
-.worddetail-examples {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-}
-
-.worddetail-example-card {
-  background-color: #FFFFFF;
-  border-radius: 12rpx;
-  padding: 24rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-}
-
-.worddetail-example-icon {
-  font-size: 28rpx;
-  flex-shrink: 0;
-  margin-right: 12rpx;
-  margin-top: 2rpx;
-}
-
-.worddetail-example-text {
-  font-size: 28rpx;
-  color: #444444;
-  line-height: 1.6;
-  flex: 1;
 }

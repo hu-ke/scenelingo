@@ -15,7 +15,11 @@ async function dataURLtoBlob(dataURL: string): Promise<Blob> {
 
 function WordCard({ obj, wordbookWords, onWordbookChange }: { obj: RecognizedObject; wordbookWords: string[]; onWordbookChange?: (word: string, inWordbook: boolean) => void }) {
   const [expanded, setExpanded] = useState(false);
-  const [inWordbook, setInWordbook] = useState(() => isInWordbookList(obj.name, wordbookWords));
+  const [inWordbook, setInWordbook] = useState(false);
+
+  useEffect(() => {
+    setInWordbook(isInWordbookList(obj.name, wordbookWords));
+  }, [obj.name, wordbookWords]);
 
   const handleToggleWordbook = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -114,7 +118,11 @@ function WordCard({ obj, wordbookWords, onWordbookChange }: { obj: RecognizedObj
 
 function ActionCard({ action, wordbookWords, onWordbookChange }: { action: RecognizedAction; wordbookWords: string[]; onWordbookChange?: (word: string, inWordbook: boolean) => void }) {
   const [expanded, setExpanded] = useState(false);
-  const [inWordbook, setInWordbook] = useState(() => isInWordbookList(action.name, wordbookWords));
+  const [inWordbook, setInWordbook] = useState(false);
+
+  useEffect(() => {
+    setInWordbook(isInWordbookList(action.name, wordbookWords));
+  }, [action.name, wordbookWords]);
 
   const handleToggleWordbook = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -451,19 +459,6 @@ export default function ReviewPage() {
       >
         ←
       </button>
-
-      {/* 进度条 */}
-      <div className="review-progress">
-        <div className="review-progress__bar">
-          <div
-            className="review-progress__bar-fill"
-            style={{ width: `${((currentIndex + 1) / photos.length) * 100}%` }}
-          />
-        </div>
-        <div className="review-progress__text">
-          <span>{currentIndex + 1}</span>/{photos.length}
-        </div>
-      </div>
 
       {/* 图片卡片 */}
       <div className="card">

@@ -8,7 +8,7 @@ import { getJSONStorage, setJSONStorage } from '../../utils/storage';
 import { generateUUID } from '../../utils/uuid';
 import { renderAnnotatedImageToTempFile } from '../../utils/annotateImage';
 import { generateShareCardImage } from '../../utils/shareCard';
-import { getWordbookWords, migrateLocalWordbook } from '../../utils/wordMastery';
+import { getWordbookWords, getMasteredWords, migrateLocalWordbook, migrateLocalMastered } from '../../utils/wordMastery';
 import { useTheme } from '../../hooks/useTheme';
 import FolderPicker from '../../components/FolderPicker';
 import type { PhotoItem, RecognizedObject } from '../../context/AppContext';
@@ -95,6 +95,7 @@ export default function HomePage() {
   const [totalCount, setTotalCount] = useState(0);
   const [wordCount, setWordCount] = useState(0);
   const [dayCount, setDayCount] = useState(0);
+  const [masteredCount, setMasteredCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set());
   const [uploading, setUploading] = useState(false);
@@ -135,6 +136,7 @@ export default function HomePage() {
     let wordbookWords: string[] = [];
 
     migrateLocalWordbook();
+    migrateLocalMastered();
     wordbookWords = await getWordbookWords();
     if (authState.isLoggedIn && authState.token) {
     try {
@@ -215,6 +217,7 @@ export default function HomePage() {
               return false;
             }).length);
             setDayCount(Object.keys(grouped).length);
+            setMasteredCount((await getMasteredWords()).filter(w => wordbookWords.includes(w)).length);
 
             dispatch({ type: 'setSavedPhotos', photos: newPhotos });
             dispatch({ type: 'cleanSelection', ids: newPhotos.map(p => p.id) });
@@ -259,6 +262,7 @@ export default function HomePage() {
       return false;
     }).length);
     setDayCount(Object.keys(grouped).length);
+    setMasteredCount((await getMasteredWords()).filter(w => wordbookWords.includes(w)).length);
 
     dispatch({ type: 'setSavedPhotos', photos });
     dispatch({ type: 'cleanSelection', ids: photos.map(p => p.id) });
@@ -359,6 +363,7 @@ export default function HomePage() {
       const allWordsSet = new Set((stats.all_words || []).map((w: string) => w.toLowerCase()));
       const wordbookWords = await getWordbookWords();
       setWordCount(wordbookWords.filter(w => allWordsSet.has(w)).length);
+      setMasteredCount((await getMasteredWords()).filter(w => wordbookWords.includes(w)).length);
     } catch (err) {
       console.error('[HomePage] 获取统计数据失败:', err);
     }
@@ -459,6 +464,16 @@ export default function HomePage() {
         });
 
         if (res.statusCode === 200) {
+          dispatch({ type: 'setFavorited', photoId: favTargetPhoto.id, favorited: true });
+          setGroupedPhotos(prev => {
+            const next = { ...prev };
+            for (const date of Object.keys(next)) {
+              next[date] = next[date].map(p =>
+                p.id === favTargetPhoto.id ? { ...p, favorited: true } : p
+              );
+            }
+            return next;
+          });
           Taro.showToast({ title: '已收藏', icon: 'success' });
         } else if (res.statusCode === 409) {
           Taro.showToast({ title: '该图片已在此文件夹中', icon: 'none' });
@@ -613,6 +628,13 @@ export default function HomePage() {
   const headerNode = (
     <View className="home-header">
       <Image className="home-header-banner" src={`${CDN}/banner.png`} mode="aspectFill" />
+      {!loading && (
+        <View className="home-header-stats">
+          <Text className="home-header-stat-item">学习 {dayCount} 天</Text>
+          <Text className="home-header-stat-divider">·</Text>
+          <Text className="home-header-stat-item">已掌握 {masteredCount} 词</Text>
+        </View>
+      )}
     </View>
   );
 
@@ -690,7 +712,11 @@ export default function HomePage() {
                         className="home-photo-fav"
                         onClick={(e) => handleAddToFavorites(photo, e)}
                       >
-                        <Text>⭐</Text>
+                        <Image
+                          src={photo.favorited ? `${CDN}/home/stared.png` : `${CDN}/home/unstared.png`}
+                          className="home-photo-fav-icon"
+                          mode="aspectFit"
+                        />
                       </View>
                       <View
                         className="home-photo-delete"

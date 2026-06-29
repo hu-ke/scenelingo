@@ -11,6 +11,7 @@ export interface PhotoItem {
   actions?: RecognizedAction[];
   status?: 'pending' | 'processing' | 'completed';
   collectionDate?: string;
+  favorited?: boolean;
 }
 
 export interface RecognizedObject {
@@ -65,7 +66,8 @@ export type ReviewAction =
   | { type: 'resetReview' }
   | { type: 'setWordDetail'; word: string | null }
   | { type: 'setLanguage'; nativeLang: string; targetLang: string }
-  | { type: 'setTheme'; theme: string };
+  | { type: 'setTheme'; theme: string }
+  | { type: 'setFavorited'; photoId: string; favorited: boolean };
 
 const initialState: ReviewState = {
   photos: [],
@@ -224,6 +226,13 @@ function reviewReducer(state: ReviewState, action: ReviewAction): ReviewState {
 
     case 'setTheme':
       return { ...state, theme: action.theme };
+
+    case 'setFavorited': {
+      const favUpdatedPhotos = state.photos.map((p) =>
+        p.id === action.photoId ? { ...p, favorited: action.favorited } : p,
+      );
+      return { ...state, photos: favUpdatedPhotos };
+    }
 
     default:
       return state;

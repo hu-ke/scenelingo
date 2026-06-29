@@ -400,6 +400,58 @@ async def remove_wordbook_word(user_id: str, word: str) -> bool:
     logger.info(f"[remove_wordbook_word] 用户 {user_id} 移除生词: {normalized}")
     return True
 
+# ---- 已掌握单词 ----
+
+async def get_user_mastered(user_id: str) -> list[str]:
+    from db import db
+    if db is None:
+        return []
+    doc = await db.mastered.find_one({"user_id": user_id})
+    if doc:
+        return doc.get("words", [])
+    return []
+
+async def sync_user_mastered(user_id: str, words: list[str]) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[sync_user_mastered] db 为 None")
+        return False
+    normalized = [w.lower() for w in words]
+    await db.mastered.update_one(
+        {"user_id": user_id},
+        {"$set": {"words": normalized, "updated_at": datetime.utcnow()}},
+        upsert=True,
+    )
+    logger.info(f"[sync_user_mastered] 用户 {user_id} 已掌握已同步, {len(normalized)} 个单词")
+    return True
+
+async def add_mastered_word(user_id: str, word: str) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[add_mastered_word] db 为 None")
+        return False
+    normalized = word.lower()
+    await db.mastered.update_one(
+        {"user_id": user_id},
+        {"$addToSet": {"words": normalized}, "$set": {"updated_at": datetime.utcnow()}},
+        upsert=True,
+    )
+    logger.info(f"[add_mastered_word] 用户 {user_id} 已掌握: {normalized}")
+    return True
+
+async def remove_mastered_word(user_id: str, word: str) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[remove_mastered_word] db 为 None")
+        return False
+    normalized = word.lower()
+    await db.mastered.update_one(
+        {"user_id": user_id},
+        {"$pull": {"words": normalized}, "$set": {"updated_at": datetime.utcnow()}},
+    )
+    logger.info(f"[remove_mastered_word] 用户 {user_id} 取消已掌握: {normalized}")
+    return True
+
 # ---- JWT Token ----
 def generate_token(user_id: str) -> str:
     payload = {
@@ -737,20 +789,26 @@ async def list_favorite_folders(user_id: str, parent_id: str = None) -> list:
     return folders
 
 
-async def rename_favorite_folder(user_id: str, folder_id: str, name: str) -> bool:
+async def update_favorite_folder(user_id: str, folder_id: str, name: str | None = None, parent_id: str | None = None) -> bool:
     from db import db
     if db is None:
-        logger.warning("[rename_favorite_folder] db 为 None")
+        logger.warning("[update_favorite_folder] db 为 None")
         return False
+
+    update_fields: dict = {"updated_at": datetime.utcnow()}
+    if name is not None:
+        update_fields["name"] = name
+    if parent_id is not None:
+        update_fields["parent_id"] = parent_id
 
     result = await db.favorite_folders.update_one(
         {"user_id": user_id, "folder_id": folder_id},
-        {"$set": {"name": name, "updated_at": datetime.utcnow()}},
+        {"$set": update_fields},
     )
     if result.matched_count > 0:
-        logger.info(f"[rename_favorite_folder] 文件夹已重命名 folder_id={folder_id} name={name}")
+        logger.info(f"[update_favorite_folder] 文件夹已更新 folder_id={folder_id} name={name} parent_id={parent_id}")
     else:
-        logger.warning(f"[rename_favorite_folder] 未找到文件夹 folder_id={folder_id}")
+        logger.warning(f"[update_favorite_folder] 未找到文件夹 folder_id={folder_id}")
     return result.matched_count > 0
 
 
@@ -854,6 +912,21 @@ async def remove_favorite_item(user_id: str, folder_id: str, photo_id: str) -> b
         logger.warning(f"[remove_favorite_item] 未找到收藏项 user_id={user_id} folder_id={folder_id} photo_id={photo_id}")
     return result.deleted_count > 0
 
+async def move_favorite_item(user_id: str, photo_id: str, target_folder_id: str) -> bool:
+    from db import db
+    if db is None:
+        logger.warning("[move_favorite_item] db 为 None")
+        return False
+
+    result = await db.favorite_photos.update_one(
+        {"user_id": user_id, "photo_id": photo_id},
+        {"$set": {"folder_id": target_folder_id}},
+    )
+    if result.matched_count > 0:
+        logger.info(f"[move_favorite_item] 收藏已移动 photo_id={photo_id} target_folder_id={target_folder_id}")
+    else:
+        logger.warning(f"[move_favorite_item] 未找到收藏项 photo_id={photo_id}")
+    return result.matched_count > 0
 
 async def is_new_user(user_id: str) -> bool:
     """判断用户是否为新用户（没有任何照片记录）"""

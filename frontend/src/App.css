@@ -401,13 +401,6 @@ textarea::placeholder {
   }
 }
 
-/* 进度条填充 */
-@keyframes progressFill {
-  from {
-    width: 0%;
-  }
-}
-
 /* 心跳 */
 @keyframes heartbeat {
   0%, 100% {
@@ -893,44 +886,6 @@ textarea::placeholder {
 
 .review-page {
   animation: fadeIn 0.4s ease;
-}
-
-/* ---- 复习进度条 ---- */
-.review-progress {
-  text-align: center;
-  margin-bottom: var(--space-md);
-  position: relative;
-}
-
-.review-progress__bar {
-  width: 100%;
-  height: 6px;
-  background-color: var(--color-border);
-  border-radius: 3px;
-  overflow: hidden;
-  margin-bottom: var(--space-xs);
-}
-
-.review-progress__bar-fill {
-  height: 100%;
-  border-radius: 3px;
-  background: linear-gradient(90deg, var(--color-primary-start), var(--color-primary-mid), var(--color-primary-end));
-  animation: progressFill 0.6s ease;
-  transition: width 0.4s ease;
-}
-
-.review-progress__text {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-
-.review-progress__text span {
-  background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: 800;
 }
 
 /* ---- 复习操作按钮组 ---- */

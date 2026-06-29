@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { getApiBaseUrl } from '../utils/api'
@@ -20,7 +20,11 @@ interface WordCardProps {
 }
 
 const WordCard: React.FC<WordCardProps> = ({ obj, wordbookWords, onWordbookChange }) => {
-  const [inWordbook, setInWordbook] = useState(isInWordbookList(obj.name, wordbookWords))
+  const [inWordbook, setInWordbook] = useState(false)
+
+  useEffect(() => {
+    setInWordbook(isInWordbookList(obj.name, wordbookWords))
+  }, [obj.name, wordbookWords])
   const { name, chinese, phonetic, examples } = obj
 
   const handleToggle = () => setExpanded((prev) => !prev)
@@ -28,14 +32,20 @@ const WordCard: React.FC<WordCardProps> = ({ obj, wordbookWords, onWordbookChang
   const handleSpeak = (e: any) => {
     e.stopPropagation()
     try {
+      Taro.setInnerAudioOption({ obeyMuteSwitch: false })
       const audioCtx = Taro.createInnerAudioContext()
       const ttsLang = getTtsLang(getLanguagePrefs().targetLang)
       const baseUrl = getApiBaseUrl()
       audioCtx.src = `${baseUrl}/api/tts?text=${encodeURIComponent(name)}&lang=${ttsLang}`
       audioCtx.play()
       audioCtx.onEnded(() => audioCtx.destroy())
-      audioCtx.onError(() => audioCtx.destroy())
-    } catch {}
+      audioCtx.onError(() => {
+        audioCtx.destroy()
+        Taro.showToast({ title: '发音失败，请检查是否处于静音模式', icon: 'none', duration: 2000 })
+      })
+    } catch {
+      Taro.showToast({ title: '发音失败', icon: 'none' })
+    }
   }
 
   const handleToggleWordbook = async (e: any) => {

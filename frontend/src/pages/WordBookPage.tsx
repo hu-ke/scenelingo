@@ -3,7 +3,7 @@ import { useReview } from '../context/ReviewContext';
 import type { PhotoItem } from '../context/ReviewContext';
 import { getAllPhotos, isLoggedIn } from '../utils/indexedDB';
 import { api } from '../utils/api';
-import { isMastered, toggleMastered } from '../utils/wordMastery';
+import { isInMasteredList, toggleMastered, getMasteredWords } from '../utils/wordMastery';
 
 interface WordEntry {
   word: string;
@@ -18,6 +18,7 @@ export default function WordBookPage() {
   const { dispatch } = useReview();
   const [words, setWords] = useState<WordEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [masteredWordList, setMasteredWordList] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'new' | 'mastered'>('new');
   // @ts-ignore
   const [refresh, setRefresh] = useState(0);
@@ -99,6 +100,7 @@ export default function WordBookPage() {
 
         if (!cancelled) {
           setWords(sorted);
+          getMasteredWords().then(setMasteredWordList);
         }
       } catch (err) {
         console.error('[WordBook] 加载单词失败:', err);
@@ -119,8 +121,8 @@ export default function WordBookPage() {
     };
   }, []);
 
-  const newWords = words.filter((w) => !isMastered(w.word));
-  const masteredWords = words.filter((w) => isMastered(w.word));
+  const newWords = words.filter((w) => !isInMasteredList(w.word, masteredWordList));
+  const masteredWords = words.filter((w) => isInMasteredList(w.word, masteredWordList));
   const displayWords = activeTab === 'new' ? newWords : masteredWords;
 
   const handleWordClick = (wordName: string) => {
@@ -128,9 +130,11 @@ export default function WordBookPage() {
     dispatch({ type: 'setPage', page: 'worddetail' });
   };
 
-  const handleToggle = (e: React.MouseEvent, word: string) => {
+  const handleToggle = async (e: React.MouseEvent, word: string) => {
     e.stopPropagation();
-    toggleMastered(word);
+    const currentMastered = isInMasteredList(word, masteredWordList);
+    await toggleMastered(word, currentMastered);
+    setMasteredWordList(prev => currentMastered ? prev.filter(w => w !== word.toLowerCase()) : [...prev, word.toLowerCase()]);
     setRefresh((r) => r + 1);
   };
 
@@ -139,7 +143,7 @@ export default function WordBookPage() {
     const BOM = '\uFEFF';
     const header = '单词,音标,中文翻译,例句,关联照片数,掌握状态\n';
     const rows = words.map((w) => {
-      const mastered = isMastered(w.word) ? '已掌握' : '生词';
+      const mastered = isInMasteredList(w.word, masteredWordList) ? '已掌握' : '生词';
       const examples = w.examples.length > 0 ? w.examples.join('；') : '';
       const escapedWord = w.word.includes(',') ? `"${w.word}"` : w.word;
       const escapedPhonetic = w.phonetic.includes(',') ? `"${w.phonetic}"` : w.phonetic;

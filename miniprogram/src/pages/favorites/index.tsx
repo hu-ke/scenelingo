@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import Taro, { useDidShow } from '@tarojs/taro';
 import { View, Text, Input, Image } from '@tarojs/components';
 import { useTheme } from '../../hooks/useTheme';
+import FolderPicker from '../../components/FolderPicker';
 import './index.scss';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8022/scenelingo-service';
@@ -62,6 +63,8 @@ export default function FavoritesPage() {
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [renameFolderName, setRenameFolderName] = useState('');
   const [renameTarget, setRenameTarget] = useState<Folder | null>(null);
+  const [moveTarget, setMoveTarget] = useState<Folder | null>(null);
+  const [showMovePicker, setShowMovePicker] = useState(false);
   const firstLoad = useRef(true);
 
   const loadFolders = useCallback(async (showLoading = false) => {
@@ -147,19 +150,38 @@ export default function FavoritesPage() {
 
   const handleLongPress = useCallback((folder: Folder) => {
     Taro.showActionSheet({
-      itemList: ['重命名', '删除'],
+      itemList: ['重命名', '移动', '删除'],
     }).then((res) => {
       if (res.tapIndex === 0) {
         setRenameTarget(folder);
         setRenameFolderName(folder.name);
         setShowRenameDialog(true);
       } else if (res.tapIndex === 1) {
+        setMoveTarget(folder);
+        setShowMovePicker(true);
+      } else if (res.tapIndex === 2) {
         handleDeleteFolder(folder);
       }
     }).catch(() => {
       // 用户取消
     });
   }, [handleDeleteFolder]);
+
+  const handleMoveFolder = useCallback(async (dest: { folder_id: string; name: string }) => {
+    if (!moveTarget) return;
+    try {
+      await request(`/api/favorites/folders/${moveTarget.folder_id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ parent_id: dest.folder_id }),
+      });
+      setShowMovePicker(false);
+      setMoveTarget(null);
+      Taro.showToast({ title: '移动成功', icon: 'success' });
+      await loadFolders();
+    } catch {
+      Taro.showToast({ title: '移动失败', icon: 'error' });
+    }
+  }, [moveTarget, loadFolders]);
 
   const handleCancelCreate = useCallback(() => {
     setShowCreateDialog(false);
@@ -316,6 +338,14 @@ export default function FavoritesPage() {
           </View>
         </View>
       )}
+
+      {/* 移动文件夹选择器 */}
+      <FolderPicker
+        visible={showMovePicker}
+        title="移动到"
+        onClose={() => { setShowMovePicker(false); setMoveTarget(null); }}
+        onSelect={handleMoveFolder}
+      />
     </View>
   );
 }

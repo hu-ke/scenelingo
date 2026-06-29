@@ -34,13 +34,14 @@ from auth import update_user_language
 from auth import update_user_theme
 from auth import set_annotated_url
 from auth import get_user_wordbook, sync_user_wordbook, add_wordbook_word, remove_wordbook_word
+from auth import get_user_mastered, sync_user_mastered, add_mastered_word, remove_mastered_word
 from auth import wechat_login
 from auth import get_user_stats
 from auth import get_user_quota, decrement_user_quota, add_user_quota, record_share_invite, is_new_user
 from auth import complete_photo
 from auth import SHARE_REWARD_QUOTA
-from auth import create_favorite_folder, list_favorite_folders, rename_favorite_folder, delete_favorite_folder
-from auth import add_favorite_item, list_favorite_items, remove_favorite_item
+from auth import create_favorite_folder, list_favorite_folders, update_favorite_folder, delete_favorite_folder
+from auth import add_favorite_item, list_favorite_items, remove_favorite_item, move_favorite_item
 from db import get_db, init_db, _client
 from oss_client import upload_photo, upload_metadata, list_user_photos, delete_photo
 
@@ -93,7 +94,11 @@ class CreateFolderRequest(BaseModel):
     parent_id: str | None = None
 
 class RenameFolderRequest(BaseModel):
-    name: str
+    name: str | None = None
+    parent_id: str | None = None
+
+class MoveItemRequest(BaseModel):
+    target_folder_id: str
 
 class AddFavoriteItemRequest(BaseModel):
     folder_id: str
@@ -532,6 +537,37 @@ async def remove_from_wordbook(request: Request, req: WordbookWordRequest):
         raise HTTPException(status_code=500, detail="移除生词失败")
     return {"success": True}
 
+# ---- Mastered Words API ----
+@app.get("/scenelingo-service/api/mastered/list")
+async def list_mastered(request: Request):
+    user_id = require_auth(request)
+    words = await get_user_mastered(user_id)
+    return {"words": words}
+
+@app.post("/scenelingo-service/api/mastered/sync")
+async def sync_mastered(request: Request, req: WordbookSyncRequest):
+    user_id = require_auth(request)
+    success = await sync_user_mastered(user_id, req.words)
+    if not success:
+        raise HTTPException(status_code=500, detail="同步已掌握失败")
+    return {"success": True}
+
+@app.post("/scenelingo-service/api/mastered/add")
+async def add_to_mastered(request: Request, req: WordbookWordRequest):
+    user_id = require_auth(request)
+    success = await add_mastered_word(user_id, req.word)
+    if not success:
+        raise HTTPException(status_code=500, detail="添加已掌握失败")
+    return {"success": True}
+
+@app.post("/scenelingo-service/api/mastered/remove")
+async def remove_from_mastered(request: Request, req: WordbookWordRequest):
+    user_id = require_auth(request)
+    success = await remove_mastered_word(user_id, req.word)
+    if not success:
+        raise HTTPException(status_code=500, detail="移除已掌握失败")
+    return {"success": True}
+
 # ---- Favorites API ----
 @app.post("/scenelingo-service/api/favorites/folders")
 async def create_folder(request: Request, req: CreateFolderRequest):
@@ -550,11 +586,11 @@ async def list_folders(request: Request, parent_id: str = None):
 
 
 @app.put("/scenelingo-service/api/favorites/folders/{folder_id}")
-async def rename_folder(request: Request, folder_id: str, req: RenameFolderRequest):
+async def update_folder(request: Request, folder_id: str, req: RenameFolderRequest):
     user_id = require_auth(request)
-    success = await rename_favorite_folder(user_id, folder_id, req.name)
+    success = await update_favorite_folder(user_id, folder_id, req.name, req.parent_id)
     if not success:
-        raise HTTPException(status_code=404, detail="文件夹不存在")
+        raise HTTPException(status_code=404, detail="文件夹不存在或操作失败")
     return {"success": True}
 
 
@@ -589,6 +625,14 @@ async def remove_item(request: Request, req: RemoveFavoriteItemRequest):
     success = await remove_favorite_item(user_id, req.folder_id, req.photo_id)
     if not success:
         raise HTTPException(status_code=404, detail="收藏项不存在")
+    return {"success": True}
+
+@app.put("/scenelingo-service/api/favorites/items/{photo_id}")
+async def move_item(request: Request, photo_id: str, req: MoveItemRequest):
+    user_id = require_auth(request)
+    success = await move_favorite_item(user_id, photo_id, req.target_folder_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="收藏项不存在或操作失败")
     return {"success": True}
 
 

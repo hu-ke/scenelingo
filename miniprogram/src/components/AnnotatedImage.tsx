@@ -372,14 +372,20 @@ function AnnotatedImage({ dataUrl, objects, actions, style }: Props) {
         e.detail.y >= sa.y && e.detail.y <= sa.y + sa.h
       ) {
         try {
+          Taro.setInnerAudioOption({ obeyMuteSwitch: false })
           const audioCtx = Taro.createInnerAudioContext()
           const ttsLang = getTtsLang(getLanguagePrefs().targetLang)
           const baseUrl = getApiBaseUrl()
           audioCtx.src = `${baseUrl}/api/tts?text=${encodeURIComponent(layout.word)}&lang=${ttsLang}`
           audioCtx.play()
           audioCtx.onEnded(() => audioCtx.destroy())
-          audioCtx.onError(() => audioCtx.destroy())
-        } catch {}
+          audioCtx.onError(() => {
+            audioCtx.destroy()
+            Taro.showToast({ title: '发音失败，请检查是否处于静音模式', icon: 'none', duration: 2000 })
+          })
+        } catch {
+          Taro.showToast({ title: '发音失败', icon: 'none' })
+        }
         return
       }
     }

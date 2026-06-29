@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import Taro from '@tarojs/taro';
 import { View, Text, Image, Input } from '@tarojs/components';
+import FolderPicker from '../../components/FolderPicker';
 import './folder.scss';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8022/scenelingo-service';
@@ -64,6 +65,9 @@ export default function FolderDetailPage() {
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [renameFolderName, setRenameFolderName] = useState('');
   const [renameTargetId, setRenameTargetId] = useState('');
+  const [showMovePicker, setShowMovePicker] = useState(false);
+  const [moveTargetId, setMoveTargetId] = useState(''); // folder_id 
+  const [movePhotoId, setMovePhotoId] = useState(''); // photo_id
   const initialLoadDone = useRef(false);
 
   const loadData = useCallback(async () => {
@@ -112,7 +116,7 @@ export default function FolderDetailPage() {
 
   const handleFolderLongPress = useCallback((folder: SubFolder) => {
     Taro.showActionSheet({
-      itemList: ['重命名', '删除'],
+      itemList: ['重命名', '移动', '删除'],
       success: (res) => {
         const index = res.tapIndex;
         if (index === 0) {
@@ -120,6 +124,10 @@ export default function FolderDetailPage() {
           setRenameFolderName(folder.name);
           setShowRenameDialog(true);
         } else if (index === 1) {
+          setMoveTargetId(folder.folder_id);
+          setMovePhotoId('');
+          setShowMovePicker(true);
+        } else if (index === 2) {
           Taro.showModal({
             title: '确认删除',
             content: `确定要删除文件夹「${folder.name}」吗？子文件夹和其中的图片也会被删除。`,
@@ -192,9 +200,13 @@ export default function FolderDetailPage() {
 
   const handlePhotoLongPress = useCallback((photo: FolderPhoto) => {
     Taro.showActionSheet({
-      itemList: ['取消收藏'],
+      itemList: ['移动', '取消收藏'],
       success: (res) => {
         if (res.tapIndex === 0) {
+          setMovePhotoId(photo.photo_id);
+          setMoveTargetId('');
+          setShowMovePicker(true);
+        } else if (res.tapIndex === 1) {
           Taro.showModal({
             title: '确认取消收藏',
             content: '确定要从收藏夹中移除这张图片吗？',
@@ -220,6 +232,32 @@ export default function FolderDetailPage() {
   const handleBack = useCallback(() => {
     Taro.navigateBack();
   }, []);
+
+  const handleMove = useCallback(async (dest: { folder_id: string; name: string }) => {
+    try {
+      if (moveTargetId) {
+        // 移动文件夹
+        await apiRequest(`/api/favorites/folders/${moveTargetId}`, {
+          method: 'PUT',
+          body: { parent_id: dest.folder_id },
+        });
+        setSubFolders(prev => prev.filter(f => f.folder_id !== moveTargetId));
+      } else if (movePhotoId) {
+        // 移动照片
+        await apiRequest(`/api/favorites/items/${movePhotoId}`, {
+          method: 'PUT',
+          body: { target_folder_id: dest.folder_id },
+        });
+        setPhotos(prev => prev.filter(p => p.photo_id !== movePhotoId));
+      }
+      setShowMovePicker(false);
+      setMoveTargetId('');
+      setMovePhotoId('');
+      Taro.showToast({ title: '移动成功', icon: 'success' });
+    } catch {
+      Taro.showToast({ title: '移动失败', icon: 'error' });
+    }
+  }, [moveTargetId, movePhotoId]);
 
   return (
     <View className="folder-page">
@@ -385,6 +423,14 @@ export default function FolderDetailPage() {
           </View>
         </View>
       )}
+
+      {/* 移动选择器 */}
+      <FolderPicker
+        visible={showMovePicker}
+        title="移动到"
+        onClose={() => { setShowMovePicker(false); setMoveTargetId(''); setMovePhotoId(''); }}
+        onSelect={handleMove}
+      />
     </View>
   );
 }

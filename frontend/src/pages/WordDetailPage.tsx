@@ -3,7 +3,7 @@ import { useReview } from '../context/ReviewContext';
 import type { PhotoItem } from '../context/ReviewContext';
 import { getAllPhotos, isLoggedIn } from '../utils/indexedDB';
 import { api } from '../utils/api';
-import { isMastered, toggleMastered } from '../utils/wordMastery';
+import { isInMasteredList, toggleMastered, getMasteredWords } from '../utils/wordMastery';
 import { getTtsLang, getLanguagePrefs } from '../utils/languagePrefs';
 
 export default function WordDetailPage() {
@@ -15,6 +15,7 @@ export default function WordDetailPage() {
   const [examples, setExamples] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [mastered, setMastered] = useState(false);
+  const [masteredWordList, setMasteredWordList] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,7 +46,10 @@ export default function WordDetailPage() {
           allPhotos = await getAllPhotos();
         }
         if (cancelled) return;
-        setMastered(isMastered(word));
+        const masteredWords = await getMasteredWords();
+        if (cancelled) return;
+        setMasteredWordList(masteredWords);
+        setMastered(isInMasteredList(word, masteredWords));
 
         // Filter photos whose objects array contains the current word (case-insensitive)
         const matchingPhotos = allPhotos.filter((photo) =>
@@ -303,9 +307,11 @@ export default function WordDetailPage() {
 
         {mastered ? (
           <div
-            onClick={() => {
-              toggleMastered(word);
+            onClick={async () => {
+              const currentMastered = isInMasteredList(word, masteredWordList);
+              await toggleMastered(word, currentMastered);
               setMastered(false);
+              setMasteredWordList(prev => prev.filter(w => w !== word.toLowerCase()));
             }}
             style={{
               marginTop: 'var(--space-sm)',
@@ -323,9 +329,11 @@ export default function WordDetailPage() {
           </div>
         ) : (
           <button
-            onClick={() => {
-              toggleMastered(word);
+            onClick={async () => {
+              const currentMastered = isInMasteredList(word, masteredWordList);
+              await toggleMastered(word, currentMastered);
               setMastered(true);
+              setMasteredWordList(prev => [...prev, word.toLowerCase()]);
             }}
             style={{
               background:

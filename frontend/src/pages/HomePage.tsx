@@ -7,7 +7,7 @@ import { api } from '../utils/api';
 import { getApiBaseUrl } from '../utils/api';
 import { generateUUID } from '../utils/uuid';
 import { resizeImage } from '../utils/resizeImage';
-import { getWordbookWords, migrateLocalWordbook } from '../utils/wordMastery';
+import { getWordbookWords, migrateLocalWordbook, migrateLocalMastered } from '../utils/wordMastery';
 import AppLogo from '../components/AppLogo';
 
 function blobToDataURL(blob: Blob): Promise<string> {
@@ -346,6 +346,7 @@ export default function HomePage() {
       try {
         // 迁移本地残留的生词本数据到服务端
         migrateLocalWordbook();
+        migrateLocalMastered();
         // 从服务端获取生词本列表
         const wordbookWords = await getWordbookWords();
 
