@@ -349,10 +349,10 @@ async def upload_photos(request: Request):
 async def upload_pending(request: Request):
     user_id = require_auth(request)
     
-    # 检查配额
-    quota = await get_user_quota(user_id)
-    if quota <= 0:
-        raise HTTPException(status_code=403, detail="识别次数已用完，请分享给好友获取更多次数")
+    # 检查配额（已禁用）
+    # quota = await get_user_quota(user_id)
+    # if quota <= 0:
+    #     raise HTTPException(status_code=403, detail="识别次数已用完，请分享给好友获取更多次数")
     
     form = await request.form()
     original_file = form.get("original")
@@ -370,7 +370,7 @@ async def upload_pending(request: Request):
     if not saved:
         raise HTTPException(status_code=500, detail="保存记录失败")
 
-    await decrement_user_quota(user_id)
+    # await decrement_user_quota(user_id)  # 已禁用使用次数扣减
 
     return {"photo_id": photo_id, "status": "pending"}
 
