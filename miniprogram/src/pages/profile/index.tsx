@@ -12,7 +12,7 @@ export default function ProfilePage() {
   const themeStyle = useTheme();
   const { state: authState } = useAuth();
   const [quota, setQuota] = useState<number | null>(null);
-  const [rewardQuota, setRewardQuota] = useState(10);
+  const [rewardQuota, setRewardQuota] = useState(20);
 
   const [showQuotaModal, setShowQuotaModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);

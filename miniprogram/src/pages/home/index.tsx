@@ -105,7 +105,7 @@ export default function HomePage() {
   const [oldestDate, setOldestDate] = useState(''); // 用户最早照片日期
   const [quota, setQuota] = useState(10);
   const [showQuotaModal, setShowQuotaModal] = useState(false);
-  const [rewardQuota, setRewardQuota] = useState(10);
+  const [rewardQuota, setRewardQuota] = useState(20);
   const initialLoadDone = useRef(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const loadingRef = useRef(false);

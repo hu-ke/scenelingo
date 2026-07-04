@@ -30,7 +30,7 @@ WECHAT_APPID = os.environ.get("WECHAT_APPID", "")
 WECHAT_SECRET = os.environ.get("WECHAT_SECRET", "")
 
 DEFAULT_RECOGNITION_QUOTA = 10
-SHARE_REWARD_QUOTA = 10
+SHARE_REWARD_QUOTA = 20
 
 SMTP_HOST = os.environ.get("SMTP_HOST", "")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
