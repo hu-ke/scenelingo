@@ -540,10 +540,11 @@ export default function HomePage() {
   );
 
   const handleFabClick = useCallback(async () => {
-    if (quota <= 0) {
-      setShowQuotaModal(true);
-      return;
-    }
+    // 配额检查已禁用
+    // if (quota <= 0) {
+    //   setShowQuotaModal(true);
+    //   return;
+    // }
 
     // 确保已登录且有有效 token
     let token = authState.token;
